@@ -1,0 +1,41 @@
+#!/usr/bin/env python
+import argparse
+import os
+import sys
+
+import beastling.configuration
+import beastling.beastxml
+
+def main():
+
+    # Parse command line arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument("config", help="Beastling configuration file", default=None)
+    parser.add_argument("output", nargs="?", help="Output filename, no extension (default beastling)", default="beastling")
+    parser.add_argument("--overwrite", default=False, action="store_true")
+    args = parser.parse_args()
+
+    # Build config object
+    try:
+        config = beastling.configuration.Configuration(basename=args.output, configfile=args.config)
+        config.process()
+    except Exception as e:
+        print "Error encountered while parsing configuration file:"
+        print str(e)
+        sys.exit(1)
+
+    # Build XML file
+    xml = beastling.beastxml.BeastXml(config)
+
+    # Write XML file
+    filename = config.basename+".xml"
+    while os.path.exists(filename) and not args.overwrite:
+        response = raw_input("File %s already exists!  Enter 'y' to overwrite or provide alternative filename: " % filename)
+        if response.strip().lower() == "y":
+            break
+        else:
+            filename = response
+    xml.write_file(filename)
+
+if __name__ == "__main__":
+    main()
