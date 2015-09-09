@@ -28,6 +28,14 @@ class BaseModel:
         self.load_traits()
         self.preprocess()
 
+    def build_codemap(self, unique_values):
+        N = len(unique_values)
+        codemapbits = []
+        codemapbits.append(",".join(["%s=%d" % (v,n) for (n,v) in enumerate(unique_values)]))
+        codemapbits.append("?=" + " ".join([str(n) for n in range(0,N)]))
+        codemapbits.append("-=" + " ".join([str(n) for n in range(0,N)]))
+        return ",".join(codemapbits)
+
     def preprocess(self):
     
         unwanted_langs = [l for l in self.data if l not in self.config.languages]
@@ -59,14 +67,15 @@ class BaseModel:
             if len(uniq) == 0 or (len(uniq) == 1 and self.remove_constant_traits):
                 bad_traits.append(trait)
                 continue
-            N = max(map(int,[u for u in uniq if u!="?"]))
-            if min(map(int,[u for u in uniq if u!="?"])) == 0:
-                N = N+1
+            #N = max(map(int,[u for u in uniq if u!="?"]))
+            #if min(map(int,[u for u in uniq if u!="?"])) == 0:
+            #    N = N+1
+            N = len(all_values)
 
             self.valuecounts[trait] = N
             self.counts[trait] = counts
             self.dimensions[trait] = N*(N-1)/2
-            self.codemaps[trait] = ",".join(["%d=%d" % (n+1,n) for n in range(0,N)]) + ",?=" + " ".join([str(n) for n in range(0,N)]) + ",-=" + " ".join([str(n) for n in range(0,N)])
+            self.codemaps[trait] = self.build_codemap(uniq)
 
         for bad_trait in bad_traits:
             self.traits.remove(bad_trait)
