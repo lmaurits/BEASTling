@@ -6,6 +6,7 @@ import os
 import sys
 
 import beastling.models.bsvs as bsvs
+import beastling.models.covarion as covarion
 import beastling.models.mk as mk
 
 class Configuration:
@@ -155,6 +156,8 @@ class Configuration:
                 raise ValueError("Data source not specified in model section %s." % config["name"])
             if config["model"].lower() == "bsvs":
                 model = bsvs.BSVSModel(config, self)
+            elif config["model"].lower() == "covarion":
+                model = covarion.CovarionModel(config, self)
             elif config["model"].lower() == "mk":
                 model = mk.MKModel(config, self)
             else:

@@ -99,6 +99,9 @@ class BeastXml:
         for model in self.config.models:
             model.add_state(state)
            
+        for model in self.config.models:
+            model.add_misc(self.beast)
+
         # Distributions
         self.master_distribution = ET.SubElement(self.run,"distribution",{"id":"posterior","spec":"util.CompoundDistribution"})
 
@@ -214,9 +217,9 @@ class BeastXml:
                 ET.SubElement(tracer_logger,"log",{"idref":"prior"})
                 ET.SubElement(tracer_logger,"log",{"idref":"likelihood"})
                 ET.SubElement(tracer_logger,"log",{"idref":"posterior"})
-            if self.config.log_params:
-                for trait in self.config.traits:
-                    ET.SubElement(tracer_logger,"log",{"idref":"relativeGeoRates.s:%s" % trait})
+#            if self.config.log_params:
+#                for trait in self.config.traits:
+#                    ET.SubElement(tracer_logger,"log",{"idref":"relativeGeoRates.s:%s" % trait})
                 
         # Tree log
         if self.config.log_trees:

@@ -57,8 +57,8 @@ class BaseModel:
         bad_traits = []
         for trait in self.traits:
             all_values = [self.data[l][trait] for l in self.data]
-            uniq = list(set(all_values))
             all_values = [v for v in all_values if v != "?"]
+            uniq = list(set(all_values))
             counts = {}
             for v in all_values:
                 counts[v] = all_values.count(v)
@@ -112,6 +112,9 @@ class BaseModel:
             traits = [t.strip() for t in self.traits.split(",")]
         self.traits = traits
 
+    def add_misc(self, beast):
+        pass
+
     def add_state(self, state):
 
         if self.rate_variation:
@@ -147,29 +150,31 @@ class BaseModel:
             sub_prior = ET.SubElement(prior, "prior", {"id":"clockPrior.s", "name":"distribution","x":"@clockRate.c"})
             uniform = ET.SubElement(sub_prior, "Uniform", {"id":"UniformClockPrior", "name":"distr", "upper":"Infinity"})
 
+    def add_data(self, distribution, trait, traitname):
+        # Data
+        if self.pruned:
+            data = ET.SubElement(distribution,"data",{"id":"%s.filt" % traitname, "spec":"PrunedAlignment"})
+            source = ET.SubElement(data,"source",{"id":traitname,"spec":"AlignmentFromTrait"})
+            parent = source
+        else:
+            data = ET.SubElement(distribution,"data",{"id":traitname, "spec":"AlignmentFromTrait"})
+            parent = data
+        traitset = ET.SubElement(parent, "traitSet", {"id":"traitSet.%s" % traitname,"spec":"beast.evolution.tree.TraitSet","taxa":"@taxa","traitname":"discrete"})
+        stringbits = []
+        for lang in self.config.languages:
+           if lang in self.data:
+               stringbits.append("%s=%s," % (lang, self.data[lang][trait]))
+           else:
+               stringbits.append("%s=?," % lang)
+        traitset.text = " ".join(stringbits)
+        userdatatype = ET.SubElement(parent, "userDataType", {"id":"traitDataType.%s"%traitname,"spec":"beast.evolution.datatype.UserDataType","codeMap":self.codemaps[trait],"codelength":"-1","states":str(self.valuecounts[trait])})
+
+
     def add_likelihood(self, likelihood):
 
         for n, trait in enumerate(self.traits):
             traitname = "%s:%s" % (self.name, trait)
-            distribution = ET.SubElement(likelihood, "distribution",{"id":"traitedtreeLikelihood.%s" % traitname,"spec":"AncestralStateTreeLikelihood","tag":"location","useAmbiguities":"false"})
-
-            # Data
-            if self.pruned:
-                data = ET.SubElement(distribution,"data",{"id":"%s.filt" % traitname, "spec":"PrunedAlignment"})
-                source = ET.SubElement(data,"source",{"id":traitname,"spec":"AlignmentFromTrait"})
-                parent = source
-            else:
-                data = ET.SubElement(distribution,"data",{"id":traitname, "spec":"AlignmentFromTrait"})
-                parent = data
-            traitset = ET.SubElement(parent, "traitSet", {"id":"traitSet.%s" % traitname,"spec":"beast.evolution.tree.TraitSet","taxa":"@taxa","traitname":"discrete"})
-            stringbits = []
-            for lang in self.config.languages:
-               if lang in self.data:
-                   stringbits.append("%s=%s," % (lang, self.data[lang][trait]))
-               else:
-                   stringbits.append("%s=?," % lang)
-            traitset.text = " ".join(stringbits)
-            userdatatype = ET.SubElement(parent, "userDataType", {"id":"traitDataType.%s"%traitname,"spec":"beast.evolution.datatype.UserDataType","codeMap":self.codemaps[trait],"codelength":"-1","states":str(self.valuecounts[trait])})
+            distribution = ET.SubElement(likelihood, "distribution",{"id":"traitedtreeLikelihood.%s" % traitname,"spec":"TreeLikelihood","useAmbiguities":"true"})
 
             # Tree
             if self.pruned:
@@ -187,7 +192,9 @@ class BaseModel:
                 branchrate = ET.SubElement(distribution, "branchRateModel", {"id":"StrictClockModel.c:%s"%traitname,"spec":"beast.evolution.branchratemodel.StrictClockModel","clock.rate":"@traitClockRate.c:%s"%traitname})
             else:
                 branchrate = ET.SubElement(distribution, "branchRateModel", {"id":"StrictClockModel.c:%s"%traitname,"spec":"beast.evolution.branchratemodel.StrictClockModel","clock.rate":"@clockRate.c"})
-
+            
+            # Data
+            self.add_data(distribution, trait, traitname)
     def add_operators(self, run):
 
         # Updown
