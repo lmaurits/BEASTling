@@ -55,11 +55,20 @@ class CovarionModel(BaseModel):
             seq = ET.SubElement(data, "sequence", {"id":"seq_%s_%s" % (lang, traitname), "taxon":lang, "totalcount":"4","value":valuestring})
 
     def add_misc(self, beast):
+        # The "vfrequencies" parameter here is the frequencies
+        # of the *visible* states (present/absent) and should
+        # be based on the data
         substmodel = ET.SubElement(beast, "substModel",{"id":"covarion.s","spec":"BinaryCovarion","alpha":"@covarion_alpha.s", "switchRate":"@covarion_s.s", "vfrequencies":"@frequencies.s"})
+        # These are the frequencies of the *hidden* states
+        # (fast / slow), and are just set to 50:50 
         hfreq = ET.SubElement(substmodel, "parameter", {"id":"hiddenfrequencies.s","dimension":"2","lower":"0.0","name":"hfrequencies","upper":"1.0"})
-        hfreq.text=self.freq_str
-        freq = ET.SubElement(substmodel, "frequencies", {"id":"dummyfrequences.s","spec":"Frequencies","frequencies":self.freq_str})
-#<frequencies id="dummyfrequencies.s:ringe" spec="Frequencies" data="@alignment" estimate="false"/>
+        hfreq.text="0.5 0.5"
+
+        # Dummy frequencies - these do nothing and are required
+        # to stop the BinaryCovarion model complaining that the
+        # "frequencies" input is not specified.
+        freq = ET.SubElement(substmodel, "frequencies", {"id":"dummyfrequences.s","spec":"Frequencies","frequencies":"0.5 0.5"})
+
     def add_sitemodel(self, distribution, trait, traitname):
 
             # Sitemodel
