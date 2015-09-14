@@ -74,10 +74,6 @@ class CovarionModel(BaseModel):
             # Sitemodel
             sitemodel = ET.SubElement(distribution, "siteModel", {"gammaCategoryCount":"1","id":"geoSiteModel.%s"%traitname,"spec":"SiteModel", "mutationRate":"1","shape":"1","proportionInvariant":"0", "substModel":"@covarion.s"})
 
-#                <substModel id="covarion" spec="BinaryCovarion" alpha="@bcov_alpha.s:ringe" switchRate="@bcov_s.s:ringe" vfrequencies="@frequencies.s:ringe">
-#                        <parameter id="hiddenfrequencies.s:ringe" dimension="2" lower="0.0" name="hfrequencies" upper="1.0">0.5 0.5</parameter>
-#                                <frequencies id="dummyfrequencies.s:ringe" spec="Frequencies" data="@alignment" estimate="false"/>
-
     def add_prior(self, prior):
         BaseModel.add_prior(self, prior)
         alpha_prior = ET.SubElement(prior, "prior", {"id":"covarion_alpha_prior.s","name":"distribution","x":"@covarion_alpha.s"})
