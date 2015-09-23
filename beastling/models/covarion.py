@@ -90,3 +90,6 @@ class CovarionModel(BaseModel):
         delta = ET.SubElement(run, "operator", {"id":"frequenciesDelta", "spec":"DeltaExchangeOperator","delta":"0.01","weight":"0.1"})
         ET.SubElement(delta, "parameter", {"idref":"frequencies.s"})
 
+    def add_param_logs(self, logger):
+        ET.SubElement(logger,"log",{"idref":"covarion_alpha.s"})
+        ET.SubElement(logger,"log",{"idref":"covarion_s.s"})
