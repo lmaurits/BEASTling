@@ -194,7 +194,8 @@ class BeastXml:
         for n, sf in enumerate((0.1,0.5,1.0)):
             ET.SubElement(self.run, "operator", {"id":"treeScaler.t:beastlingTree.%d" % n,"scaleFactor":str(sf),"spec":"ScaleOperator","tree":"@Tree.t:beastlingTree","weight":"10.0"})
 
-            ET.SubElement(self.run, "operator", {"id":"YuleBirthRateScaler.t:beastlingTree.%d" % n,"spec":"ScaleOperator","parameter":"@birthRate.t:beastlingTree", "scaleFactor":str(sf), "weight":"3.0"})
+            if self.config.calibrations:
+                ET.SubElement(self.run, "operator", {"id":"YuleBirthRateScaler.t:beastlingTree.%d" % n,"spec":"ScaleOperator","parameter":"@birthRate.t:beastlingTree", "scaleFactor":str(sf), "weight":"3.0"})
 
         # Model specific operators
         for model in self.config.models:
