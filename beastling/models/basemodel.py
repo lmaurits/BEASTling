@@ -70,7 +70,7 @@ class BaseModel:
             #N = max(map(int,[u for u in uniq if u!="?"]))
             #if min(map(int,[u for u in uniq if u!="?"])) == 0:
             #    N = N+1
-            N = len(all_values)
+            N = len(uniq)
 
             self.valuecounts[trait] = N
             self.counts[trait] = counts
