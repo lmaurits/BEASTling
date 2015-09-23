@@ -215,3 +215,10 @@ class BaseModel:
             for m, sf in enumerate((0.1, 0.5, 1.0)):
                 ET.SubElement(run, "operator", {"id":"geoMuScaler.c:clockRate.%d" % m, "spec":"ScaleOperator","parameter":"@clockRate.c", "scaleFactor":str(sf),"weight":"10.0"})
 
+    def add_param_logs(self, logger):
+        if self.rate_variation:
+            for trait in self.traits:
+                traitname = "%s:%s" % (self.name, trait)
+                ET.SubElement(tracer_logger,"log",{"idref":"traitClockRate.c:%s" % traitname})
+        else:
+            ET.SubElement(tracer_logger,"log",{"idref":"clockRate.c"})
