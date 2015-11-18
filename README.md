@@ -1,5 +1,6 @@
 # BEASTling
-A linguistics-focussed command line tool for generating BEAST XML files.
+A linguistics-focussed command line tool for generating [BEAST](http://beast2.org) XML files.  Only
+BEAST 2.x is supported.
 
 BEASTling is aimed (at least in part) at making BEAST somewhat more accessible
 to linguists who have, or want to develop, a quantitative bent; people who might
@@ -87,11 +88,16 @@ be automatically set to sensible, generic defaults.
 
 ## Installation
 
+BEASTling depends upon [SciPy](http://www.scipy.org/).  For boring technical reasons, it's best if you
+install SciPy first (if you don't already have it installed) either by using
+your operating system's package management facility (apt, yum, etc.) or a Python
+packaging tool like easy_install or pip.
+
 BEASTling is installed using the setup.py script in the root of the repository.
 Installation will look something like this:
 
 	$ git clone https://github.com/lmaurits/BEASTling.git
-	$ cd beastling
+	$ cd BEASTling
 	$ sudo python ./setup.py install
 
 This will install an executable "beastling", which should be put somewhere in
