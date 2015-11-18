@@ -94,7 +94,7 @@ class BeastXml:
         state = ET.SubElement(self.run, "state", {"id":"state","storeEvery":"5000"})
         ET.SubElement(state, "stateNode", {"idref":"Tree.t:beastlingTree"})
         param = ET.SubElement(state, "parameter", {"id":"birthRate.t:beastlingTree","name":"stateNode"})
-        param.text="0.5"
+        param.text="1.0"
 
         for model in self.config.models:
             model.add_state(state)
