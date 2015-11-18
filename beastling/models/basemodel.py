@@ -219,6 +219,6 @@ class BaseModel:
         if self.rate_variation:
             for trait in self.traits:
                 traitname = "%s:%s" % (self.name, trait)
-                ET.SubElement(tracer_logger,"log",{"idref":"traitClockRate.c:%s" % traitname})
+                ET.SubElement(logger,"log",{"idref":"traitClockRate.c:%s" % traitname})
         else:
-            ET.SubElement(tracer_logger,"log",{"idref":"clockRate.c"})
+            ET.SubElement(logger,"log",{"idref":"clockRate.c"})
