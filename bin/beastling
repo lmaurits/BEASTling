@@ -31,7 +31,7 @@ def main():
     filename = config.basename+".xml"
     while os.path.exists(filename) and not args.overwrite:
         response = raw_input("File %s already exists!  Enter 'y' to overwrite or provide alternative filename: " % filename)
-        if response.strip().lower() == "y":
+        if response.strip().lower() in ("y", "yes"):
             break
         else:
             filename = response
