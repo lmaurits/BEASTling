@@ -91,5 +91,6 @@ class CovarionModel(BaseModel):
         ET.SubElement(delta, "parameter", {"idref":"frequencies.s"})
 
     def add_param_logs(self, logger):
+        BaseModel.add_param_logs(self, logger)
         ET.SubElement(logger,"log",{"idref":"covarion_alpha.s"})
         ET.SubElement(logger,"log",{"idref":"covarion_s.s"})
