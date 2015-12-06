@@ -125,7 +125,7 @@ class Configuration:
     def process(self):
 
         if os.path.exists(self.families):
-            fp = codecs.open(families, "r", "UTF-8")
+            fp = codecs.open(self.families, "r", "UTF-8")
             self.families = [x.strip() for x in fp.readlines()]
             fp.close()
         else:
