@@ -15,6 +15,7 @@ class BaseModel:
 
         self.name = model_config["name"] 
         self.data = model_config["data"] 
+        self.clock = model_config.get("clock", "clockRate")
         if "traits" in model_config:
             self.traits = model_config["traits"] 
         else:
@@ -118,6 +119,7 @@ class BaseModel:
     def add_state(self, state):
 
         if self.rate_variation:
+            # We need to add some trait-specific clock rates
             for trait in self.traits:
                 traitname = "%s:%s" % (self.name, trait)
 
@@ -127,11 +129,7 @@ class BaseModel:
                 parameter = ET.SubElement(state, "parameter", attribs)
                 parameter.text="1.0"
         else:
-            attribs = {}
-            attribs["id"] = "clockRate.c"
-            attribs["name"] = "stateNode"
-            parameter = ET.SubElement(state, "parameter", attribs)
-            parameter.text="1.0"
+            pass
 
     def add_prior(self, prior):
 
@@ -146,9 +144,6 @@ class BaseModel:
                 param.text = "0.001"
                 param = ET.SubElement(gamma, "parameter", {"id":"RealParameter:%s.%d.4" % (traitname, n),"lower":"0.0","name":"beta","upper":"0.0"})
                 param.text = "1000.0"
-        else:
-            sub_prior = ET.SubElement(prior, "prior", {"id":"clockPrior.s", "name":"distribution","x":"@clockRate.c"})
-            uniform = ET.SubElement(sub_prior, "Uniform", {"id":"UniformClockPrior", "name":"distr", "upper":"Infinity"})
 
     def add_data(self, distribution, trait, traitname):
         # Data
@@ -191,27 +186,29 @@ class BaseModel:
             if self.rate_variation:
                 branchrate = ET.SubElement(distribution, "branchRateModel", {"id":"StrictClockModel.c:%s"%traitname,"spec":"beast.evolution.branchratemodel.StrictClockModel","clock.rate":"@traitClockRate.c:%s"%traitname})
             else:
-                branchrate = ET.SubElement(distribution, "branchRateModel", {"id":"StrictClockModel.c:%s"%traitname,"spec":"beast.evolution.branchratemodel.StrictClockModel","clock.rate":"@clockRate.c"})
+                branchrate = ET.SubElement(distribution, "branchRateModel", {"id":"StrictClockModel.c:%s"%traitname,"spec":"beast.evolution.branchratemodel.StrictClockModel","clock.rate":"@clockRate_%s.c" % self.clock})
             
             # Data
             self.add_data(distribution, trait, traitname)
+
     def add_operators(self, run):
 
-        # Updown
-        updown = ET.SubElement(run, "operator", {"id":"UpDown:%s" % self.name,"spec":"UpDownOperator","scaleFactor":"0.5", "weight":"30.0"})
-        ET.SubElement(updown, "tree", {"idref":"Tree.t:beastlingTree", "name":"up"})
-        if self.calibrations:
-            ET.SubElement(updown, "parameter", {"idref":"birthRate.t:beastlingTree", "name":"down"})
+        # Updown for rate variation clocks
+        # Note that this is not terribly sensible
+        # There should not be separate up/downs for common and
+        # r.v. clocks.  They should share an operator.
+        # This requires some higher level tweaking
         if self.rate_variation:
+            updown = ET.SubElement(run, "operator", {"id":"UpDownRV:%s" % self.name,"spec":"UpDownOperator","scaleFactor":"0.5", "weight":"30.0"})
+            ET.SubElement(updown, "tree", {"idref":"Tree.t:beastlingTree", "name":"up"})
+            if self.calibrations:
+                ET.SubElement(updown, "parameter", {"idref":"birthRate.t:beastlingTree", "name":"down"})
             for trait in self.traits:
                 traitname = "%s:%s" % (self.name, trait)
                 ET.SubElement(updown, "parameter", {"idref":"traitClockRate.c:%s" % traitname, "name":"down"})
             for n, trait in enumerate(self.traits):
                 traitname = "%s:%s" % (self.name, trait)
                 ET.SubElement(run, "operator", {"id":"geoMuScaler.c:%s" % traitname, "spec":"ScaleOperator","parameter":"@traitClockRate.c:%s"%traitname, "scaleFactor":"1.0","weight":"10.0"})
-        else:
-            ET.SubElement(updown, "parameter", {"idref":"clockRate.c", "name":"down"})
-            ET.SubElement(run, "operator", {"id":"geoMuScaler.c:clockRate", "spec":"ScaleOperator","parameter":"@clockRate.c", "scaleFactor":"1.0","weight":"10.0"})
 
     def add_param_logs(self, logger):
         if self.rate_variation:

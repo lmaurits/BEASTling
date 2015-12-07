@@ -96,6 +96,19 @@ class BeastXml:
         param = ET.SubElement(state, "parameter", {"id":"birthRate.t:beastlingTree","name":"stateNode"})
         param.text="1.0"
 
+        # Common clocks
+        self.common_clocks = []
+        for model in self.config.models:
+            if not model.rate_variation:
+                if model.clock not in self.common_clocks:
+                    self.common_clocks.append(model.clock)
+        for clock in self.common_clocks:
+            attribs = {}
+            attribs["id"] = "clockRate_%s.c" % clock
+            attribs["name"] = "stateNode"
+            parameter = ET.SubElement(state, "parameter", attribs)
+            parameter.text="1.0"
+
         for model in self.config.models:
             model.add_state(state)
            
@@ -164,6 +177,11 @@ class BeastXml:
                 ET.SubElement(normal, "parameter", {"id":"parameter.hyperNormal-mean-%s.prior" % clade, "name":"mean", "estimate":"false"}).text = "0.0"
                 ET.SubElement(normal, "parameter", {"id":"parameter.hyperNormal-sigma-%s.prior" % clade, "name":"sigma", "estimate":"false"}).text = str(stddev)
 
+        # Common clocks
+        for clock in self.common_clocks:
+            sub_prior = ET.SubElement(self.prior, "prior", {"id":"clockPrior_%s.s" % clock, "name":"distribution","x":"@clockRate_%s.c" % clock})
+            uniform = ET.SubElement(sub_prior, "Uniform", {"id":"UniformClockPrior_%s" % clock, "name":"distr", "upper":"Infinity"})
+
         # Tree prior
         attribs = {}
         attribs["birthDiffRate"] = "@birthRate.t:beastlingTree"
@@ -196,6 +214,18 @@ class BeastXml:
 
             if self.config.calibrations:
                 ET.SubElement(self.run, "operator", {"id":"YuleBirthRateScaler.t:beastlingTree.%d" % n,"spec":"ScaleOperator","parameter":"@birthRate.t:beastlingTree", "scaleFactor":str(sf), "weight":"3.0"})
+
+        # Scalers for common clocks
+        for clock in self.common_clocks:
+            ET.SubElement(self.run, "operator", {"id":"geoMuScaler.c:clockRate_%s" % clock, "spec":"ScaleOperator","parameter":"@clockRate_%s.c" % clock, "scaleFactor":"1.0","weight":"10.0"})
+
+        # Up/down for common clocks
+        updown = ET.SubElement(self.run, "operator", {"id":"UpDownCommon","spec":"UpDownOperator","scaleFactor":"1.0", "weight":"30.0"})
+        ET.SubElement(updown, "tree", {"idref":"Tree.t:beastlingTree", "name":"up"})
+        if self.config.calibrations:
+            ET.SubElement(updown, "parameter", {"idref":"birthRate.t:beastlingTree", "name":"down"})
+        for clock in self.common_clocks:
+            ET.SubElement(updown, "parameter", {"idref":"clockRate_%s.c" % clock, "name":"down"})
 
         # Model specific operators
         for model in self.config.models:
