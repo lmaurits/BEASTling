@@ -208,12 +208,10 @@ class BaseModel:
                 ET.SubElement(updown, "parameter", {"idref":"traitClockRate.c:%s" % traitname, "name":"down"})
             for n, trait in enumerate(self.traits):
                 traitname = "%s:%s" % (self.name, trait)
-                for m, sf in enumerate((0.1, 0.5, 1.0)):
-                    ET.SubElement(run, "operator", {"id":"geoMuScaler.c:%s.%d" % (traitname, m), "spec":"ScaleOperator","parameter":"@traitClockRate.c:%s"%traitname, "scaleFactor":str(sf),"weight":"10.0"})
+                ET.SubElement(run, "operator", {"id":"geoMuScaler.c:%s" % traitname, "spec":"ScaleOperator","parameter":"@traitClockRate.c:%s"%traitname, "scaleFactor":"1.0","weight":"10.0"})
         else:
             ET.SubElement(updown, "parameter", {"idref":"clockRate.c", "name":"down"})
-            for m, sf in enumerate((0.1, 0.5, 1.0)):
-                ET.SubElement(run, "operator", {"id":"geoMuScaler.c:clockRate.%d" % m, "spec":"ScaleOperator","parameter":"@clockRate.c", "scaleFactor":str(sf),"weight":"10.0"})
+            ET.SubElement(run, "operator", {"id":"geoMuScaler.c:clockRate", "spec":"ScaleOperator","parameter":"@clockRate.c", "scaleFactor":"1.0","weight":"10.0"})
 
     def add_param_logs(self, logger):
         if self.rate_variation:
