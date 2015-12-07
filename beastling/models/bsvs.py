@@ -78,7 +78,7 @@ class BSVSModel(BaseModel):
 
     def add_sitemodel(self, distribution, trait, traitname):
 
-            sitemodel = ET.SubElement(distribution, "siteModel", {"gammaCategoryCount":"1","id":"geoSiteModel.%s"%traitname,"spec":"SiteModel"})
+            sitemodel = ET.SubElement(distribution, "siteModel", {"id":"geoSiteModel.%s"%traitname,"spec":"SiteModel"})
             ET.SubElement(sitemodel, "parameter", {"id":"mutationRate.s:%s"%traitname, "name":"mutationRate","estimate":"false"}).text="1.0"
             ET.SubElement(sitemodel, "parameter", {"id":"gammaShape.s:%s"%traitname, "name":"shape","estimate":"false"}).text="1.0"
             ET.SubElement(sitemodel, "parameter", {"id":"proportionInvariant.s:%s"%traitname, "name":"proportionInvariant","lower":"0.0"}).text="0.0"
