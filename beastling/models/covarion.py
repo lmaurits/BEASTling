@@ -37,9 +37,6 @@ class CovarionModel(BaseModel):
         switch = ET.SubElement(state, "parameter", {"id":"covarion_s.s", "lower":"1.0E-4", "name":"stateNode", "upper":"Infinity"})
         switch.text="0.5"
 
-        freq = ET.SubElement(state, "parameter", {"id":"frequencies.s","dimension":"2","lower":"0.0","name":"stateNode","upper":"1.0"})
-        freq.text=self.freq_str
-
     def add_data(self, distribution, trait, traitname):
         traitrange = sorted(list(set(self.data[lang][trait] for lang in self.config.languages)))
         data = ET.SubElement(distribution,"data",{"id":traitname, "spec":"Alignment", "ascertained":"true", "excludefrom":"0","excludeto":"1"})
@@ -57,8 +54,14 @@ class CovarionModel(BaseModel):
     def add_misc(self, beast):
         # The "vfrequencies" parameter here is the frequencies
         # of the *visible* states (present/absent) and should
-        # be based on the data
-        substmodel = ET.SubElement(beast, "substModel",{"id":"covarion.s","spec":"BinaryCovarion","alpha":"@covarion_alpha.s", "switchRate":"@covarion_s.s", "vfrequencies":"@frequencies.s"})
+        # be based on the data (if we are doing an empirical
+        # analysis)
+        substmodel = ET.SubElement(beast, "substModel",{"id":"covarion.s","spec":"BinaryCovarion","alpha":"@covarion_alpha.s", "switchRate":"@covarion_s.s"})
+        vfreq = ET.SubElement(substmodel, "parameter", {"id":"visiblefrequencies.s","dimension":"2","name":"vfrequencies"})
+        if self.frequencies == "empirical":
+            vfreq.text = self.freq_str
+        elif self.frequencies == "uniform":
+            vfreq.text="0.5 0.5"
         # These are the frequencies of the *hidden* states
         # (fast / slow), and are just set to 50:50 
         hfreq = ET.SubElement(substmodel, "parameter", {"id":"hiddenfrequencies.s","dimension":"2","lower":"0.0","name":"hfrequencies","upper":"1.0"})
@@ -66,7 +69,9 @@ class CovarionModel(BaseModel):
 
         # Dummy frequencies - these do nothing and are required
         # to stop the BinaryCovarion model complaining that the
-        # "frequencies" input is not specified.
+        # "frequencies" input is not specified, which is
+        # inherited behaviour from GeneralSubstitutionModel
+        # which probably should have been overridden...
         freq = ET.SubElement(substmodel, "frequencies", {"id":"dummyfrequences.s","spec":"Frequencies","frequencies":"0.5 0.5"})
 
     def add_sitemodel(self, distribution, trait, traitname):
