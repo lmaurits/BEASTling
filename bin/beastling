@@ -11,7 +11,7 @@ def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("config", help="Beastling configuration file", default=None)
-    parser.add_argument("output", nargs="?", help="Output filename, no extension (default beastling)", default="beastling")
+    parser.add_argument("output", nargs="?", help="Output filename, no extension (default beastling)", default=None)
     parser.add_argument("--overwrite", default=False, action="store_true")
     args = parser.parse_args()
 
@@ -28,7 +28,7 @@ def main():
     xml = beastling.beastxml.BeastXml(config)
 
     # Write XML file
-    filename = config.basename+".xml"
+    filename = args.output if args.output else config.basename+".xml"
     while os.path.exists(filename) and not args.overwrite:
         response = raw_input("File %s already exists!  Enter 'y' to overwrite or provide alternative filename: " % filename)
         if response.strip().lower() in ("y", "yes"):
