@@ -38,18 +38,23 @@ class BaseModel:
         return ",".join(codemapbits)
 
     def preprocess(self):
-    
+        # Remove languages which are in the data file but are
+        # not in the set of languages specified by the config
         unwanted_langs = [l for l in self.data if l not in self.config.languages]
         [self.data.pop(l) for l in unwanted_langs]
         assert self.data.keys()
 
-        Nvalues = {}
-        for t in self.traits:
-            if t == "iso":
-                continue
-            values = [self.data[l][t] for l in self.data]
-            values = set([int(v) for v in values if v.isdigit()])
-            Nvalues[t] = max(max(values), len(values)) if values else 0
+        # Remove features which are in the config but not the
+        # data file
+        self.traits = [t for t in self.traits if
+                any([t in self.data[lang] for lang in self.data]
+                    )]
+
+        # Remove features which are in the config but are entirely
+        # question marks for the specified languages
+        self.traits = [t for t in self.traits if
+                not all([self.data[lang][t] == "?" for lang in self.data]
+                    )]
 
         self.valuecounts = {}
         self.counts = {}
@@ -68,19 +73,13 @@ class BaseModel:
             if len(uniq) == 0 or (len(uniq) == 1 and self.remove_constant_traits):
                 bad_traits.append(trait)
                 continue
-            #N = max(map(int,[u for u in uniq if u!="?"]))
-            #if min(map(int,[u for u in uniq if u!="?"])) == 0:
-            #    N = N+1
             N = len(uniq)
 
             self.valuecounts[trait] = N
             self.counts[trait] = counts
             self.dimensions[trait] = N*(N-1)/2
             self.codemaps[trait] = self.build_codemap(uniq)
-
-        for bad_trait in bad_traits:
-            self.traits.remove(bad_trait)
-
+        self.traits = [t for t in self.traits if t not in bad_traits]
         self.traits.sort()
 
     def load_data(self):
