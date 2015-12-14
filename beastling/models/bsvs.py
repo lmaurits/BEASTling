@@ -112,6 +112,9 @@ class BSVSModel(BaseModel):
             ET.SubElement(run, "operator", {"id":"onGeorateScaler.s:%s"% traitname,"spec":"ScaleOperator","parameter":"@relativeGeoRates.s:%s"%traitname, "indicator":"@rateIndicator.s:%s" % traitname, "scaleAllIndependently":"true","scaleFactor":"1.0","weight":"10.0"})
 
             ET.SubElement(run, "operator", {"id":"indicatorFlip.s:%s"%traitname,"spec":"BitFlipOperator","parameter":"@rateIndicator.s:%s"%traitname, "weight":"30.0"})
-            ET.SubElement(run, "operator", {"id":"BSSVSoperator.c:%s"%traitname,"spec":"BitFlipBSSVSOperator","indicator":"@rateIndicator.s:%s"%traitname, "mu":"@clockRate.c","weight":"30.0"})
+            if self.rate_variation:
+                ET.SubElement(run, "operator", {"id":"BSSVSoperator.c:%s"%traitname,"spec":"BitFlipBSSVSOperator","indicator":"@rateIndicator.s:%s"%traitname, "mu":"@traitClockRate.c:%s" % traitname,"weight":"30.0"})
+            else:
+                ET.SubElement(run, "operator", {"id":"BSSVSoperator.c:%s"%traitname,"spec":"BitFlipBSSVSOperator","indicator":"@rateIndicator.s:%s"%traitname, "mu":"@clockRate_%s.c" % self.clock,"weight":"30.0"})
             sampoffop = ET.SubElement(run, "operator", {"id":"offGeorateSampler:%s" % traitname,"spec":"SampleOffValues","all":"false","values":"@relativeGeoRates.s:%s"%traitname, "indicators":"@rateIndicator.s:%s" % traitname, "weight":"30.0"})
             ET.SubElement(sampoffop, "dist", {"idref":"Gamma:%s.%d.0" % (traitname, n)})
