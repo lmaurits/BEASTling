@@ -215,4 +215,4 @@ class BaseModel:
                 traitname = "%s:%s" % (self.name, trait)
                 ET.SubElement(logger,"log",{"idref":"traitClockRate.c:%s" % traitname})
         else:
-            ET.SubElement(logger,"log",{"idref":"clockRate.c"})
+            ET.SubElement(logger,"log",{"idref":"clockRate_%s.c" % self.clock})
