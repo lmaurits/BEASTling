@@ -250,6 +250,8 @@ class BeastXml:
                 ET.SubElement(tracer_logger,"log",{"idref":"posterior"})
             if self.config.log_params:
                 ET.SubElement(tracer_logger,"log",{"idref":"birthRate.t:beastlingTree"})
+                for clock in self.common_clocks:
+                    ET.SubElement(logger,"log",{"idref":"clockRate_%s.c" % clock})
                 for model in self.config.models:
                     model.add_param_logs(tracer_logger)
                 
