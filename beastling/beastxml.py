@@ -23,16 +23,6 @@ def indent(elem, level=0):
         if level and (not elem.tail or not elem.tail.strip()):
             elem.tail = i
 
-def binarise(langs):
-    langs.sort()
-    if len(langs) == 1:
-        return langs[0]
-    elif len(langs) == 2:
-        return "(%s, %s)" % (langs[0], langs[1])
-    else:
-        a, b = langs[0:min(2,len(langs))], langs[min(2,len(langs)):]
-        return "(%s)" % ",".join([binarise(x) for x in [a,b]])
-
 class BeastXml:
 
     def __init__(self, config):
