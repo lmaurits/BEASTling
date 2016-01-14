@@ -67,11 +67,11 @@ class Configuration:
         if p.has_option(sec, "families"):
             self.families = p.get(sec, "families")
 
-        if p.has_option(sec, "monophyly"):
+        if p.has_option(sec, "monophyletic"):
             try:
-                self.monophyly = p.getboolean(sec, "monophyly")
+                self.monophyly = p.getboolean(sec, "monophyletic")
             except:
-                self.monophyly = p.get(sec, "monophyly").split(",")
+                self.monophyly = p.get(sec, "monophyletic").split(",")
         if p.has_option(sec, "monophyly_start_depth"):
             self.monophyly_start_depth = p.getint(sec, "monophyly_start_depth")
         if p.has_option(sec, "monophyly_end_depth"):

@@ -183,7 +183,7 @@ Uralic, Dravidian".
 If no value is assigned to this parameter, all languages present in the data
 file will be included.
 
-monophyly: "True" or "False".  Controls whether or not to impose the family
+monophyletic: "True" or "False".  Controls whether or not to impose the family
 structure in Glottolog as monophyly constraints in the BEAST analysis.  Default
 is False.
 
