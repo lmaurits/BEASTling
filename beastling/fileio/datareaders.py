@@ -10,7 +10,7 @@ def sniff_format(fp):
     header = fp.readline()
     fp.seek(0)
     # Is this a CLDF format?
-    if "language_id" in header.lower():
+    if all([f in header for f in ("Language_ID", "Feature_ID", "Value")]):
         diag = "cldf"
     # If not, assume it uses the default BEASTling format
     else:
@@ -41,22 +41,11 @@ def load_beastling_data(fp, filename):
 
 def load_cldf_data(fp):
     reader = UnicodeDictReader(fp)
-    fieldnames = [f.lower() for f in reader.fieldnames]
-    assert len(fieldnames) == 3
-    assert "value" in fieldnames
-    lang_fieldname_i = fieldnames.index("language_id")
-    lang_fieldname = reader.fieldnames[lang_fieldname_i]
-    value_fieldname_i = fieldnames.index("value")
-    value_fieldname = reader.fieldnames[value_fieldname_i]
-    param_fieldname_i = [0,1,2]
-    param_fieldname_i.remove(lang_fieldname_i)
-    param_fieldname_i.remove(value_fieldname_i)
-    param_fieldname = reader.fieldnames[param_fieldname_i[0]]
     data = {}
     for row in reader:
-        lang = row[lang_fieldname]
+        lang = row["Language_ID"]
         if lang not in data:
             data[lang] = {}
-        data[lang][row[param_fieldname]] = row[value_fieldname]
+        data[lang][row["Feature_ID"]] = row["Value"]
     fp.close()
     return data
