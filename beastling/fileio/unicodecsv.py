@@ -22,13 +22,13 @@ class UnicodeDictReader:
     def __init__(self, f, dialect=csv.excel, encoding="utf-8", **kwds):
         f = UTF8Recoder(f, encoding)
         self.reader = csv.DictReader(f, dialect=dialect, **kwds)
-        self.fieldnames = self.reader.fieldnames
+        self.fieldnames = [fn.strip() for fn in self.reader.fieldnames]
 
     def next(self):
         row = self.reader.next()
         newrow = {}
         for key in row:
-            newrow[unicode(key, "utf-8")] = unicode(row[key], "utf-8")
+            newrow[unicode(key.strip(), "utf-8")] = unicode(row[key].strip(), "utf-8")
         return newrow
         return [unicode(s, "utf-8") for s in row]
 

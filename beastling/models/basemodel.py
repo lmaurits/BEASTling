@@ -4,7 +4,7 @@ import xml.etree.ElementTree as ET
 
 import scipy.stats
 
-from ..unicodecsv import UnicodeDictReader
+from ..fileio.datareaders import load_data
 
 class BaseModel:
 
@@ -14,7 +14,7 @@ class BaseModel:
         self.calibrations = global_config.calibrations
 
         self.name = model_config["name"] 
-        self.data = model_config["data"] 
+        self.data_filename = model_config["data"] 
         self.clock = model_config.get("clock", "clockRate")
         if "traits" in model_config:
             self.traits = model_config["traits"] 
@@ -25,7 +25,7 @@ class BaseModel:
         self.rate_variation = model_config.get("rate_variation", False)
         self.remove_constant_traits = model_config.get("remove_constant_traits", True)
 
-        self.load_data()
+        self.data = load_data(self.data_filename)
         self.load_traits()
         self.preprocess()
 
