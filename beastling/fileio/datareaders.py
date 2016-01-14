@@ -10,7 +10,7 @@ def sniff_format(fp):
     header = fp.readline()
     fp.seek(0)
     # Is this a CLDF format?
-    if all([f in header for f in ("Language_ID", "Feature_ID", "Value")]):
+    if all([f in header for f in ("Language_ID", "Parameter_ID", "Value")]):
         diag = "cldf"
     # If not, assume it uses the default BEASTling format
     else:
@@ -46,6 +46,6 @@ def load_cldf_data(fp):
         lang = row["Language_ID"]
         if lang not in data:
             data[lang] = {}
-        data[lang][row["Feature_ID"]] = row["Value"]
+        data[lang][row["Parameter_ID"]] = row["Value"]
     fp.close()
     return data
