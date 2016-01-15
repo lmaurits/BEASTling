@@ -1,6 +1,7 @@
 import codecs
 import ConfigParser
 import csv
+import itertools
 import pkgutil
 import os
 import sys
@@ -105,7 +106,17 @@ class Configuration:
 
     def load_glotto_class(self):
         self.classifications = {}
-        binary_glotto = pkgutil.get_data('beastling', 'data/iso-glotto.csv')
+        glotto_data = pkgutil.get_data('beastling', 'data/glotto.csv')
+        glotto_classifications = self.parse_glotto_class(glotto_data)
+        iso_glotto_data = pkgutil.get_data('beastling', 'data/iso-glotto.csv')
+        iso_classifications = self.parse_glotto_class(iso_glotto_data)
+        for key in glotto_classifications:
+            self.classifications[key] = glotto_classifications[key]
+        for key in iso_classifications:
+            self.classifications[key] = iso_classifications[key]
+
+    def parse_glotto_class(self, binary_glotto):
+        classifications = {}
         unicode_glotto = unicode(binary_glotto, "UTF-8")
         glotto_lines = unicode_glotto.split("\n")
         glotto_lines = [l for l in glotto_lines if l]
@@ -119,8 +130,8 @@ class Configuration:
             if not clazz[0]:
                 clazz[0] = "Isolate_" + lang
             clazz = ",".join(clazz)
-
-            self.classifications[lang] = clazz
+            classifications[lang] = clazz
+        return classifications
 
     def process(self):
 
@@ -136,16 +147,14 @@ class Configuration:
 
         ## Determine final list of languages
         if self.families == ["*"]:
-            langs = [iso for iso in self.classifications]
+            self.lang_filter = []
         else:
-            langs = [iso for iso in self.classifications if any([family in self.classifications[iso] for family in self.families])]
+            self.lang_filter = [l for l in self.classifications if any([family in self.classifications[l] for family in self.families])]
+
         # Hack to fix Glottolog's broken Bontok
-        if "bnc" in langs:
-            langs.remove("bnc")
-            langs.append("lbk")
-        if not len(langs):
-            raise ValueError("No languages found for families: ", self.families)
-        self.languages = langs
+        if "bnc" in self.lang_filter:
+            self.lang_filter.remove("bnc")
+            self.lang_filter.append("lbk")
 
         # Instantiate models
         self.models = []
@@ -164,10 +173,14 @@ class Configuration:
                 raise ValueError("Unknown model type '%s' for model section '%s'." % (config["model"], config["name"]))
             self.models.append(model)
 
-        # Trim language list based on model data
-        self.languages = [l for l in self.languages if any([l in model.data for model in self.models])]
+        # Finalise language list
+        ## Start with all languages in data
+        self.languages = list(itertools.chain(*[model.data.keys() for model in self.models]))
+        ## Apply family-based filtering
+        if self.lang_filter:
+            self.languages = [l for l in self.languages if l in self.lang_filter]
+        ## Make sure there's *something* left
         assert self.languages
-
         self.languages.sort()
         self.processed = True
 

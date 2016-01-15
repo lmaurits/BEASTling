@@ -38,11 +38,6 @@ class BaseModel:
         return ",".join(codemapbits)
 
     def preprocess(self):
-        # Remove languages which are in the data file but are
-        # not in the set of languages specified by the config
-        unwanted_langs = [l for l in self.data if l not in self.config.languages]
-        [self.data.pop(l) for l in unwanted_langs]
-        assert self.data.keys()
 
         # Remove features which are in the config but not the
         # data file

@@ -133,12 +133,13 @@ class BeastXml:
         self.prior = ET.SubElement(self.master_distribution,"distribution",{"id":"prior","spec":"util.CompoundDistribution"})
 
         # Monophyly
-        if self.config.monophyly:
+        glotto_iso_langs = [l for l in self.config.languages if l.lower() in self.config.classifications]
+        if self.config.monophyly and glotto_iso_langs:
             attribs = {}
             attribs["id"] = "constraints"
             attribs["spec"] = "beast.math.distributions.MultiMonophyleticConstraint"
             attribs["tree"] = "@Tree.t:beastlingTree"
-            attribs["newick"] = self.make_monophyly_newick(self.config.languages)
+            attribs["newick"] = self.make_monophyly_newick(glotto_iso_langs)
             ET.SubElement(self.prior, "distribution", attribs)
 
         # Calibration
@@ -147,7 +148,7 @@ class BeastXml:
                 if clade == "root":
                     langs = self.config.languages
                 else:
-                    langs = [l for l in self.config.languages if any([c==clade for c in [x.lower() for x in self.config.classifications[l].split(",")]])]
+                    langs = [l for l in self.config.languages if any([c==clade for c in [x.lower() for x in self.config.classifications[l.lower()].split(",")]])]
                 if not langs:
                     continue
                 lower, upper = self.config.calibrations[clade]
@@ -263,7 +264,7 @@ class BeastXml:
     def make_tight_monophyly_structure(self, langs, depth=0, maxdepth=sys.maxint):
         if depth > maxdepth:
             return langs
-        levels = list(set([self.config.classifications[l].split(",")[depth] for l in langs]))
+        levels = list(set([self.config.classifications[l.lower()].split(",")[depth] for l in langs]))
         if len(levels) == 1:
             if levels[0] == "":
                 langs.sort()
@@ -271,13 +272,13 @@ class BeastXml:
             else:
                 return self.make_tight_monophyly_structure(langs, depth+1, maxdepth)
         else:
-            partition = [[l for l in langs if self.config.classifications[l].split(",")[depth] == level] for level in levels]
+            partition = [[l for l in langs if self.config.classifications[l.lower()].split(",")[depth] == level] for level in levels]
             partition = [part for part in partition if part]
             return sorted([self.make_tight_monophyly_structure(group, depth+1, maxdepth) for group in partition])
 
     def make_loose_monophyly_structure(self, langs):
         points = self.config.monophyly
-        return [[l for l in langs if point in self.config.classifications[l] ] for point in points]
+        return [[l for l in langs if point in self.config.classifications[l.lower()] ] for point in points]
 
     def make_monophyly_string(self, struct, depth=0):
         if not type([]) in [type(x) for x in struct]:
