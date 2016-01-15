@@ -18,7 +18,7 @@ setup(
         'Programming Language :: Python',
         'License :: OSI Approved :: BSD License',
     ],
-    packages=['beastling','beastling.models'],
+    packages=['beastling','beastling.fileio','beastling.models'],
     package_data={'beastling': ['data/*']},
     scripts=['bin/beastling',],
     requires=['scipy'],
