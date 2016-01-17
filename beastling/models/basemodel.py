@@ -77,20 +77,6 @@ class BaseModel:
         self.traits = [t for t in self.traits if t not in bad_traits]
         self.traits.sort()
 
-    def load_data(self):
-        # Load data
-        fp = open(self.data, "r")
-        reader = UnicodeDictReader(fp)
-        if "iso" not in reader.fieldnames:
-            raise ValueError("No 'iso' fieldname found in data file %s" % self.data)
-        data = {}
-        for row in reader:
-            if row["iso"] in data:
-                raise ValueError("Duplicated ISO code '%s' found in data file %s" % (row["iso"], self.data))
-            data[row["iso"]] = row
-        fp.close()
-        self.data = data
-
     def load_traits(self):
         # Load traits to analyse
         if os.path.exists(self.traits):
