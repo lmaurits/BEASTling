@@ -21,8 +21,8 @@ def main():
         config = beastling.configuration.Configuration(basename=args.output, configfile=args.config, stdin_data=args.stdin)
         config.process()
     except Exception as e:
-        print "Error encountered while parsing configuration file:"
-        print str(e)
+        sys.stderr.write("Error encountered while parsing configuration file:\n")
+        sys.stderr.write(str(e))
         sys.exit(1)
 
     # Build XML file
