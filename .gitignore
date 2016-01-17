@@ -22,3 +22,6 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
+
+# Sphinx docs
+docs/_build/
