@@ -13,11 +13,12 @@ def main():
     parser.add_argument("config", help="Beastling configuration file", default=None)
     parser.add_argument("output", nargs="?", help="Output filename, no extension (default beastling)", default=None)
     parser.add_argument("--overwrite", default=False, action="store_true")
+    parser.add_argument("--stdin", default=False, action="store_true")
     args = parser.parse_args()
 
     # Build config object
     try:
-        config = beastling.configuration.Configuration(basename=args.output, configfile=args.config)
+        config = beastling.configuration.Configuration(basename=args.output, configfile=args.config, stdin_data=args.stdin)
         config.process()
     except Exception as e:
         print "Error encountered while parsing configuration file:"
@@ -29,12 +30,9 @@ def main():
 
     # Write XML file
     filename = args.output if args.output else config.basename+".xml"
-    while os.path.exists(filename) and not args.overwrite:
-        response = raw_input("File %s already exists!  Enter 'y' to overwrite or provide alternative filename: " % filename)
-        if response.strip().lower() in ("y", "yes"):
-            break
-        else:
-            filename = response
+    if os.path.exists(filename) and not args.overwrite:
+        sys.stderr.write("File %s already exists!  Run beastling with the --overwrite option if you wish to overwrite it.")
+        sys.exit(1)
     xml.write_file(filename)
 
 if __name__ == "__main__":

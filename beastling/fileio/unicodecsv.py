@@ -19,9 +19,10 @@ class UnicodeDictReader:
     which is encoded in the given encoding.
     """
 
-    def __init__(self, f, dialect=csv.excel, encoding="utf-8", **kwds):
+    def __init__(self, f, header, dialect=csv.excel, encoding="utf-8", **kwds):
         f = UTF8Recoder(f, encoding)
-        self.reader = csv.DictReader(f, dialect=dialect, **kwds)
+        fieldnames = csv.reader([header,]).next()
+        self.reader = csv.DictReader(f, fieldnames=fieldnames, dialect=dialect, **kwds)
         self.fieldnames = [fn.strip() for fn in self.reader.fieldnames]
 
     def next(self):

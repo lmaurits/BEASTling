@@ -257,9 +257,12 @@ class BeastXml:
         xml_string = ET.tostring(self.beast, encoding="UTF-8")
         if not filename:
             filename = self.config.basename+".xml"
-        fp = codecs.open(filename, "w", "UTF-8")
-        fp.write(unicode(xml_string, "utf-8"))
-        fp.close()
+        if filename in ("stdout", "-"):
+            sys.stdout.write(unicode(xml_string, "utf-8"))
+        else:
+            fp = codecs.open(filename, "w", "UTF-8")
+            fp.write(unicode(xml_string, "utf-8"))
+            fp.close()
 
     def make_tight_monophyly_structure(self, langs, depth=0, maxdepth=sys.maxint):
         if depth > maxdepth:

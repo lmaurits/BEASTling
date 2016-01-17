@@ -12,7 +12,7 @@ import beastling.models.mk as mk
 
 class Configuration:
 
-    def __init__(self, basename="beastling", configfile=None):
+    def __init__(self, basename="beastling", configfile=None, stdin_data=False):
 
         self.processed = False
 
@@ -31,6 +31,7 @@ class Configuration:
         self.log_params = False
         self.log_probabilities = True
         self.log_trees = True
+        self.stdin_data = stdin_data
         self.calibrations = {}
 
         if configfile:
@@ -156,6 +157,10 @@ class Configuration:
             self.lang_filter.remove("bnc")
             self.lang_filter.append("lbk")
 
+        # Handle request to read data from stdin
+        if self.stdin_data:
+            for config in self.model_configs:
+                config["data"] = "stdin"
         # Instantiate models
         self.models = []
         for config in self.model_configs:
