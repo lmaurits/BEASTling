@@ -6,12 +6,22 @@
 Welcome to BEASTling's documentation!
 =====================================
 
-Contents:
+A linguistics-focussed command line tool for easily generating `BEAST 2.x <http://beast2.org>`_ XML files for phylogenetic analyses.
+
+Contents
+========
 
 .. toctree::
    :maxdepth: 2
 
-
+   overview
+   installation
+   usage
+   config
+   data
+   modelling
+   substitution
+   scripting
 
 Indices and tables
 ==================
