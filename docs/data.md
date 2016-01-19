@@ -4,29 +4,22 @@ BEASTling relies on data being provided in CSV files.  Two particular CSV format
 
 ## BEASTling format
 
-The first line of the CSV file must be a header line giving the column names, and one of the column names must be "iso".  That column must contain valid ISO codes for the languages in your analysis.  The other columns should correspond to your features of interest.  At the moment, feature values must be integers beginning from 1, but this restriction will soon be lifted.  Question marks ("?") can be used to indicate missing data.
+In this format, each line of the CSV file contains all of the data for a single languge.
+
+The first line of the file must be a header, giving the column names for the rest of the file.  The column which contains each language's unique identifier *must* be one of:
+* "iso"
+* "glotto"
+* "glottocode"
+* "lang"
+* "language"
+* "language_id"
+Languages can be identified by arbitrary strings, provided each language has a unique identifier, *however* certain features of BEASTling will not function unless your language identifiers are either:
+* three character ISO 639 codes
+* Glottocodes as assigned by the [Glottolog project](http://glottolog.org/glottolog/glottologinformation)
+All columns other than the language identifier column correspond to independent language features.  The names and values of features can both be arbitrary strings, so long as each feature has a unique name.  Question marks ("?") can be used to indicate missing data.
 
 ## CLDF format
 
-BEASTling relies on data being provided in CSV format.  If your data is not
-already in CSV or some format which can be easily programmatically transformed
-into CSV, you're doing something wrong.  The expected CSV format is one in
-which every row corresponds to one language, every column to one feature, and
-languages are represented using three letter [ISO
-639](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes) (the header for the
-language column must be "iso").  The insistence on using ISO codes allows
-BEASTling to have some situational awareness of the data it is working with.
-E.g., the example config above includes the line:
+BEASTling also supports the [Cross-Linguistic Data Format](https://github.com/glottobank/cldf) standard.  In this format, each line of the CSV file contains a single data point for a single language.
 
-	families = Indo-European, Uralic
-
-This means that even if the provided data file "my_data.csv" contains data for
-all the languages on Earth, BEASTling will pick out only the languages which
-belong to the Indo-European or Uralic language families (as determined by
-[Glottolog](http://glottolog.org/)).  Because of the line:
-
-	monophyletic = True
-
-BEASTling will automatically apply monophyly constraints derived from
-Glottolog's family classifications, i.e. the resulting BEAST analysis will
-enforce that e.g. all Germanic languages belong in a single clade.
+The first line of the file must be a header, giving the column names for the rest of the file.  The three column names must be "Language_ID", "Feature_ID" and "Value" (these column names are how BEASTling recognises a file as a CLDF file, so if you change them the file will be parsed as a BEASTling format file).  As before, Language_IDs can be arbitrary strings, but must be ISO codes or Glottocodes if you want to use all features of BEASTling.  Feature_IDs and Values can be arbitrary strings, and "?" can be used to indicate missing data.

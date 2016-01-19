@@ -78,7 +78,7 @@ For more information on the available models, see :ref:substitution
 * `data`: should be one of:
   * A path to a file containing your language data in a compatible .csv format
   * The string "stdin" if you wish for data to be read from `stdin` rather than a file.
-Regardless of whether data is read from a file or from `stdin`, it must be in one of the two compatible .csv formats.  These aare described in :ref:data. 
+Regardless of whether data is read from a file or from `stdin`, it must be in one of the two compatible .csv formats.  These aare described in :ref:data.  Note that BEASTling can also be made to read data from `stdin` by using the `--stdin` command line argument.
 
 Additionally, each model section *may* contain the following parameters, i.e.  they are optional:
 
