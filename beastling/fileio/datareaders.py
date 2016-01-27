@@ -12,19 +12,29 @@ def sniff_format(fp):
         diag = "beastling"
     return diag, header
 
-def load_data(filename):
-    # Load data
+def load_data(filename, file_format=None):
+    # Open file
     if filename == "stdin":
         fp = sys.stdin
     else:
         fp = open(filename, "r")
-    diag, header = sniff_format(fp)
-    if diag == "cldf":
+
+    # Determine format (if not given)
+    if not file_format:
+        file_format, header = sniff_format(fp)
+    else:
+        header = fp.readline()
+
+    # Load data
+    if file_format == "cldf":
         data = load_cldf_data(fp, header)
-    elif diag == "beastling":
+    elif file_format == "beastling":
         data = load_beastling_data(fp, header, filename)
+
+    # Close file if necessary
     if filename != "stdin":
         fp.close()
+
     return data
 
 def load_beastling_data(fp, header, filename):
