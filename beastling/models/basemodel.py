@@ -64,7 +64,18 @@ class BaseModel:
             for v in all_values:
                 counts[v] = all_values.count(v)
             uniq = list(set(all_values))
-            uniq.sort()
+            # Sort uniq carefully.
+            # Possibly all feature values are numeric strings, e.g. "1", "2", "3".
+            # If we sort these as strings then we get weird things like "10" < "2".
+            # This can actually matter for things like ordinal models.
+            # So convert these to ints first...
+            if all([v.isdigit() for v in uniq]):
+                uniq = map(int, uniq)
+                uniq.sort()
+                uniq = map(str, uniq)
+            # ...otherwise, just sort normally
+            else:
+                uniq.sort()
             if len(uniq) == 0 or (len(uniq) == 1 and self.remove_constant_traits):
                 bad_traits.append(trait)
                 continue
