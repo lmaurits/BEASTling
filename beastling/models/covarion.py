@@ -79,8 +79,12 @@ class CovarionModel(BaseModel):
 
     def add_sitemodel(self, distribution, trait, traitname):
 
-            # Sitemodel
-            sitemodel = ET.SubElement(distribution, "siteModel", {"id":"geoSiteModel.%s"%traitname,"spec":"SiteModel", "mutationRate":"1","shape":"1","proportionInvariant":"0", "substModel":"@covarion.s"})
+        # Sitemodel
+        if self.rate_variation:
+            mr = "@mutationRate:%s" % traitname
+        else:
+            mr = "1.0"
+        sitemodel = ET.SubElement(distribution, "siteModel", {"id":"SiteModel.%s"%traitname,"spec":"SiteModel", "mutationRate":mr,"shape":"1","proportionInvariant":"0", "substModel":"@covarion.s"})
 
     def add_prior(self, prior):
         BaseModel.add_prior(self, prior)

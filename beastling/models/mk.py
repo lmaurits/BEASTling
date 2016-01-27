@@ -14,7 +14,11 @@ class MKModel(BaseModel):
     def add_sitemodel(self, distribution, trait, traitname):
 
             # Sitemodel
-            sitemodel = ET.SubElement(distribution, "siteModel", {"id":"geoSiteModel.%s"%traitname,"spec":"SiteModel", "mutationRate":"1","shape":"1","proportionInvariant":"0"})
+            if self.rate_variation:
+                mr = "@mutationRate:%s" % traitname
+            else:
+                mr = "1.0"
+            sitemodel = ET.SubElement(distribution, "siteModel", {"id":"SiteModel.%s"%traitname,"spec":"SiteModel", "mutationRate":mr,"shape":"1","proportionInvariant":"0"})
 
             substmodel = ET.SubElement(sitemodel, "substModel",{"id":"mk.s:%s"%traitname,"spec":"LewisMK","datatype":"@traitDataType.%s" % traitname})
             # Do empirical frequencies

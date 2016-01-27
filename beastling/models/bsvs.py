@@ -78,10 +78,12 @@ class BSVSModel(BaseModel):
 
     def add_sitemodel(self, distribution, trait, traitname):
 
-            sitemodel = ET.SubElement(distribution, "siteModel", {"id":"geoSiteModel.%s"%traitname,"spec":"SiteModel"})
-            ET.SubElement(sitemodel, "parameter", {"id":"mutationRate.s:%s"%traitname, "name":"mutationRate","estimate":"false"}).text="1.0"
-            ET.SubElement(sitemodel, "parameter", {"id":"gammaShape.s:%s"%traitname, "name":"shape","estimate":"false"}).text="1.0"
-            ET.SubElement(sitemodel, "parameter", {"id":"proportionInvariant.s:%s"%traitname, "name":"proportionInvariant","lower":"0.0"}).text="0.0"
+            # Sitemodel
+            if self.rate_variation:
+                mr = "@mutationRate:%s" % traitname
+            else:
+                mr = "1.0"
+            sitemodel = ET.SubElement(distribution, "siteModel", {"id":"SiteModel.%s"%traitname,"spec":"SiteModel", "mutationRate":mr,"shape":"1","proportionInvariant":"0"})
 
             if self.symmetric:
                 substmodel = ET.SubElement(sitemodel, "substModel",{"id":"svs.s:%s"%traitname,"rateIndicator":"@rateIndicator.s:%s"%traitname,"rates":"@relativeGeoRates.s:%s"%traitname,"spec":"SVSGeneralSubstitutionModel"})
@@ -115,6 +117,6 @@ class BSVSModel(BaseModel):
             if self.rate_variation:
                 ET.SubElement(run, "operator", {"id":"BSSVSoperator.c:%s"%traitname,"spec":"BitFlipBSSVSOperator","indicator":"@rateIndicator.s:%s"%traitname, "mu":"@traitClockRate.c:%s" % traitname,"weight":"30.0"})
             else:
-                ET.SubElement(run, "operator", {"id":"BSSVSoperator.c:%s"%traitname,"spec":"BitFlipBSSVSOperator","indicator":"@rateIndicator.s:%s"%traitname, "mu":"@clockRate_%s.c" % self.clock,"weight":"30.0"})
+                ET.SubElement(run, "operator", {"id":"BSSVSoperator.c:%s"%traitname,"spec":"BitFlipBSSVSOperator","indicator":"@rateIndicator.s:%s"%traitname, "mu":"@clockRate.c:%s" % self.name,"weight":"30.0"})
             sampoffop = ET.SubElement(run, "operator", {"id":"offGeorateSampler:%s" % traitname,"spec":"SampleOffValues","all":"false","values":"@relativeGeoRates.s:%s"%traitname, "indicators":"@rateIndicator.s:%s" % traitname, "weight":"30.0"})
             ET.SubElement(sampoffop, "dist", {"idref":"Gamma:%s.%d.0" % (traitname, n)})
