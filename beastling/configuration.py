@@ -55,11 +55,11 @@ class Configuration:
             self.screenlog = p.getboolean(sec, "screenlog")
         if p.has_option(sec, "log_all"):
             self.log_all = p.getboolean(sec, "log_all")
-        if p.has_option(sec, "log_probabilities") or self.log_all:
+        if p.has_option(sec, "log_probabilities"):
             self.log_probabilities = p.getboolean(sec, "log_probabilities")
-        if p.has_option(sec, "log_params") or self.log_all:
+        if p.has_option(sec, "log_params"):
             self.log_params = p.getboolean(sec, "log_params")
-        if p.has_option(sec, "log_trees") or self.log_all:
+        if p.has_option(sec, "log_trees"):
             self.log_trees = p.getboolean(sec, "log_trees")
             
         ## MCMC

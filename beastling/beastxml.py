@@ -214,19 +214,19 @@ class BeastXml:
             log = ET.SubElement(screen_logger, "log", attrib={"idref":"posterior"})
 
         # Tracer log
-        if self.config.log_probabilities or self.config.log_params:
+        if self.config.log_probabilities or self.config.log_params or self.config.log_all:
             tracer_logger = ET.SubElement(self.run,"logger",{"id":"tracelog","fileName":self.config.basename+".log","logEvery":"10000","model":"@posterior","sanitiseHeaders":"true","sort":"smart"})
-            if self.config.log_probabilities:
+            if self.config.log_probabilities or self.config.log_all:
                 ET.SubElement(tracer_logger,"log",{"idref":"prior"})
                 ET.SubElement(tracer_logger,"log",{"idref":"likelihood"})
                 ET.SubElement(tracer_logger,"log",{"idref":"posterior"})
-            if self.config.log_params:
+            if self.config.log_params or self.config.log_all:
                 ET.SubElement(tracer_logger,"log",{"idref":"birthRate.t:beastlingTree"})
                 for model in self.config.models:
                     model.add_param_logs(tracer_logger)
                 
         # Tree log
-        if self.config.log_trees:
+        if self.config.log_trees or self.config.log_all:
             tree_logger = ET.SubElement(self.run, "logger", {"mode":"tree", "fileName":self.config.basename+".nex","logEvery":"10000","id":"treeWithMetaDataLogger"})
             log = ET.SubElement(tree_logger, "log", attrib={"id":"TreeLogger","spec":"beast.evolution.tree.TreeWithMetaDataLogger","tree":"@Tree.t:beastlingTree"})
 
