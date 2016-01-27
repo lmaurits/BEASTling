@@ -39,6 +39,8 @@ The `admin` section may contain the following parameters:
 
 * `log_trees`: "True" or "False".  Controls whether or not sampled trees should be logged to basename.nex.  Default is True.
 
+* `log_all`: "True" or "False".  Setting this true is simply a shorthand for setting `log_probabilities` and `log_params` and `log_trees` to all be true.  Default is False.
+
 ## MCMC section
 
 The `MCMC` section may contain the following parameters:

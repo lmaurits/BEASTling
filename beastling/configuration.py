@@ -28,6 +28,7 @@ class Configuration:
         self.monophyly_end_depth = sys.maxint
         self.monophyly_grip = "tight"
         self.screenlog = True
+        self.log_all = False
         self.log_params = False
         self.log_probabilities = True
         self.log_trees = True
@@ -52,11 +53,13 @@ class Configuration:
             self.basename = p.get(sec, "basename")
         if p.has_option(sec, "screenlog"):
             self.screenlog = p.getboolean(sec, "screenlog")
-        if p.has_option(sec, "log_probabilities"):
+        if p.has_option(sec, "log_all"):
+            self.log_all = p.getboolean(sec, "log_all")
+        if p.has_option(sec, "log_probabilities") or self.log_all:
             self.log_probabilities = p.getboolean(sec, "log_probabilities")
-        if p.has_option(sec, "log_params"):
+        if p.has_option(sec, "log_params") or self.log_all:
             self.log_params = p.getboolean(sec, "log_params")
-        if p.has_option(sec, "log_trees"):
+        if p.has_option(sec, "log_trees") or self.log_all:
             self.log_trees = p.getboolean(sec, "log_trees")
             
         ## MCMC
