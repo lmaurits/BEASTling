@@ -180,6 +180,8 @@ class Configuration:
             for config in self.model_configs:
                 config["data"] = "stdin"
         # Instantiate models
+        if not self.model_configs:
+            raise ValueError("No models specified!")
         self.models = []
         for config in self.model_configs:
             if "model" not in config:
@@ -203,7 +205,8 @@ class Configuration:
         if self.lang_filter:
             self.languages = [l for l in self.languages if l in self.lang_filter]
         ## Make sure there's *something* left
-        assert self.languages
+        if not self.languages:
+            raise ValueError("No languages specified!")
         self.languages.sort()
         self.processed = True
 
