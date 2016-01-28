@@ -110,6 +110,10 @@ class Configuration:
                 config["remove_constant_traits"] = p.getboolean(section,"remove_constant_traits")
             else:
                 config["remove_constant_traits"] = True
+            if "data_format" in config:
+                config["data_format"] = p.getboolean(section,"data_format")
+            if "language_column" in config:
+                config["language_column"] = p.getboolean(section,"language_column")
             config["name"] = section[5:].strip() # Chop off "model" prefix
             self.model_configs.append(config)
 

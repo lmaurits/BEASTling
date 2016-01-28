@@ -12,7 +12,7 @@ def sniff_format(fp):
         diag = "beastling"
     return diag, header
 
-def load_data(filename, file_format=None):
+def load_data(filename, file_format=None, lang_column=None):
     # Open file
     if filename == "stdin":
         fp = sys.stdin
@@ -29,7 +29,7 @@ def load_data(filename, file_format=None):
     if file_format == "cldf":
         data = load_cldf_data(fp, header)
     elif file_format == "beastling":
-        data = load_beastling_data(fp, header, filename)
+        data = load_beastling_data(fp, header, lang_column, filename)
 
     # Close file if necessary
     if filename != "stdin":
@@ -37,15 +37,23 @@ def load_data(filename, file_format=None):
 
     return data
 
-def load_beastling_data(fp, header, filename):
+_language_column_names = ("iso", "iso_code", "glotto", "glotto_code", "language", "language_id", "lang", "lang_id")
+
+def load_beastling_data(fp, header, lang_column, filename):
     reader = UnicodeDictReader(fp, header)
-    if "iso" not in reader.fieldnames:
-        raise ValueError("No 'iso' fieldname found in data file %s" % filename)
+    if not lang_column:
+        for candidate in reader.fieldnames:
+            if candidate.lower() in _language_column_names:
+                lang_column = candidate
+                break
+
+    if not lang_column or lang_column not in reader.fieldnames:
+        raise ValueError("Cold not find language column in data file %s" % filename)
     data = {}
     for row in reader:
-        if row["iso"] in data:
-            raise ValueError("Duplicated ISO code '%s' found in data file %s" % (row["iso"], filename))
-        data[row["iso"]] = row
+        if row[lang_column] in data:
+            raise ValueError("Duplicated language identifier '%s' found in data file %s" % (row[lang_column], filename))
+        data[row[lang_column]] = row
     return data
 
 def load_cldf_data(fp, header):
