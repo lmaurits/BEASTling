@@ -6,13 +6,17 @@ BEASTling relies on data being provided in CSV files.  Two particular CSV format
 
 In this format, each line of the CSV file contains all of the data for a single languge.
 
-The first line of the file must be a header, giving the column names for the rest of the file.  The column which contains each language's unique identifier *must* be one of:
+The first line of the file must be a header, giving the column names for the rest of the file.  The column which contains each language's unique identifier should be named one of:
 * "iso"
+* "iso_code"
 * "glotto"
 * "glottocode"
-* "lang"
 * "language"
 * "language_id"
+* "lang"
+* "lang_id"
+A column with one of these names will be automatically recognised as containing language identifiers.  If you absolutely have to use a different column name, use the `language_column` parameter in your configuration file's `[model]` section to tell BEASTling the name.
+
 Languages can be identified by arbitrary strings, provided each language has a unique identifier, *however* certain features of BEASTling will not function unless your language identifiers are either:
 * three character ISO 639 codes
 * Glottocodes as assigned by the [Glottolog project](http://glottolog.org/glottolog/glottologinformation)

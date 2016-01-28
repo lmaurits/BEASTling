@@ -14,7 +14,9 @@ The [Lewis Mk model](http://sysbio.oxfordjournals.org/content/50/6/913.abstract)
 
 (set `model=covarion` in config file)
 
-The binary Covarion model is suitable *only* for use with binary datasets, i.e. sets where every datapoint is either a 0 or a 1 (the most common example of this kind would be cognate class data which has been "binarised" in the traditional fashion).  This model introduces a latent "fast" or "slow" rate, which controls the rate of transitions between 0 and 1 (transitions in either direction are always equally probable).
+The binary Covarion model is defined for binary datasets, i.e. sets where every datapoint is either a 0 or a 1.  This model introduces a latent "fast" or "slow" state, which controls the rate of transitions between 0 and 1 (transitions in either direction are always equally probable).  This model is typically used for cognate data.
+
+Note that in order to use the Covarion model, you should not provide your data in binary format (i.e. do not use a .csv file full of 1s and 0s).  Instead, provide your data in multistate format, i.e., in the case of cognate data one column per meaning slot, with values corresponding to cognate class membership.  BEASTling will automatically translate this into the appropriate number of binary features.  This approach means that you can have a single data file which can be used to generate binary and multistate analyses, and also lets BEASTling share mutation rates across binary features corresponding to a single meaning slot.
 
 ## BSVS
 

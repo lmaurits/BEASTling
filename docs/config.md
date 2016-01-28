@@ -61,9 +61,15 @@ The `languages` section may contain the following parameters:
 
 The `calibration` section should contain one parameter for each distinct calibration point that you wish to include in the analysis.
 
-The name of each parameter should be a comma-separated list of family names, and the corresponding values should be two ages, expressed in years before present (BP), corresponding to a 95% confidence interval for the age of the most recent common ancestor (MRCA) of those families.  Note that the parameter name may just be a single family.  E.g. if you want to tell your analysis that you are 95% sure that Austronesian is between 4,750 and 5,800 years old, include the following line in your calibration section:
+The name of each parameter should be a comma-separated list of family names, and the corresponding values should be two ages, expressed in units of time before present (BP), corresponding to a 95% confidence interval for the age of the most recent common ancestor (MRCA) of those families.  Note that the parameter name may just be a single family.  E.g. if you want to tell your analysis that you are 95% sure that Austronesian is between 4,750 and 5,800 years old, include the following line in your calibration section:
 
 	Austronesian = 4750 - 5800
+
+You may use arbitrary units without problems, i.e. you could provide dates in millenia BP:
+
+	Austronesian = 4.75 - 5.8
+
+The only time this matters is when it comes time to interpret tree heights or clock and/or mutation rates.
 
 ## model sections
 
@@ -72,24 +78,31 @@ A BEASTling config file *must* include at least one model section, but it can co
 Each model section *must* contain the following parameters, i.e. they are mandatory and BEASTling will refuse to work if you ommit them:
 
 * `model`: should specify the name of the substitution model type you want to use.  Available models are:
-  * covarion (Binary covarion model)
-  * bsvs (Bayesian Stochastic Variable Selection)
-  * mk (Lewis Mk model)
+  * "covarion" (Binary covarion model)
+  * "bsvs" (Bayesian Stochastic Variable Selection)
+  * "mk" (Lewis Mk model)
 For more information on the available models, see :ref:substitution
 
 * `data`: should be one of:
   * A path to a file containing your language data in a compatible .csv format
   * The string "stdin" if you wish for data to be read from `stdin` rather than a file.
-Regardless of whether data is read from a file or from `stdin`, it must be in one of the two compatible .csv formats.  These aare described in :ref:data.  Note that BEASTling can also be made to read data from `stdin` by using the `--stdin` command line argument.
+Regardless of whether data is read from a file or from `stdin`, it must be in one of the two compatible .csv formats.  These are described in :ref:data.  Note that BEASTling can also be made to read data from `stdin` by using the `--stdin` command line argument.
 
 Additionally, each model section *may* contain the following parameters, i.e.  they are optional:
 
-* `traits`: Is used to select a subset of the features in the given data file.  Should be one of:
-  * A comma-separated list of feature names (as they are given in the data CSV's header line)
-  * A path to a file which contains one feature name per line
+* `data_format`: Can be used to explicitly set which of the two supported .csv formats the data for this model is supplied in, to be used if BEASTling is mistakenly trying to parse one format as the other (which should be very rare).  Should be one of:
+  * "beastling"
+  * "cldf"
+
+* `language_column`: Can be used to indicate the column name in the .csv file header which corresponds to the unique language identifier.  If the column name is one of "iso", "iso_code", "glotto", "glotto_code", "language", "language_id", "lang" or "lang_id", BEASTling will recognise it automatically.  This parameter is only needed if you have a pre-existing data file which uses a different column name which you don't want to change (perhaps because it would break compatibility with another tool).
 
 * `pruned`: "True" or "False".  Make use of "pruned trees".  This can improve performance in data sets with a lot of missing data.  Default is False.
 
 * `rate_variation`: "True" or "False".  Estimate a separate substitution rate for each feature (using a Gamma prior).
 
 * `remove_constant_traits`: "True" or "False".  By default, this is set to "True", which means that if your data set contains any features which have the same value for all of the languages in your analysis (which is not necessarily all of the languages in your data file, if you are using the "families" parameter in your "languages" section!), BEASTling will automatically remove that feature from the analysis (since it cannot possibly provide any phylogenetic information).  If you want to keep these constant features in for some reason, you must explicitly set this parameter to False.
+
+* `traits`: Is used to select a subset of the features in the given data file.  Should be one of:
+  * A comma-separated list of feature names (as they are given in the data CSV's header line)
+  * A path to a file which contains one feature name per line
+
