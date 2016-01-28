@@ -22,6 +22,8 @@ class Configuration:
         self.configfile_text = None
         self.chainlength = 10000000
         self.families = "*"
+        self.starting_tree = ""
+        self.sample_topology = True
         self.model_configs = []
         self.monophyly = False
         self.monophyly_start_depth = 0
@@ -71,7 +73,10 @@ class Configuration:
         sec = "languages"
         if p.has_option(sec, "families"):
             self.families = p.get(sec, "families")
-
+        if p.has_option(sec, "starting_tree"):
+            self.starting_tree = p.get(sec, "starting_tree")
+        if p.has_option(sec, "sample_topology"):
+            self.sample_topology = p.getboolean(sec, "sample_topology")
         if p.has_option(sec, "monophyletic"):
             try:
                 self.monophyly = p.getboolean(sec, "monophyletic")
@@ -145,6 +150,12 @@ class Configuration:
             fp.close()
         else:
             self.families = [x.strip() for x in self.families.split(",")]
+
+        # Read starting tree from file
+        if os.path.exists(self.starting_tree):
+            fp = codecs.open(self.starting_tree, "r", "UTF-8")
+            self.starting_tree = fp.read().strip()
+            fp.close()
 
         ## Load Glottolog classifications
         self.load_glotto_class()

@@ -57,21 +57,28 @@ class BeastXml:
             mapp = ET.SubElement(self.beast, "map", attrib={"name":a})
             mapp.text = b
 
-        # Taxon set
-        taxonset = ET.SubElement(self.beast, "taxonset", {"id":"taxa"})
+        # State
+        state = ET.SubElement(self.beast, "state", {"id":"state","storeEvery":"5000"})
+
+        ## Taxon set
+        taxonset = ET.SubElement(state, "taxonset", {"id":"taxa"})
         for lang in self.config.languages:
             ET.SubElement(taxonset, "taxon", {"id":lang,})
 
-        tree = ET.SubElement(self.beast, "tree", {"id":"Tree.t:beastlingTree"})
+        ## Tree
+        tree = ET.SubElement(state, "tree", {"id":"Tree.t:beastlingTree"})
         ET.SubElement(tree, "taxonset", {"idref":"taxa"})
 
-        # Monophyly constraints
-        if self.config.monophyly:
-            tree = ET.SubElement(self.beast, "tree", {"initial":"@Tree.t:beastlingTree", "taxonset":"@taxa", "spec":"beast.evolution.tree.ConstrainedRandomTree", "id":"coalescentSimulator","constraints":"@constraints"})
-        else:
-            tree = ET.SubElement(self.beast, "tree", {"initial":"@Tree.t:beastlingTree", "taxonset":"@taxa", "spec":"beast.evolution.tree.RandomTree", "id":"coalescentSimulator"})
-        popmod = ET.SubElement(tree, "populationModel", {"spec":"ConstantPopulation"})
-        ET.SubElement(popmod, "popSize", {"spec":"parameter.RealParameter","value":"1"})
+        ## Birth model
+        param = ET.SubElement(state, "parameter", {"id":"birthRate.t:beastlingTree","name":"stateNode"})
+        param.text="1.0"
+
+        for model in self.config.models:
+            model.add_state(state)
+
+        # Misc
+        for model in self.config.models:
+            model.add_misc(self.beast)
 
         # Run
         attribs = {}
@@ -80,38 +87,37 @@ class BeastXml:
         attribs["spec"] = "MCMC"
         self.run = ET.SubElement(self.beast, "run", attrib=attribs)
 
-        # Init
-        init = ET.SubElement(self.run, "init", {"idref":"coalescentSimulator"})
+        ## Init
+        ### If a starting tree is specified, use it...
+        if self.config.starting_tree:
+            init = ET.SubElement(self.run, "init", {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "spec":"beast.util.TreeParser","newick":self.config.starting_tree})
+        ### ...if not, use a random tree
+        else:
+            ### But the random tree must respect any constraints!
+            if self.config.monophyly:
+                init = ET.SubElement(self.run, "init", {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "taxonset":"@taxa", "spec":"beast.evolution.tree.ConstrainedRandomTree", "constraints":"@constraints"})
+            else:
+                init = ET.SubElement(self.run, "init", {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "taxonset":"@taxa", "spec":"beast.evolution.tree.RandomTree"})
+            popmod = ET.SubElement(init, "populationModel", {"spec":"ConstantPopulation"})
+            ET.SubElement(popmod, "popSize", {"spec":"parameter.RealParameter","value":"1"})
 
-        # State
-        state = ET.SubElement(self.run, "state", {"id":"state","storeEvery":"5000"})
-        ET.SubElement(state, "stateNode", {"idref":"Tree.t:beastlingTree"})
-        param = ET.SubElement(state, "parameter", {"id":"birthRate.t:beastlingTree","name":"stateNode"})
-        param.text="1.0"
-
-        for model in self.config.models:
-            model.add_state(state)
-           
-        for model in self.config.models:
-            model.add_misc(self.beast)
-
-        # Distributions
+        ## Distributions
         self.master_distribution = ET.SubElement(self.run,"distribution",{"id":"posterior","spec":"util.CompoundDistribution"})
 
-        ## Prior
+        ### Prior
         self.add_prior()
         for model in self.config.models:
             model.add_prior(self.prior)
 
-        ## Likelihood
+        ### Likelihood
         self.likelihood = ET.SubElement(self.master_distribution,"distribution",{"id":"likelihood","spec":"util.CompoundDistribution"})
         for model in self.config.models:
             model.add_likelihood(self.likelihood)
 
-        # Operators
+        ## Operators
         self.add_operators()
 
-        # Logging
+        ## Logging
         self.add_loggers()
 
     def add_prior(self):
@@ -179,11 +185,12 @@ class BeastXml:
     def add_operators(self):
 
         # Tree topology operators
-        ET.SubElement(self.run, "operator", {"id":"UniformOperator.t:beastlingTree","spec":"Uniform","tree":"@Tree.t:beastlingTree","weight":"600.0"})
-        ET.SubElement(self.run, "operator", {"id":"SubtreeSlide.t:beastlingTree","spec":"SubtreeSlide","tree":"@Tree.t:beastlingTree","markclades":"true", "weight":"600.0"})
-        ET.SubElement(self.run, "operator", {"id":"narrow.t:beastlingTree","spec":"Exchange","tree":"@Tree.t:beastlingTree","markclades":"true", "weight":"600.0"})
-        ET.SubElement(self.run, "operator", {"id":"wide.t:beastlingTree","isNarrow":"false","spec":"Exchange","tree":"@Tree.t:beastlingTree","markclades":"true", "weight":"600.0"})
-        ET.SubElement(self.run, "operator", {"id":"WilsonBalding.t:beastlingTree","spec":"WilsonBalding","tree":"@Tree.t:beastlingTree","markclades":"true","weight":"600.0"})
+        if self.config.sample_topology:
+            ET.SubElement(self.run, "operator", {"id":"UniformOperator.t:beastlingTree","spec":"Uniform","tree":"@Tree.t:beastlingTree","weight":"600.0"})
+            ET.SubElement(self.run, "operator", {"id":"SubtreeSlide.t:beastlingTree","spec":"SubtreeSlide","tree":"@Tree.t:beastlingTree","markclades":"true", "weight":"600.0"})
+            ET.SubElement(self.run, "operator", {"id":"narrow.t:beastlingTree","spec":"Exchange","tree":"@Tree.t:beastlingTree","markclades":"true", "weight":"600.0"})
+            ET.SubElement(self.run, "operator", {"id":"wide.t:beastlingTree","isNarrow":"false","spec":"Exchange","tree":"@Tree.t:beastlingTree","markclades":"true", "weight":"600.0"})
+            ET.SubElement(self.run, "operator", {"id":"WilsonBalding.t:beastlingTree","spec":"WilsonBalding","tree":"@Tree.t:beastlingTree","markclades":"true","weight":"600.0"})
 
         # Scalers for numeric parameters
         ET.SubElement(self.run, "operator", {"id":"treeScaler.t:beastlingTree","scaleFactor":"1.0","spec":"ScaleOperator","tree":"@Tree.t:beastlingTree","weight":"10.0"})
