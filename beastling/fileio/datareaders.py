@@ -5,7 +5,10 @@ from .unicodecsv import UnicodeDictReader
 def sniff_format(fp):
     header = fp.readline()
     # Is this a CLDF format?
-    if all([f in header for f in ("Language_ID", "Feature_ID", "Value")]):
+    if (all([f in header for f in ("Language_ID", "Value")])
+        and
+        any([f in header for f in ("Feature_ID", "Parameter_ID")])
+       ):
         diag = "cldf"
     # If not, assume it uses the default BEASTling format
     else:
@@ -57,11 +60,15 @@ def load_beastling_data(fp, header, lang_column, filename):
     return data
 
 def load_cldf_data(fp, header):
+    if "Feature_ID" in header:
+        feature_column = "Feature_ID"
+    else:
+        feature_column = "Parameter_ID"
     reader = UnicodeDictReader(fp, header)
     data = {}
     for row in reader:
         lang = row["Language_ID"]
         if lang not in data:
             data[lang] = {}
-        data[lang][row["Feature_ID"]] = row["Value"]
+        data[lang][row[feature_column]] = row["Value"]
     return data
