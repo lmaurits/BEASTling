@@ -31,7 +31,7 @@ def main():
     # Write XML file
     filename = args.output if args.output else config.basename+".xml"
     if os.path.exists(filename) and not args.overwrite:
-        sys.stderr.write("File %s already exists!  Run beastling with the --overwrite option if you wish to overwrite it.")
+        sys.stderr.write("File %s already exists!  Run beastling with the --overwrite option if you wish to overwrite it.\n" % filename)
         sys.exit(1)
     xml.write_file(filename)
 
