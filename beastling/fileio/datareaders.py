@@ -40,7 +40,7 @@ def load_data(filename, file_format=None, lang_column=None):
 
     return data
 
-_language_column_names = ("iso", "iso_code", "glotto", "glotto_code", "language", "language_id", "lang", "lang_id")
+_language_column_names = ("iso", "iso_code", "glotto", "glottocode", "language", "language_id", "lang", "lang_id")
 
 def load_beastling_data(fp, header, lang_column, filename):
     reader = UnicodeDictReader(fp, header)
