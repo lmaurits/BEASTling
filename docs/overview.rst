@@ -1,12 +1,15 @@
-# Overview
+========
+Overview
+========
 
-## Motivation
+Motivation
+----------
 
 BEASTling is aimed (at least in part) at making BEAST somewhat more accessible
 to linguists who have, or want to develop, a quantitative bent; people who might
 read a historical linguistics paper published by biologists and computer
-scientists and think ``gee, that's interesting.  I wonder what would happen if
-you relaxed this constraint, or added this extra datapoint?'', but have no hope
+scientists and think "Gee, that's interesting.  I wonder what would happen if
+you relaxed this constraint, or added this extra datapoint?", but have no hope
 in hell of investigating this because, being linguists, none of their data sits
 around in NEXUS files and they quite reasonably don't yet know how to write a
 Python script to programmatically generate a 100,000 line XML file.  If at any
@@ -17,8 +20,7 @@ to understand or give any thought to:
 * XML and associated concepts like namespaces, ids or idrefs
 * Sequences, alignments, populations, or anything else to do with biology
 * Codemaps
-* Class names, method names or call signatures of any Objects in the BEAST
-source code
+* Class names, method names or call signatures of any Objects in the BEAST source code
 
 then BEASTling has failed in its goal.  Of course, you *should* still understand
 at least the basics of the model you are using and MCMC in general.  The idea is
@@ -31,10 +33,11 @@ would like a convenient, consistent, easily scriptable way to do it which, for
 example, makes generating thousands of BEAST configs for a simulation study
 managable.
 
-## What does BEASTling actually do?
+What does BEASTling actually do?
+--------------------------------
 
 BEASTling is designed to take short, clear, high level configuration files
-which are human readable and writable, like this:
+which are human readable and writable, like this::
 
 	[admin]
 	basename = my_analysis
@@ -61,18 +64,17 @@ BEASTling relies on data being provided in CSV format.  If your data is not
 already in CSV or some format which can be easily programmatically transformed
 into CSV, you're doing something wrong.  The expected CSV format is one in
 which every row corresponds to one language, every column to one feature, and
-languages are represented using three letter [ISO
-639](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes) (the header for the
+languages are represented using three letter `ISO 639 <https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes>`_ (the header for the
 language column must be "iso").  The insistence on using ISO codes allows
 BEASTling to have some situational awareness of the data it is working with.
-E.g., the example config above includes the line:
+E.g., the example config above includes the line::
 
 	families = Indo-European, Uralic
 
 This means that even if the provided data file "my_data.csv" contains data for
 all the languages on Earth, BEASTling will pick out only the languages which
 belong to the Indo-European or Uralic language families (as determined by
-[Glottolog](http://glottolog.org/)).  Because of the line:
+`Glottolog <http://glottolog.org/>`_).  Because of the line::
 
 	monophyletic = True
 
@@ -80,7 +82,7 @@ BEASTling will automatically apply monophyly constraints derived from
 Glottolog's family classifications, i.e. the resulting BEAST analysis will
 enforce that e.g. all Germanic languages belong in a single clade.
 
-The [model my_model] section of the config allows you to specify which
+The ``[model my_model]`` section of the config allows you to specify which
 substitution model you'd like to use (Lewis Mk in this case), as well as control
 various high-level features of the model, like whether or not rate variation is
 permitted.  Any details of the model which are not specified in the config will
