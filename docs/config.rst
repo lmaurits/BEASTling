@@ -64,6 +64,11 @@ The ``languages`` section may contain the following parameters:
 
 * ``monophyletic``: "True" or "False".  Controls whether or not to impose the family structure in Glottolog as monophyly constraints in the BEAST analysis.  Default is False.
 
+* ``overlap``: One of ``union``, ``intersection`` or ``error``. Controls how to deal with language sets mismatches between input data.
+   * If set to ``union``, languages missing in one data set will be added with all traits missing.
+   * If set to ``intersection``, only languages present in all data sets will be used.
+   * If set to ``error`` (the default), BEASTling will exit with an error message when two data sets don't match.
+
 calibration section
 -------------------
 
