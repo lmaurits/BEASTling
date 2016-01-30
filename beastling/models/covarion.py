@@ -3,7 +3,7 @@ import os
 import xml.etree.ElementTree as ET
 
 from .basemodel import BaseModel
-from ..unicodecsv import UnicodeDictReader
+from ..fileio.unicodecsv import UnicodeDictReader
 
 class CovarionModel(BaseModel):
 
