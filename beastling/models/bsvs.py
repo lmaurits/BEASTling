@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET
 import scipy.stats
 
 from .basemodel import BaseModel
-from ..unicodecsv import UnicodeDictReader
+from ..fileio.unicodecsv import UnicodeDictReader
 
 class BSVSModel(BaseModel):
 
