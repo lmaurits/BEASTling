@@ -24,7 +24,8 @@ class BaseModel:
         self.rate_variation = model_config.get("rate_variation", False)
         self.remove_constant_traits = model_config.get("remove_constant_traits", True)
 
-        self.data = load_data(self.data_filename, file_format=model_config.get("data_format",None), lang_column=model_config.get("language_column",None))
+        self.lang_column = model_config.get("language_column", None)
+        self.data = load_data(self.data_filename, file_format=model_config.get("data_format",None), lang_column=self.lang_column)
         self.load_traits()
         self.preprocess()
 
@@ -98,7 +99,12 @@ class BaseModel:
         elif self.traits == "*":
             random_iso = self.data.keys()[0]
             traits = self.data[random_iso].keys()
-            traits.remove("iso")
+            try:
+                traits.remove(self.lang_column)
+            except ValueError:
+                # There was no language column -- how did we get this
+                # far?
+                pass
         else:
             traits = [t.strip() for t in self.traits.split(",")]
         self.traits = traits
