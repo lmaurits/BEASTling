@@ -10,7 +10,17 @@ import beastling.models.bsvs as bsvs
 import beastling.models.covarion as covarion
 import beastling.models.mk as mk
 
+def assert_compare_equal(one, other):
+    """ Compare two values. If they match, return that value, otherwise raise an error. """
+    if one != other:
+        raise ValueError("Values {:s} and {:s} were expected to match.".format(one, other))
+    return one
+
 class Configuration:
+    valid_overlaps = {
+        "union": set.union,
+        "intersection": set.intersection,
+        "error": assert_compare_equal}
 
     def __init__(self, basename="beastling", configfile=None, stdin_data=False):
 
@@ -22,6 +32,7 @@ class Configuration:
         self.configfile_text = None
         self.chainlength = 10000000
         self.families = "*"
+        self.overlap = "error"
         self.starting_tree = ""
         self.sample_topology = True
         self.model_configs = []
@@ -73,6 +84,11 @@ class Configuration:
         sec = "languages"
         if p.has_option(sec, "families"):
             self.families = p.get(sec, "families")
+        if p.has_option(sec, "overlap"):
+            self.overlap = p.get(sec, "overlap")
+            if not self.overlap in Configuration.valid_overlaps:
+                raise ValueError("Value for overlap needs to be one of 'union', 'intersection' or 'error'.")
+                
         if p.has_option(sec, "starting_tree"):
             self.starting_tree = p.get(sec, "starting_tree")
         if p.has_option(sec, "sample_topology"):
@@ -198,16 +214,26 @@ class Configuration:
                 raise ValueError("Unknown model type '%s' for model section '%s'." % (config["model"], config["name"]))
             self.models.append(model)
 
-        # Finalise language list
-        ## Start with all languages in data
-        self.languages = list(itertools.chain(*[model.data.keys() for model in self.models]))
+        # Finalise language list.
+        ## Start with all the languages from a random data source
+        self.languages = set(self.models[0].data.keys())
+        overlap_resolver = Configuration.valid_overlaps[self.overlap]
+        for model in self.models:
+            # A filter is just a set.
+            if self.lang_filter:
+                addition = set(model.data.keys()) & self.lang_filter
+            else:
+                addition = set(model.data.keys())
+            # This depends on the value of `overlap`.
+            self.languages = overlap_resolver(self.languages, addition)
+
         ## Apply family-based filtering
-        if self.lang_filter:
-            self.languages = [l for l in self.languages if l in self.lang_filter]
         ## Make sure there's *something* left
         if not self.languages:
             raise ValueError("No languages specified!")
-        self.languages.sort()
+
+        ## Convert back into a sorted list
+        self.languages = sorted(self.languages)
         self.processed = True
 
 if __name__ == "__main__":
