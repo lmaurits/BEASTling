@@ -59,8 +59,8 @@ class CovarionModel(BaseModel):
         # of the *visible* states (present/absent) and should
         # be based on the data (if we are doing an empirical
         # analysis)
-        substmodel = ET.SubElement(beast, "substModel",{"id":"covarion.s","spec":"BinaryCovarion","alpha":"@covarion_alpha.s", "switchRate":"@covarion_s.s"})
-        vfreq = ET.SubElement(substmodel, "parameter", {"id":"@visiblefrequencies.s","dimension":"2","name":"vfrequencies"})
+        substmodel = ET.SubElement(beast, "substModel",{"id":"covarion.s","spec":"BinaryCovarion","alpha":"@%s:covarion_alpha.s" % self.name, "switchRate":"@%s:covarion_s.s" % self.name})
+        vfreq = ET.SubElement(substmodel, "parameter", {"id":"@%s:visiblefrequencies.s" % self.name,"dimension":"2","name":"vfrequencies"})
         if self.frequencies == "empirical":
             vfreq.text = self.freq_str
         elif self.frequencies == "uniform":
@@ -88,21 +88,21 @@ class CovarionModel(BaseModel):
 
     def add_prior(self, prior):
         BaseModel.add_prior(self, prior)
-        alpha_prior = ET.SubElement(prior, "prior", {"id":"covarion_alpha_prior.s","name":"distribution","x":"@covarion_alpha.s"})
+        alpha_prior = ET.SubElement(prior, "prior", {"id":"covarion_alpha_prior.s","name":"distribution","x":"@%s:covarion_alpha.s" % self.name})
         ET.SubElement(alpha_prior, "Uniform", {"id":"CovAlphaUniform","name":"distr","upper":"Infinity"})
-        switch_prior = ET.SubElement(prior, "prior", {"id":"covarion_s_prior.s","name":"distribution","x":"@covarion_s.s"})
+        switch_prior = ET.SubElement(prior, "prior", {"id":"covarion_s_prior.s","name":"distribution","x":"@%s:covarion_s.s" % self.name})
         gamma = ET.SubElement(switch_prior, "Gamma", {"id":"Gamma.0", "name":"distr"})
         ET.SubElement(gamma, "parameter", {"id":"covarion_switch_gamma_param1","name":"alpha","lower":"0.0","upper":"0.0"}).text = "0.05"
         ET.SubElement(gamma, "parameter", {"id":"covarion_switch_gamma_param2","name":"beta","lower":"0.0","upper":"0.0"}).text = "10.0"
 
     def add_operators(self, run):
         BaseModel.add_operators(self, run)
-        ET.SubElement(run, "operator", {"id":"covarion_alpha_scaler.s", "spec":"ScaleOperator","parameter":"@covarion_alpha.s","scaleFactor":"0.75","weight":"0.1"})
-        ET.SubElement(run, "operator", {"id":"covarion_s_scaler.s", "spec":"ScaleOperator","parameter":"@covarion_s.s","scaleFactor":"0.75","weight":"0.1"})
+        ET.SubElement(run, "operator", {"id":"covarion_alpha_scaler.s", "spec":"ScaleOperator","parameter":"@%s:covarion_alpha.s" % self.name,"scaleFactor":"0.75","weight":"0.1"})
+        ET.SubElement(run, "operator", {"id":"covarion_s_scaler.s", "spec":"ScaleOperator","parameter":"@%s:covarion_s.s" % self.name,"scaleFactor":"0.75","weight":"0.1"})
         delta = ET.SubElement(run, "operator", {"id":"frequenciesDelta", "spec":"DeltaExchangeOperator","delta":"0.01","weight":"0.1"})
-        ET.SubElement(delta, "parameter", {"idref":"visiblefrequencies.s"})
+        ET.SubElement(delta, "parameter", {"idref":"%s:visiblefrequencies.s" % self.name})
 
     def add_param_logs(self, logger):
         BaseModel.add_param_logs(self, logger)
-        ET.SubElement(logger,"log",{"idref":"covarion_alpha.s"})
-        ET.SubElement(logger,"log",{"idref":"covarion_s.s"})
+        ET.SubElement(logger,"log",{"idref":"%s:covarion_alpha.s" % self.name})
+        ET.SubElement(logger,"log",{"idref":"%s:covarion_s.s" % self.name})
