@@ -159,7 +159,7 @@ class BeastXml:
 
                 taxonset = ET.SubElement(cal_prior, "taxonset", {"id" : clade, "spec":"TaxonSet"})
                 for lang in langs:
-                    ET.SubElement(taxonset, "taxon", {"idref":lang, "spec":"Taxon"})
+                    ET.SubElement(taxonset, "taxon", {"idref":lang})
                 normal = ET.SubElement(cal_prior, "Normal", {"id":"CalibrationNormal.%d" % n, "name":"distr", "offset":str(mean)})
                 ET.SubElement(normal, "parameter", {"id":"parameter.hyperNormal-mean-%s.prior" % clade, "name":"mean", "estimate":"false"}).text = "0.0"
                 ET.SubElement(normal, "parameter", {"id":"parameter.hyperNormal-sigma-%s.prior" % clade, "name":"sigma", "estimate":"false"}).text = str(stddev)
