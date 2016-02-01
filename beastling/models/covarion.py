@@ -2,6 +2,8 @@ import codecs
 import os
 import xml.etree.ElementTree as ET
 
+from collections import defaultdict
+
 from .basemodel import BaseModel
 from ..fileio.unicodecsv import UnicodeDictReader
 
@@ -41,7 +43,7 @@ class CovarionModel(BaseModel):
         vfreq.text="0.5 0.5"
 
     def add_data(self, distribution, trait, traitname):
-        traitrange = sorted(list(set(self.data[lang][trait] for lang in self.config.languages)))
+        traitrange = sorted(list(set(self.data.setdefault(lang, defaultdict(lambda: "?"))[trait] for lang in self.config.languages)))
         data = ET.SubElement(distribution,"data",{"id":traitname, "spec":"Alignment", "ascertained":"true", "excludefrom":"0","excludeto":"1"})
         ET.SubElement(data, "userDataType",{"spec":"beast.evolution.datatype.TwoStateCovarion"})
         for lang in self.config.languages:
