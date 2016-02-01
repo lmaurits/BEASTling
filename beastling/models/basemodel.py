@@ -4,7 +4,7 @@ import xml.etree.ElementTree as ET
 
 import scipy.stats
 
-from ..fileio.datareaders import load_data
+from ..fileio.datareaders import load_data, _language_column_names
 
 class BaseModel:
 
@@ -23,6 +23,7 @@ class BaseModel:
         self.pruned = model_config.get("pruned", False)
         self.rate_variation = model_config.get("rate_variation", False)
         self.remove_constant_traits = model_config.get("remove_constant_traits", True)
+        self.lang_column = model_config.get("language_column", None)
 
         self.data = load_data(self.data_filename, file_format=model_config.get("data_format",None), lang_column=model_config.get("language_column",None))
         self.load_traits()
@@ -98,7 +99,17 @@ class BaseModel:
         elif self.traits == "*":
             random_iso = self.data.keys()[0]
             traits = self.data[random_iso].keys()
-            traits.remove("iso")
+            # Need to remove the languge ID column
+            if self.lang_column:
+                traits.remove(self.lang_column)
+            else:
+                # If no language column name was explicitly given, just
+                # remove the first of the automatically-recognised names
+                # which we encounter:
+                for lc in _language_column_names:
+                    if lc in traits:
+                        traits.remove(lc)
+                        break
         else:
             traits = [t.strip() for t in self.traits.split(",")]
         self.traits = traits
