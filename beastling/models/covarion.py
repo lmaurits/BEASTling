@@ -32,12 +32,12 @@ class CovarionModel(BaseModel):
 
     def add_state(self, state):
         BaseModel.add_state(self, state)
-        alpha = ET.SubElement(state, "parameter", {"id":"covarion_alpha.s", "lower":"1.0E-4", "name":"stateNode", "upper":"1.0"})
+        alpha = ET.SubElement(state, "parameter", {"id":"%s:covarion_alpha.s" % self.name, "lower":"1.0E-4", "name":"stateNode", "upper":"1.0"})
         alpha.text="0.5"
-        switch = ET.SubElement(state, "parameter", {"id":"covarion_s.s", "lower":"1.0E-4", "name":"stateNode", "upper":"Infinity"})
+        switch = ET.SubElement(state, "parameter", {"id":"%s:covarion_s.s" % self.name, "lower":"1.0E-4", "name":"stateNode", "upper":"Infinity"})
         switch.text="0.5"
 
-        vfreq = ET.SubElement(state, "parameter", {"id":"visiblefrequencies.s", "dimension":"2", "lower": "0.0", "upper":"1.0", "name":"stateNode"})
+        vfreq = ET.SubElement(state, "parameter", {"id":"%s:visiblefrequencies.s" % self.name, "dimension":"2", "lower": "0.0", "upper":"1.0", "name":"stateNode"})
         vfreq.text="0.5 0.5"
 
     def add_data(self, distribution, trait, traitname):
