@@ -14,6 +14,7 @@ def main():
     parser.add_argument("output", nargs="?", help="Output filename, no extension (default beastling)", default=None)
     parser.add_argument("--overwrite", default=False, action="store_true")
     parser.add_argument("--stdin", default=False, action="store_true")
+    parser.add_argument("-v", "--verbose", default=False, action="store_true")
     args = parser.parse_args()
 
     # Build config object
@@ -24,6 +25,12 @@ def main():
         sys.stderr.write("Error encountered while parsing configuration file:\n")
         sys.stderr.write(str(e))
         sys.exit(1)
+
+    # If verbose mode is on, print any messages which were generated while
+    # processing the configuration
+    if args.verbose:
+        for msg in config.messages:
+            sys.stderr.write(msg+"\n")
 
     # Build XML file
     xml = beastling.beastxml.BeastXml(config)

@@ -7,6 +7,8 @@ from ..fileio.unicodecsv import UnicodeDictReader
 
 class MKModel(BaseModel):
 
+    package_notice = """[DEPENDENCY]: The Lewis Mk substitution model is implemented in the BEAST package "morph-models"."""
+
     def __init__(self, model_config, global_config):
 
         BaseModel.__init__(self, model_config, global_config)

@@ -10,6 +10,7 @@ class BaseModel:
 
     def __init__(self, model_config, global_config):
 
+        self.messages = []
         self.config = global_config
         self.calibrations = global_config.calibrations
 
@@ -45,12 +46,6 @@ class BaseModel:
                 any([t in self.data[lang] for lang in self.data]
                     )]
 
-        # Remove features which are in the config but are entirely
-        # question marks for the specified languages
-        self.traits = [t for t in self.traits if
-                not all([self.data[lang][t] == "?" for lang in self.data]
-                    )]
-
         self.valuecounts = {}
         self.counts = {}
         self.dimensions = {}
@@ -76,7 +71,12 @@ class BaseModel:
             # ...otherwise, just sort normally
             else:
                 uniq.sort()
-            if len(uniq) == 0 or (len(uniq) == 1 and self.remove_constant_traits):
+            if len(uniq) == 0:
+                self.messages.append("[INFO] Model %s: Trait %s excluded because there are no datapoints for selected languages." % (self.name, trait))
+                bad_traits.append(trait)
+                continue
+            if (len(uniq) == 1 and self.remove_constant_traits):
+                self.messages.append("""[INFO] Model %s: Trait %s excluded because its value is constant across selected languages.  Set "remove_constant_traits=False" to stop this.""" % (self.name, trait))
                 bad_traits.append(trait)
                 continue
             N = len(uniq)
@@ -87,7 +87,7 @@ class BaseModel:
             self.codemaps[trait] = self.build_codemap(uniq)
         self.traits = [t for t in self.traits if t not in bad_traits]
         self.traits.sort()
-
+        self.messages.append("[INFO] Model %s: Using %d traits from data file %s" % (self.name, len(self.traits), self.data_filename))
     def load_traits(self):
         # Load traits to analyse
         if os.path.exists(self.traits):

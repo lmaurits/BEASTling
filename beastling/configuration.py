@@ -25,6 +25,8 @@ class Configuration:
     def __init__(self, basename="beastling", configfile=None, stdin_data=False):
 
         self.processed = False
+        self.messages = []
+        self.message_flags = []
 
         # Set up default options
         self.basename = basename
@@ -206,12 +208,19 @@ class Configuration:
                 raise ValueError("Data source not specified in model section %s." % config["name"])
             if config["model"].lower() == "bsvs":
                 model = bsvs.BSVSModel(config, self)
+                if "bsvs_used" not in self.message_flags:
+                    self.message_flags.append("bsvs_used")
+                    self.messages.append(bsvs.BSVSModel.package_notice)
             elif config["model"].lower() == "covarion":
                 model = covarion.CovarionModel(config, self)
             elif config["model"].lower() == "mk":
                 model = mk.MKModel(config, self)
+                if "mk_used" not in self.message_flags:
+                    self.message_flags.append("mk_used")
+                    self.messages.append(mk.MKModel.package_notice)
             else:
                 raise ValueError("Unknown model type '%s' for model section '%s'." % (config["model"], config["name"]))
+            self.messages.extend(model.messages)
             self.models.append(model)
 
         # Finalise language list.
@@ -234,6 +243,8 @@ class Configuration:
 
         ## Convert back into a sorted list
         self.languages = sorted(self.languages)
+        self.messages.append("[INFO] %d languages included in analysis." % len(self.languages))
+
         self.processed = True
 
 if __name__ == "__main__":
