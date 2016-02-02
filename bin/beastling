@@ -33,7 +33,12 @@ def main():
             sys.stderr.write(msg+"\n")
 
     # Build XML file
-    xml = beastling.beastxml.BeastXml(config)
+    try:
+        xml = beastling.beastxml.BeastXml(config)
+    except Exception as e:
+        sys.stderr.write("Error encountered while building BeastXML object:\n")
+        sys.stderr.write(str(e))
+        sys.exit(1)
 
     # Write XML file
     filename = args.output if args.output else config.basename+".xml"
