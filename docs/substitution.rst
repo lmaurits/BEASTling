@@ -28,3 +28,10 @@ BSVS
 (set ``model=bsvs`` in config file)
 
 The Bayesian Stochastic Variable Selection (BSVS) model is a rich model suitable for structural data.  Compared to the Lewis Mk model, it permits non-equal transition probabilities between different states, and also tries to set a number of probabilities to zero, i.e. transitions from some states to others will be disallowed.  This model is suitable for attempting to uncover preferential directions of change in the evolution of particular linguistic features.  Note that this model is very parameter intensive and analyses will be much slower than Mk analyses for the same data.
+
+A ``bsvs`` model accepts two additional parameters, ``symmetric`` and ``svsprior``.
+They change the behaviour as follows.
+
+A symmetric model (``symmetric=True``, which is the default value) assumes that transition rates between states are symmetric, i.e. for two states A and B, transitions from A to B occur at the same rate as transitions from B to A. An asymmetric model (``symmetric=False``) has double the number of parameters, because the rates A→B and B→A are estimated separately.
+
+The ``svsprior`` property specifies the shape of the prior distribution of the stochastic variable selection model. BEASTling supports ``exponential`` and ``poisson`` priors, with ``exponential`` being the default.
