@@ -169,6 +169,10 @@ class Configuration:
 
     def process(self):
 
+        # Add dependency notice if required
+        if self.monophyly and not self.starting_tree:
+            self.messages.append("[DEPENDENCY] ConstrainedRandomTree is implemented in the BEAST package BEASTLabs.")
+
         if os.path.exists(self.families):
             fp = codecs.open(self.families, "r", "UTF-8")
             self.families = [x.strip() for x in fp.readlines()]

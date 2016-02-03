@@ -88,6 +88,9 @@ class BaseModel:
         self.traits = [t for t in self.traits if t not in bad_traits]
         self.traits.sort()
         self.messages.append("[INFO] Model %s: Using %d traits from data file %s" % (self.name, len(self.traits), self.data_filename))
+        if self.pruned:
+            self.messages.append("""[DEPENDENCY] Model %s: Pruned trees are implemented in the BEAST package "BEASTlabs".""" % self.name)
+
     def load_traits(self):
         # Load traits to analyse
         if os.path.exists(self.traits):
