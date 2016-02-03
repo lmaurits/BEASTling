@@ -227,6 +227,8 @@ class Configuration:
                     self.messages.append(mk.MKModel.package_notice)
             else:
                 raise ValueError("Unknown model type '%s' for model section '%s'." % (config["model"], config["name"]))
+            if config["model"].lower() != "covarion":
+                self.messages.append("""[DEPENDENCY] Model %s: AlignmentFromTrait is implemented in the BEAST package "BEAST_CLASSIC".""" % config["name"])
             self.messages.extend(model.messages)
             self.models.append(model)
 
