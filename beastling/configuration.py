@@ -36,6 +36,7 @@ class Configuration:
         self.families = "*"
         self.overlap = "error"
         self.starting_tree = ""
+        self.sample_branch_lengths = True
         self.sample_topology = True
         self.model_configs = []
         self.monophyly = False
@@ -93,6 +94,8 @@ class Configuration:
                 
         if p.has_option(sec, "starting_tree"):
             self.starting_tree = p.get(sec, "starting_tree")
+        if p.has_option(sec, "sample_branch_lengths"):
+            self.sample_branch_lengths = p.getboolean(sec, "sample_branch_lengths")
         if p.has_option(sec, "sample_topology"):
             self.sample_topology = p.getboolean(sec, "sample_topology")
         if p.has_option(sec, "monophyletic"):

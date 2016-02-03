@@ -69,6 +69,10 @@ The ``languages`` section may contain the following parameters:
    * If set to ``intersection``, only languages present in all data sets will be used.
    * If set to ``error`` (the default), BEASTling will exit with an error message when two data sets don't match.
 
+* ``sample_topology``: If true, the topology of the starting tree (i.e. the details of which leaves are connected to which and how) will be sampled during the analysis to fit the data.  If false, the topology will be kept fixed.  Use this in conjunction with ``starting_tree`` when you have a tree you trust and want to fit model parameters to it.  Default is True.
+
+* ``starting_tree``: Used to provide a starting tree.  Can be a Newick format tree or the name of a file which contains a Newick format tree.  If not specified, a random starting tree (compatible with monophyly constraints, if active) will be used.
+
 calibration section
 -------------------
 

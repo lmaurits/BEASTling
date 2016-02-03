@@ -184,16 +184,17 @@ class BeastXml:
 
     def add_operators(self):
 
-        # Tree topology operators
-        if self.config.sample_topology:
+        # Tree operators
+        if self.config.sample_branch_lengths:
+            ## Branch length operators
             ET.SubElement(self.run, "operator", {"id":"UniformOperator.t:beastlingTree","spec":"Uniform","tree":"@Tree.t:beastlingTree","weight":"600.0"})
+            ET.SubElement(self.run, "operator", {"id":"treeScaler.t:beastlingTree","scaleFactor":"1.0","spec":"ScaleOperator","tree":"@Tree.t:beastlingTree","weight":"600.0"})
+        if self.config.sample_topology:
+            ## Branch topology operators
             ET.SubElement(self.run, "operator", {"id":"SubtreeSlide.t:beastlingTree","spec":"SubtreeSlide","tree":"@Tree.t:beastlingTree","markclades":"true", "weight":"600.0"})
             ET.SubElement(self.run, "operator", {"id":"narrow.t:beastlingTree","spec":"Exchange","tree":"@Tree.t:beastlingTree","markclades":"true", "weight":"600.0"})
             ET.SubElement(self.run, "operator", {"id":"wide.t:beastlingTree","isNarrow":"false","spec":"Exchange","tree":"@Tree.t:beastlingTree","markclades":"true", "weight":"600.0"})
             ET.SubElement(self.run, "operator", {"id":"WilsonBalding.t:beastlingTree","spec":"WilsonBalding","tree":"@Tree.t:beastlingTree","markclades":"true","weight":"600.0"})
-
-        # Scalers for numeric parameters
-        ET.SubElement(self.run, "operator", {"id":"treeScaler.t:beastlingTree","scaleFactor":"1.0","spec":"ScaleOperator","tree":"@Tree.t:beastlingTree","weight":"10.0"})
 
         # Birth rate scaler
         ET.SubElement(self.run, "operator", {"id":"YuleBirthRateScaler.t:beastlingTree","spec":"ScaleOperator","parameter":"@birthRate.t:beastlingTree", "scaleFactor":"1.0", "weight":"3.0"})
