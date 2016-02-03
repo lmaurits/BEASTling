@@ -1,5 +1,5 @@
 import sys
-
+import collections
 from .unicodecsv import UnicodeDictReader
 
 def sniff_format(fp):
@@ -52,11 +52,11 @@ def load_beastling_data(fp, header, lang_column, filename):
 
     if not lang_column or lang_column not in reader.fieldnames:
         raise ValueError("Cold not find language column in data file %s" % filename)
-    data = {}
+    data = collections.defaultdict(lambda: collections.defaultdict(lambda: "?"))
     for row in reader:
         if row[lang_column] in data:
             raise ValueError("Duplicated language identifier '%s' found in data file %s" % (row[lang_column], filename))
-        data[row[lang_column]] = row
+        data[row[lang_column]] = collections.defaultdict(lambda : "?", row)
     return data
 
 def load_cldf_data(fp, header):
@@ -65,10 +65,10 @@ def load_cldf_data(fp, header):
     else:
         feature_column = "Parameter_ID"
     reader = UnicodeDictReader(fp, header)
-    data = {}
+    data = collections.defaultdict(lambda: collections.defaultdict(lambda: "?"))
     for row in reader:
         lang = row["Language_ID"]
         if lang not in data:
-            data[lang] = {}
+            data[lang] = collections.defaultdict(lambda :"?")
         data[lang][row[feature_column]] = row["Value"]
     return data
