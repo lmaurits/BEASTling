@@ -121,3 +121,10 @@ class BSVSModel(BaseModel):
                 ET.SubElement(run, "operator", {"id":"BSSVSoperator.c:%s"%traitname,"spec":"BitFlipBSSVSOperator","indicator":"@rateIndicator.s:%s"%traitname, "mu":"@clockRate.c:%s" % self.name,"weight":"30.0"})
             sampoffop = ET.SubElement(run, "operator", {"id":"offGeorateSampler:%s" % traitname,"spec":"SampleOffValues","all":"false","values":"@relativeGeoRates.s:%s"%traitname, "indicators":"@rateIndicator.s:%s" % traitname, "weight":"30.0"})
             ET.SubElement(sampoffop, "dist", {"idref":"Gamma:%s.%d.0" % (traitname, n)})
+
+    def add_param_logs(self, logger):
+        BaseModel.add_param_logs(self, logger)
+        for trait in self.traits:
+            traitname = "%s:%s" % (self.name, trait)
+            ET.SubElement(logger,"log",{"idref":"rateIndicator.s:%s" % traitname})
+            ET.SubElement(logger,"log",{"idref":"relativeGeoRates.s:%s" % traitname})
