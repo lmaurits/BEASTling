@@ -12,7 +12,7 @@ class BSVSModel(BaseModel):
 
         BaseModel.__init__(self, model_config, global_config)
         self.symmetric = model_config.get("symmetric", True)
-        self.svsprior = model_config.get("svsprior", "exponential")
+        self.svsprior = model_config.get("svsprior", "poisson")
 
     def add_state(self, state):
 

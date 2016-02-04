@@ -34,4 +34,10 @@ They change the behaviour as follows.
 
 A symmetric model (``symmetric=True``, which is the default value) assumes that transition rates between states are symmetric, i.e. for two states A and B, transitions from A to B occur at the same rate as transitions from B to A. An asymmetric model (``symmetric=False``) has double the number of parameters, because the rates A→B and B→A are estimated separately.
 
-The ``svsprior`` property specifies the shape of the prior distribution of the stochastic variable selection model. BEASTling supports ``exponential`` and ``poisson`` priors, with ``exponential`` being the default.
+The ``svsprior`` property specifies the shape of the prior distribution which is placed over the number of non-zero rate.  Possible choices are ``poisson'' and ``exponential``, with ``poisson`` being the default.
+
+The size of the statespace for a particular trait determines a maximum possible number of non-zero rates (the entire matrix), and also a minimum possible number (to ensure that the Markov chain is ergodic).  The non-zero rate prior is defined over this range, so both the Poisson and exponential priors have an offset, rather than beginning their support at zero.
+
+The default Poisson prior is the more conservative choice.  BEASTling will set the mean of the Poisson distribution equal to the midpoint between the minimum and maximum possible number of non-zero rates.  In this way, the model has no preference for sparse matrices over dense matrices or vice versa, while still encouraging the setting of rates to zero if the data supports it.
+
+The exponential prior, on the other hand, is biased toward sparse transition matrices.  BEASTling will set the mean of the exponential distribution such that 99% of the probability density lies between the minimum and maximum possible number of non-zero rates.  In this way, matrices with the majority of rates set to zero are much more probable a priori than matrices with the majority of rates being non-zero.  This prior is the better choice when you want to fit a model that permits the minimum number of transitions required to explain the data.
