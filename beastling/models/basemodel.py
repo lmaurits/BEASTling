@@ -209,11 +209,11 @@ class BaseModel:
 
         # Clock scaler (only for calibrated analyses)
         if self.calibrations:
-            ET.SubElement(run, "operator", {"id":"clockScaler.c:%s" % self.name, "spec":"ScaleOperator","parameter":"@clockRate.c:%s" % self.name, "scaleFactor":"1.0","weight":"10.0"})
+            ET.SubElement(run, "operator", {"id":"clockScaler.c:%s" % self.name, "spec":"ScaleOperator","parameter":"@clockRate.c:%s" % self.name, "scaleFactor":"1.0","weight":"3.0"})
 
         # Mutation rates
         if self.rate_variation:
-            delta = ET.SubElement(run, "operator", {"id":"mutationRateDeltaExchanger:%s" % self.name, "spec":"DeltaExchangeOperator", "weight":"1.0"})
+            delta = ET.SubElement(run, "operator", {"id":"mutationRateDeltaExchanger:%s" % self.name, "spec":"DeltaExchangeOperator", "weight":"3.0"})
             for trait in self.traits:
                 traitname = "%s:%s" % (self.name, trait)
                 param = ET.SubElement(delta, "parameter", {"idref":"mutationRate:%s" % traitname})
