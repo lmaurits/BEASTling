@@ -21,6 +21,4 @@ setup(
     packages=['beastling','beastling.fileio','beastling.models'],
     package_data={'beastling': ['data/*']},
     scripts=['bin/beastling',],
-    requires=['scipy'],
-    install_requires=['scipy']
 )
