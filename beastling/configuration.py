@@ -84,7 +84,7 @@ class Configuration:
         ## MCMC
         sec = "MCMC"
         if p.has_option(sec, "chainlength"):
-            self.chainlength = p.get(sec, "chainlength")
+            self.chainlength = p.getint(sec, "chainlength")
 
         ## Languages
         sec = "languages"
