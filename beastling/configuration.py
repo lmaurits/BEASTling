@@ -45,6 +45,7 @@ class Configuration:
         self.monophyly_grip = "tight"
         self.screenlog = True
         self.log_all = False
+        self.log_every = 0
         self.log_params = False
         self.log_probabilities = True
         self.log_trees = True
@@ -69,6 +70,8 @@ class Configuration:
             self.basename = p.get(sec, "basename")
         if p.has_option(sec, "screenlog"):
             self.screenlog = p.getboolean(sec, "screenlog")
+        if p.has_option(sec, "log_every"):
+            self.log_every = p.getint(sec, "log_every")
         if p.has_option(sec, "log_all"):
             self.log_all = p.getboolean(sec, "log_all")
         if p.has_option(sec, "log_probabilities"):
@@ -172,6 +175,12 @@ class Configuration:
         # Add dependency notice if required
         if self.monophyly and not self.starting_tree:
             self.messages.append("[DEPENDENCY] ConstrainedRandomTree is implemented in the BEAST package BEASTLabs.")
+
+        # If log_every was not explicitly set to some non-zero
+        # value, then set it such that we expect 10,000 log
+        # entries
+        if not self.log_every:
+            self.log_every = self.chainlength / 10000
 
         if os.path.exists(self.families):
             fp = codecs.open(self.families, "r", "UTF-8")
