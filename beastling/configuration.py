@@ -102,10 +102,9 @@ class Configuration:
         if p.has_option(sec, "sample_topology"):
             self.sample_topology = p.getboolean(sec, "sample_topology")
         if p.has_option(sec, "monophyletic"):
-            try:
-                self.monophyly = p.getboolean(sec, "monophyletic")
-            except:
-                self.monophyly = p.get(sec, "monophyletic").split(",")
+            self.monophyly = p.getboolean(sec, "monophyletic")
+        elif p.has_option(sec, "monophyly"):
+            self.monophyly = p.getboolean(sec, "monophyly")
         if p.has_option(sec, "monophyly_start_depth"):
             self.monophyly_start_depth = p.getint(sec, "monophyly_start_depth")
         if p.has_option(sec, "monophyly_end_depth"):
