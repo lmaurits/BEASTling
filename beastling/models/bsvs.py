@@ -1,11 +1,9 @@
 import codecs
 import os
+import math
 import xml.etree.ElementTree as ET
 
-import scipy.stats
-
 from .basemodel import BaseModel
-from ..fileio.unicodecsv import UnicodeDictReader
 
 class BSVSModel(BaseModel):
 
@@ -46,25 +44,32 @@ class BSVSModel(BaseModel):
             sub_prior = ET.SubElement(prior, "prior", {"id":"nonZeroRatePrior.s:%s" % traitname, "name":"distribution"})
             x = ET.SubElement(sub_prior, "x", {"arg":"@rateIndicator.s:%s" % traitname, "spec":"util.Sum"})
             N = self.valuecounts[trait]
-            if self.svsprior == "poisson":
+            if self.symmetric:
+                offset = N-1
+                maxx = N*(N-1)/2
+            else:
+                offset = N
+                maxx = N*(N-1)
+            if maxx == offset:
+                # In this situation (e.g. N=2, symmetric), we have no real
+                # freedom in the number of non-zero rates.  So just set a
+                # uniform prior
+                distr  = ET.SubElement(sub_prior, "distr", {"id":"Poisson:%s.%d" % (traitname, n), "offset":str(offset),"spec":"beast.math.distributions.Uniform", "lower":"0.0","upper":"Infinity"})
+            elif self.svsprior == "poisson":
                 distr  = ET.SubElement(sub_prior, "distr", {"id":"Poisson:%s.%d" % (traitname, n), "offset":str(self.valuecounts[trait]-1),"spec":"beast.math.distributions.Poisson"})
                 param = ET.SubElement(distr, "parameter", {"id":"RealParameter:%s.%d.0" % (traitname, n),"lower":"0.0","name":"lambda","upper":"0.0"})
-                poisson_mean = 1
-                while scipy.stats.poisson.cdf(N*(N-1)/2.0-(N-1), poisson_mean) > 0.99:
-                    poisson_mean += 0.1
+                # Set Poisson mean equal to the midpoint of therange of
+                # sensible values
+                poisson_mean = (maxx - offset)/2.0
+                print self.symmetric, N, maxx, offset, poisson_mean
                 param.text = str(poisson_mean)
             elif self.svsprior == "exponential":
-                exponential_mean = 1
-                if self.symmetric:
-                    offset = N-1
-                    cutoff = 0.333
-                    maxx = N*(N-1)/2.0
-                else:
-                    offset = N
-                    cutoff = 0.333
-                    maxx = N*(N-1)
-                while scipy.stats.expon.cdf(cutoff*maxx-offset, exponential_mean) > 0.95:
-                    exponential_mean += 0.1
+                # Set Exponential mean so that 99% of probability density
+                # lies inside the sensible range
+                # Exponential quantile function is
+                # F(p,lambda) = -ln(1-p) / lambda
+                exponential_mean = math.log(100.0) / (maxx - offset)
+                print self.symmetric, N, maxx, offset, exponential_mean
                 distr  = ET.SubElement(sub_prior, "distr", {"id":"Exponential:%s.%d" % (traitname, n), "offset":str(offset),"spec":"beast.math.distributions.Exponential"})
                 param = ET.SubElement(distr, "parameter", {"id":"RealParameter:%s.%d.0" % (traitname, n),"lower":"0.0","name":"mean","upper":"0.0"})
                 param.text = str(exponential_mean)
