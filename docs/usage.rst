@@ -28,6 +28,20 @@ To write the XML output to ``stdout`` instead of a file, use ``-`` in place of a
 
         $ beastling my_config.conf -
 
+If you run BEASTling in verbose mode, using either ``-v`` or ``--verbose``, BEASTling will print messages while processing your configuration file.  These messages will let you know of BEAST packages that your analysis depends upon, and of various decisions it makes which you may like to be aware of.  For example:
+
+::
+
+        $ beastling -v my_config.conf my_output.xml
+        [DEPENDENCY] ConstrainedRandomTree is implemented in the BEAST package BEASTLabs.
+        [DEPENDENCY] The Lewis Mk substitution model is implemented in the BEAST package "morph-models".
+        [INFO] Model my_model: Trait f3 excluded because its value is constant across selected languages.  Set "remove_constant_traits=False" to stop this.
+        [INFO] Model my_model: Trait f6 excluded because there are no datapoints for selected languages.
+        [INFO] Model my_model: Using 8 traits from data file ./tests/data/basic.csv
+        [INFO] 5 languages included in analysis.
+
+In future, BEASTling in verbose mode may also offer hints on hwo you can tweak your configuration to improve performance.
+
 Once you have your output XML file, you can get BEAST to run your analysis by simply running:
         
 ::
