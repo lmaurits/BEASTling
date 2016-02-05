@@ -2,6 +2,7 @@
 import argparse
 import os
 import sys
+import traceback
 
 import beastling.configuration
 import beastling.beastxml
@@ -23,7 +24,7 @@ def main():
         config.process()
     except Exception as e:
         sys.stderr.write("Error encountered while parsing configuration file:\n")
-        sys.stderr.write(str(e))
+        traceback.print_exc()
         sys.exit(1)
 
     # If verbose mode is on, print any messages which were generated while
@@ -37,7 +38,7 @@ def main():
         xml = beastling.beastxml.BeastXml(config)
     except Exception as e:
         sys.stderr.write("Error encountered while building BeastXML object:\n")
-        sys.stderr.write(str(e))
+        traceback.print_exc()
         sys.exit(1)
 
     # Write XML file
