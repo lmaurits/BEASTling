@@ -33,6 +33,7 @@ class Configuration:
         self.configfile = None
         self.configfile_text = None
         self.chainlength = 10000000
+        self.sample_from_prior = False
         self.families = "*"
         self.overlap = "error"
         self.starting_tree = ""
@@ -85,6 +86,8 @@ class Configuration:
         sec = "MCMC"
         if p.has_option(sec, "chainlength"):
             self.chainlength = p.getint(sec, "chainlength")
+        if p.has_option(sec, "sample_from_prior"):
+            self.sample_from_prior = p.getboolean(sec, "sample_from_prior")
 
         ## Languages
         sec = "languages"

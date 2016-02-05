@@ -55,6 +55,8 @@ The ``MCMC`` section may contain the following parameters:
 
 * ``chainlength``: number of iterations to run the MCMC chain for.  Default is 10,000,000.
 
+* ``sample_from_prior``: "True" or "False".  If True, BEAST will ignore all supplied data and the tree, all clock rates and any model parameters will all be sampled from their prior distributions.  Default is False.
+
 languages section
 -----------------
 
