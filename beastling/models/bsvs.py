@@ -61,7 +61,6 @@ class BSVSModel(BaseModel):
                 # Set Poisson mean equal to the midpoint of therange of
                 # sensible values
                 poisson_mean = (maxx - offset)/2.0
-                print self.symmetric, N, maxx, offset, poisson_mean
                 param.text = str(poisson_mean)
             elif self.svsprior == "exponential":
                 # Set Exponential mean so that 99% of probability density
@@ -69,7 +68,6 @@ class BSVSModel(BaseModel):
                 # Exponential quantile function is
                 # F(p,lambda) = -ln(1-p) / lambda
                 exponential_mean = math.log(100.0) / (maxx - offset)
-                print self.symmetric, N, maxx, offset, exponential_mean
                 distr  = ET.SubElement(sub_prior, "distr", {"id":"Exponential:%s.%d" % (traitname, n), "offset":str(offset),"spec":"beast.math.distributions.Exponential"})
                 param = ET.SubElement(distr, "parameter", {"id":"RealParameter:%s.%d.0" % (traitname, n),"lower":"0.0","name":"mean","upper":"0.0"})
                 param.text = str(exponential_mean)
