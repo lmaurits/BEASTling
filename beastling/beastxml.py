@@ -218,7 +218,7 @@ class BeastXml:
 
         # Screen logger
         if self.config.screenlog:
-            screen_logger = ET.SubElement(self.run, "logger", attrib={"id":"screenlog", "logEvery":"10000"})
+            screen_logger = ET.SubElement(self.run, "logger", attrib={"id":"screenlog", "logEvery":str(self.config.log_every)})
             log = ET.SubElement(screen_logger, "log", attrib={"arg":"@posterior", "id":"ESS.0", "spec":"util.ESS"})
             log = ET.SubElement(screen_logger, "log", attrib={"idref":"prior"})
             log = ET.SubElement(screen_logger, "log", attrib={"idref":"likelihood"})
@@ -226,7 +226,7 @@ class BeastXml:
 
         # Tracer log
         if self.config.log_probabilities or self.config.log_params or self.config.log_all:
-            tracer_logger = ET.SubElement(self.run,"logger",{"id":"tracelog","fileName":self.config.basename+".log","logEvery":"10000","model":"@posterior","sanitiseHeaders":"true","sort":"smart"})
+            tracer_logger = ET.SubElement(self.run,"logger",{"id":"tracelog","fileName":self.config.basename+".log","logEvery":str(self.config.log_every),"model":"@posterior","sanitiseHeaders":"true","sort":"smart"})
             if self.config.log_probabilities or self.config.log_all:
                 ET.SubElement(tracer_logger,"log",{"idref":"prior"})
                 ET.SubElement(tracer_logger,"log",{"idref":"likelihood"})
@@ -238,7 +238,7 @@ class BeastXml:
                 
         # Tree log
         if self.config.log_trees or self.config.log_all:
-            tree_logger = ET.SubElement(self.run, "logger", {"mode":"tree", "fileName":self.config.basename+".nex","logEvery":"10000","id":"treeWithMetaDataLogger"})
+            tree_logger = ET.SubElement(self.run, "logger", {"mode":"tree", "fileName":self.config.basename+".nex","logEvery":str(self.config.log_every),"id":"treeWithMetaDataLogger"})
             log = ET.SubElement(tree_logger, "log", attrib={"id":"TreeLogger","spec":"beast.evolution.tree.TreeWithMetaDataLogger","tree":"@Tree.t:beastlingTree"})
 
     def write_file(self, filename=None):
