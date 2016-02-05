@@ -20,6 +20,7 @@ class BaseModel:
             self.traits = model_config["traits"] 
         else:
             self.traits = "*"
+        self.constant_trait = False
         self.frequencies = model_config.get("frequencies", "empirical")
         self.pruned = model_config.get("pruned", False)
         self.rate_variation = model_config.get("rate_variation", False)
@@ -75,10 +76,13 @@ class BaseModel:
                 self.messages.append("[INFO] Model %s: Trait %s excluded because there are no datapoints for selected languages." % (self.name, trait))
                 bad_traits.append(trait)
                 continue
-            if (len(uniq) == 1 and self.remove_constant_traits):
-                self.messages.append("""[INFO] Model %s: Trait %s excluded because its value is constant across selected languages.  Set "remove_constant_traits=False" to stop this.""" % (self.name, trait))
-                bad_traits.append(trait)
-                continue
+            if len(uniq) == 1:
+                if self.remove_constant_traits:
+                    self.messages.append("""[INFO] Model %s: Trait %s excluded because its value is constant across selected languages.  Set "remove_constant_traits=False" to stop this.""" % (self.name, trait))
+                    bad_traits.append(trait)
+                    continue
+                else:
+                    self.constant_trait = True
             N = len(uniq)
 
             self.valuecounts[trait] = N
@@ -88,6 +92,8 @@ class BaseModel:
         self.traits = [t for t in self.traits if t not in bad_traits]
         self.traits.sort()
         self.messages.append("[INFO] Model %s: Using %d traits from data file %s" % (self.name, len(self.traits), self.data_filename))
+        if self.constant_trait and self.rate_variation:
+            self.messages.append("""[WARNING] Model %s: Rate variation enabled with constant traits retained in data.  This may skew rate estimates for non-constant traits.""" % self.name)
         if self.pruned:
             self.messages.append("""[DEPENDENCY] Model %s: Pruned trees are implemented in the BEAST package "BEASTlabs".""" % self.name)
 
