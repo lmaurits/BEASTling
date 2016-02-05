@@ -123,7 +123,7 @@ Each model section *must* contain the following parameters, i.e. they are mandat
 
 Additionally, each model section *may* contain the following parameters, i.e.  they are optional:
 
-* ``data_format``: Can be used to explicitly set which of the two supported .csv formats the data for this model is supplied in, to be used if BEASTling is mistakenly trying to parse one format as the other (which should be very rare).  Should be one of:
+* ``file_format``: Can be used to explicitly set which of the two supported .csv file formats the data for this model is supplied in, to be used if BEASTling is mistakenly trying to parse one format as the other (which should be very rare).  Should be one of:
    * "beastling"
    * "cldf"
 
@@ -137,4 +137,3 @@ Additionally, each model section *may* contain the following parameters, i.e.  t
 * ``traits``: Is used to select a subset of the features in the given data file.  Should be one of:
    * A comma-separated list of feature names (as they are given in the data CSV's header line)
    * A path to a file which contains one feature name per line
-

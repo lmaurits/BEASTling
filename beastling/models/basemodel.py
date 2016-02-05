@@ -27,7 +27,7 @@ class BaseModel:
         self.remove_constant_traits = model_config.get("remove_constant_traits", True)
         self.lang_column = model_config.get("language_column", None)
 
-        self.data = load_data(self.data_filename, file_format=model_config.get("data_format",None), lang_column=model_config.get("language_column",None))
+        self.data = load_data(self.data_filename, file_format=model_config.get("file_format",None), lang_column=model_config.get("language_column",None))
         self.load_traits()
         self.preprocess()
 
