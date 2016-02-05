@@ -1,5 +1,6 @@
-# BEASTling A linguistics-focussed command line tool for generating
+#BEASTling
 
+A linguistics-focussed command line tool for generating
 [BEAST](http://beast2.org) XML files.  Only BEAST 2.x is supported.
 
 For full documentation, see [Read the Docs](https://beastling.readthedocs.org).
