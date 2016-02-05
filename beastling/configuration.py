@@ -183,6 +183,11 @@ class Configuration:
         # entries
         if not self.log_every:
             self.log_every = self.chainlength / 10000
+            ## If chainlength < 10000, this results in log_every = zero.
+            ## This causes BEAST to die.
+            ## So in this case, just log everything.
+            if self.log_every == 0:
+                self.log_every = 1
 
         if os.path.exists(self.families):
             fp = codecs.open(self.families, "r", "UTF-8")
