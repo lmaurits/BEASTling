@@ -141,11 +141,11 @@ class BaseModel:
                 traitname = "%s:%s" % (self.name, trait)
 
                 attribs = {}
-                attribs["id"] = "mutationRate:%s" % traitname
+                attribs["id"] = "traitClockRate:%s" % traitname
                 attribs["name"] = "stateNode"
                 parameter = ET.SubElement(state, "parameter", attribs)
                 parameter.text="1.0"
-            parameter = ET.SubElement(state, "parameter", {"id":"mutationRateGammaShape:%s" % self.name, "name":"stateNode"})
+            parameter = ET.SubElement(state, "parameter", {"id":"traitClockRateGammaShape:%s" % self.name, "name":"stateNode"})
             parameter.text="2.0"
 
     def add_prior(self, prior):
@@ -156,16 +156,16 @@ class BaseModel:
 
         # Mutation rates
         if self.rate_variation:
-            sub_prior = ET.SubElement(prior, "prior", {"id":"mutationRatePrior.s:%s" % self.name, "name":"distribution"})
-            compound = ET.SubElement(sub_prior, "input", {"id":"mutationRateCompound:%s" % self.name, "spec":"beast.core.parameter.CompoundValuable", "name":"x"})
+            sub_prior = ET.SubElement(prior, "prior", {"id":"traitClockRatePrior.s:%s" % self.name, "name":"distribution"})
+            compound = ET.SubElement(sub_prior, "input", {"id":"traitClockRateCompound:%s" % self.name, "spec":"beast.core.parameter.CompoundValuable", "name":"x"})
             for trait in self.traits:
                 traitname = "%s:%s" % (self.name, trait)
-                var = ET.SubElement(compound, "var", {"idref":"mutationRate:%s" % traitname})
-            gamma  = ET.SubElement(sub_prior, "input", {"id":"mutationRatePriorGamma:%s" % self.name, "spec":"beast.math.distributions.SingleParamGamma", "name":"distr", "alpha":"@mutationRateGammaShape:%s" % self.name})
+                var = ET.SubElement(compound, "var", {"idref":"traitClockRate:%s" % traitname})
+            gamma  = ET.SubElement(sub_prior, "input", {"id":"traitClockRatePriorGamma:%s" % self.name, "spec":"beast.math.distributions.SingleParamGamma", "name":"distr", "alpha":"@traitClockRateGammaShape:%s" % self.name})
 
-            sub_prior = ET.SubElement(prior, "prior", {"id":"mutationRateGammaShapePrior.s:%s" % self.name, "name":"distribution", "x":"@mutationRateGammaShape:%s" % self.name})
-            exp = ET.SubElement(sub_prior, "Exponential", {"id":"mutationRateGammaShapePriorExponential.s:%s" % self.name, "name":"distr"})
-            param = ET.SubElement(exp, "parameter", {"id":"mutationRateGammaShapePriorParam:%s" % self.name, "name":"mean", "lower":"0.0", "upper":"0.0"})
+            sub_prior = ET.SubElement(prior, "prior", {"id":"traitClockRateGammaShapePrior.s:%s" % self.name, "name":"distribution", "x":"@traitClockRateGammaShape:%s" % self.name})
+            exp = ET.SubElement(sub_prior, "Exponential", {"id":"traitClockRateGammaShapePriorExponential.s:%s" % self.name, "name":"distr"})
+            param = ET.SubElement(exp, "parameter", {"id":"traitClockRateGammaShapePriorParam:%s" % self.name, "name":"mean", "lower":"0.0", "upper":"0.0"})
             param.text = "1.0"
 
     def add_data(self, distribution, trait, traitname):
@@ -219,12 +219,12 @@ class BaseModel:
 
         # Mutation rates
         if self.rate_variation:
-            delta = ET.SubElement(run, "operator", {"id":"mutationRateDeltaExchanger:%s" % self.name, "spec":"DeltaExchangeOperator", "weight":"3.0"})
+            delta = ET.SubElement(run, "operator", {"id":"traitClockRateDeltaExchanger:%s" % self.name, "spec":"DeltaExchangeOperator", "weight":"3.0"})
             for trait in self.traits:
                 traitname = "%s:%s" % (self.name, trait)
-                param = ET.SubElement(delta, "parameter", {"idref":"mutationRate:%s" % traitname})
+                param = ET.SubElement(delta, "parameter", {"idref":"traitClockRate:%s" % traitname})
             
-            ET.SubElement(run, "operator", {"id":"mutationRateGammaShapeScaler:%s" % self.name, "spec":"ScaleOperator","parameter":"@mutationRateGammaShape:%s" % self.name, "scaleFactor":"1.0","weight":"0.1"})
+            ET.SubElement(run, "operator", {"id":"traitClockRateGammaShapeScaler:%s" % self.name, "spec":"ScaleOperator","parameter":"@traitClockRateGammaShape:%s" % self.name, "scaleFactor":"1.0","weight":"0.1"})
 
     def add_param_logs(self, logger):
 
@@ -235,5 +235,5 @@ class BaseModel:
         if self.rate_variation:
             for trait in self.traits:
                 traitname = "%s:%s" % (self.name, trait)
-                ET.SubElement(logger,"log",{"idref":"mutationRate:%s" % traitname})
-            ET.SubElement(logger,"log",{"idref":"mutationRateGammaShape:%s" % self.name})
+                ET.SubElement(logger,"log",{"idref":"traitClockRate:%s" % traitname})
+            ET.SubElement(logger,"log",{"idref":"traitClockRateGammaShape:%s" % self.name})

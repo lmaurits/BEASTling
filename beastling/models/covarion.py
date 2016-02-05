@@ -81,7 +81,7 @@ class CovarionModel(BaseModel):
 
         # Sitemodel
         if self.rate_variation:
-            mr = "@mutationRate:%s" % traitname
+            mr = "@traitClockRate:%s" % traitname
         else:
             mr = "1.0"
         sitemodel = ET.SubElement(distribution, "siteModel", {"id":"SiteModel.%s"%traitname,"spec":"SiteModel", "mutationRate":mr,"shape":"1","proportionInvariant":"0", "substModel":"@covarion.s"})
