@@ -14,15 +14,15 @@ class CovarionModel(BaseModel):
 
     def build_freq_str(self):
         all_data = []
-        for n, trait in enumerate(self.traits):
-            traitname = "%s:%s" % (self.name, trait)
-            traitrange = sorted(list(set(self.data[lang][trait] for lang in self.data)))
+        for n, f in enumerate(self.features):
+            fname = "%s:%s" % (self.name, f)
+            frange = sorted(list(set(self.data[lang][f] for lang in self.data)))
             for lang in self.data:
-                if self.data[lang].get(trait,"?") == "?":
-                    valuestring = "".join(["?" for i in range(0,len(traitrange)+1)])
+                if self.data[lang].get(f,"?") == "?":
+                    valuestring = "".join(["?" for i in range(0,len(frange)+1)])
                 else:
-                    valuestring = ["0" for i in range(0,len(traitrange)+1)]
-                    valuestring[traitrange.index(self.data[lang][trait])+1] = "1"
+                    valuestring = ["0" for i in range(0,len(frange)+1)]
+                    valuestring[frange.index(self.data[lang][f])+1] = "1"
                     all_data.extend(valuestring)
 
         all_data = [d for d in all_data if d !="?"]
@@ -40,19 +40,19 @@ class CovarionModel(BaseModel):
         vfreq = ET.SubElement(state, "parameter", {"id":"%s:visiblefrequencies.s" % self.name, "dimension":"2", "lower": "0.0", "upper":"1.0", "name":"stateNode"})
         vfreq.text="0.5 0.5"
 
-    def add_data(self, distribution, trait, traitname):
-        traitrange = sorted(list(set(self.data[lang][trait] for lang in self.config.languages)))
-        data = ET.SubElement(distribution,"data",{"id":traitname, "spec":"Alignment", "ascertained":"true", "excludefrom":"0","excludeto":"1"})
+    def add_data(self, distribution, feature, fname):
+        frange = sorted(list(set(self.data[lang][feature] for lang in self.config.languages)))
+        data = ET.SubElement(distribution,"data",{"id":fname, "spec":"Alignment", "ascertained":"true", "excludefrom":"0","excludeto":"1"})
         ET.SubElement(data, "userDataType",{"spec":"beast.evolution.datatype.TwoStateCovarion"})
         for lang in self.config.languages:
-            if self.data[lang][trait] == "?":
-                valuestring = "".join(["?" for i in range(0,len(traitrange)+1)])
+            if self.data[lang][feature] == "?":
+                valuestring = "".join(["?" for i in range(0,len(frange)+1)])
             else:
-                valuestring = ["0" for i in range(0,len(traitrange)+1)]
-                valuestring[traitrange.index(self.data[lang][trait])+1] = "1"
+                valuestring = ["0" for i in range(0,len(frange)+1)]
+                valuestring[frange.index(self.data[lang][feature])+1] = "1"
                 valuestring = "".join(valuestring)
 
-            seq = ET.SubElement(data, "sequence", {"id":"seq_%s_%s" % (lang, traitname), "taxon":lang, "totalcount":"4","value":valuestring})
+            seq = ET.SubElement(data, "sequence", {"id":"seq_%s_%s" % (lang, fname), "taxon":lang, "totalcount":"4","value":valuestring})
 
     def add_misc(self, beast):
         # The "vfrequencies" parameter here is the frequencies
@@ -77,14 +77,14 @@ class CovarionModel(BaseModel):
         # which probably should have been overridden...
         freq = ET.SubElement(substmodel, "frequencies", {"id":"dummyfrequences.s","spec":"Frequencies","frequencies":"0.5 0.5"})
 
-    def add_sitemodel(self, distribution, trait, traitname):
+    def add_sitemodel(self, distribution, feature, fname):
 
         # Sitemodel
         if self.rate_variation:
-            mr = "@traitClockRate:%s" % traitname
+            mr = "@featureClockRate:%s" % fname
         else:
             mr = "1.0"
-        sitemodel = ET.SubElement(distribution, "siteModel", {"id":"SiteModel.%s"%traitname,"spec":"SiteModel", "mutationRate":mr,"shape":"1","proportionInvariant":"0", "substModel":"@covarion.s"})
+        sitemodel = ET.SubElement(distribution, "siteModel", {"id":"SiteModel.%s"%fname,"spec":"SiteModel", "mutationRate":mr,"shape":"1","proportionInvariant":"0", "substModel":"@covarion.s"})
 
     def add_prior(self, prior):
         BaseModel.add_prior(self, prior)

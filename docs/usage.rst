@@ -35,9 +35,9 @@ If you run BEASTling in verbose mode, using either ``-v`` or ``--verbose``, BEAS
         $ beastling -v my_config.conf my_output.xml
         [DEPENDENCY] ConstrainedRandomTree is implemented in the BEAST package BEASTLabs.
         [DEPENDENCY] The Lewis Mk substitution model is implemented in the BEAST package "morph-models".
-        [INFO] Model my_model: Trait f3 excluded because its value is constant across selected languages.  Set "remove_constant_traits=False" to stop this.
-        [INFO] Model my_model: Trait f6 excluded because there are no datapoints for selected languages.
-        [INFO] Model my_model: Using 8 traits from data file ./tests/data/basic.csv
+        [INFO] Model "my_model": Trait f3 excluded because its value is constant across selected languages.  Set "remove_constant_features=False" in config to stop this.
+        [INFO] Model "my_model": Trait f6 excluded because there are no datapoints for selected languages.
+        [INFO] Model "my_model": Using 8 features from data file ./tests/data/basic.csv
         [INFO] 5 languages included in analysis.
 
 In future, BEASTling in verbose mode may also offer hints on hwo you can tweak your configuration to improve performance.

@@ -13,21 +13,21 @@ class MKModel(BaseModel):
 
         BaseModel.__init__(self, model_config, global_config)
 
-    def add_sitemodel(self, distribution, trait, traitname):
+    def add_sitemodel(self, distribution, feature, fname):
 
             # Sitemodel
             if self.rate_variation:
-                mr = "@traitClockRate:%s" % traitname
+                mr = "@featureClockRate:%s" % fname
             else:
                 mr = "1.0"
-            sitemodel = ET.SubElement(distribution, "siteModel", {"id":"SiteModel.%s"%traitname,"spec":"SiteModel", "mutationRate":mr,"shape":"1","proportionInvariant":"0"})
+            sitemodel = ET.SubElement(distribution, "siteModel", {"id":"SiteModel.%s"%fname,"spec":"SiteModel", "mutationRate":mr,"shape":"1","proportionInvariant":"0"})
 
-            substmodel = ET.SubElement(sitemodel, "substModel",{"id":"mk.s:%s"%traitname,"spec":"LewisMK","datatype":"@traitDataType.%s" % traitname})
+            substmodel = ET.SubElement(sitemodel, "substModel",{"id":"mk.s:%s"%fname,"spec":"LewisMK","datatype":"@traitDataType.%s" % fname})
             # Do empirical frequencies
             # We don't need to do anything for uniform freqs
             # as the implementation of LewisMK handles it
             if self.frequencies == "empirical":
                 if self.pruned:
-                    freq = ET.SubElement(substmodel,"frequencies",{"id":"traitfreqs.s:%s"%traitname,"spec":"Frequencies", "data":"@%s.filt"%traitname})
+                    freq = ET.SubElement(substmodel,"frequencies",{"id":"featurefreqs.s:%s"%fname,"spec":"Frequencies", "data":"@%s.filt"%fname})
                 else:
-                    freq = ET.SubElement(substmodel,"frequencies",{"id":"traitfreqs.s:%s"%traitname,"spec":"Frequencies", "data":"@%s"%traitname})
+                    freq = ET.SubElement(substmodel,"frequencies",{"id":"featurefreqs.s:%s"%fname,"spec":"Frequencies", "data":"@%s"%fname})

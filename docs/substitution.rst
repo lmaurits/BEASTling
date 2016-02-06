@@ -36,7 +36,7 @@ A symmetric model (``symmetric=True``, which is the default value) assumes that 
 
 The ``svsprior`` property specifies the shape of the prior distribution which is placed over the number of non-zero rate.  Possible choices are ``poisson'' and ``exponential``, with ``poisson`` being the default.
 
-The size of the statespace for a particular trait determines a maximum possible number of non-zero rates (the entire matrix), and also a minimum possible number (to ensure that the Markov chain is ergodic).  The non-zero rate prior is defined over this range, so both the Poisson and exponential priors have an offset, rather than beginning their support at zero.
+The size of the statespace for a particular feature determines a maximum possible number of non-zero rates (the entire matrix), and also a minimum possible number (to ensure that the Markov chain is ergodic).  The non-zero rate prior is defined over this range, so both the Poisson and exponential priors have an offset, rather than beginning their support at zero.
 
 The default Poisson prior is the more conservative choice.  BEASTling will set the mean of the Poisson distribution equal to the midpoint between the minimum and maximum possible number of non-zero rates.  In this way, the model has no strong preference for sparse matrices over dense matrices or vice versa (as the mean of the Poisson is usually approximately equal to the median), while still encouraging the setting of rates to zero if the data supports it.
 

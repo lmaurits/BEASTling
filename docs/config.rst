@@ -69,7 +69,7 @@ The ``languages`` section may contain the following parameters:
 * ``monophyletic``: "True" or "False".  Controls whether or not to impose the family structure in Glottolog as monophyly constraints in the BEAST analysis.  Default is False.
 
 * ``overlap``: One of ``union``, ``intersection`` or ``error``. Controls how to deal with language sets mismatches between input data.
-   * If set to ``union``, languages missing in one data set will be added with all traits missing.
+   * If set to ``union``, languages missing in one data set will be added with all features missing.
    * If set to ``intersection``, only languages present in all data sets will be used.
    * If set to ``error`` (the default), BEASTling will exit with an error message when two data sets don't match.
 
@@ -133,7 +133,7 @@ Additionally, each model section *may* contain the following parameters, i.e.  t
 
 * ``rate_variation``: "True" or "False".  Estimate a separate substitution rate for each feature (using a Gamma prior).
 
-* ``remove_constant_traits``: "True" or "False".  By default, this is set to "True", which means that if your data set contains any features which have the same value for all of the languages in your analysis (which is not necessarily all of the languages in your data file, if you are using the "families" parameter in your "languages" section!), BEASTling will automatically remove that feature from the analysis (since it cannot possibly provide any phylogenetic information).  If you want to keep these constant features in for some reason, you must explicitly set this parameter to False.
-* ``traits``: Is used to select a subset of the features in the given data file.  Should be one of:
+* ``remove_constant_features``: "True" or "False".  By default, this is set to "True", which means that if your data set contains any features which have the same value for all of the languages in your analysis (which is not necessarily all of the languages in your data file, if you are using the "families" parameter in your "languages" section!), BEASTling will automatically remove that feature from the analysis (since it cannot possibly provide any phylogenetic information).  If you want to keep these constant features in for some reason, you must explicitly set this parameter to False.
+* ``features``: Is used to select a subset of the features in the given data file.  Should be one of:
    * A comma-separated list of feature names (as they are given in the data CSV's header line)
    * A path to a file which contains one feature name per line

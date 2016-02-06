@@ -16,19 +16,19 @@ class BaseModel:
 
         self.name = model_config["name"] 
         self.data_filename = model_config["data"] 
-        if "traits" in model_config:
-            self.traits = model_config["traits"] 
+        if "features" in model_config:
+            self.features = model_config["features"] 
         else:
-            self.traits = "*"
-        self.constant_trait = False
+            self.features = "*"
+        self.constant_feature = False
         self.frequencies = model_config.get("frequencies", "empirical")
         self.pruned = model_config.get("pruned", False)
         self.rate_variation = model_config.get("rate_variation", False)
-        self.remove_constant_traits = model_config.get("remove_constant_traits", True)
+        self.remove_constant_features = model_config.get("remove_constant_features", True)
         self.lang_column = model_config.get("language_column", None)
 
         self.data = load_data(self.data_filename, file_format=model_config.get("file_format",None), lang_column=model_config.get("language_column",None))
-        self.load_traits()
+        self.load_features()
         self.preprocess()
 
     def build_codemap(self, unique_values):
@@ -43,17 +43,17 @@ class BaseModel:
 
         # Remove features which are in the config but not the
         # data file
-        self.traits = [t for t in self.traits if
-                any([t in self.data[lang] for lang in self.data]
+        self.features = [f for f in self.features if
+                any([f in self.data[lang] for lang in self.data]
                     )]
 
         self.valuecounts = {}
         self.counts = {}
         self.dimensions = {}
         self.codemaps = {}
-        bad_traits = []
-        for trait in self.traits:
-            all_values = [self.data[l][trait] for l in self.data]
+        bad_feats = []
+        for f in self.features:
+            all_values = [self.data[l][f] for l in self.data]
             all_values = [v for v in all_values if v != "?"]
             uniq = list(set(all_values))
             counts = {}
@@ -73,55 +73,55 @@ class BaseModel:
             else:
                 uniq.sort()
             if len(uniq) == 0:
-                self.messages.append("[INFO] Model %s: Trait %s excluded because there are no datapoints for selected languages." % (self.name, trait))
-                bad_traits.append(trait)
+                self.messages.append("""[INFO] Model "%s": Feature %s excluded because there are no datapoints for selected languages.""" % (self.name, f))
+                bad_feats.append(f)
                 continue
             if len(uniq) == 1:
-                if self.remove_constant_traits:
-                    self.messages.append("""[INFO] Model %s: Trait %s excluded because its value is constant across selected languages.  Set "remove_constant_traits=False" to stop this.""" % (self.name, trait))
-                    bad_traits.append(trait)
+                if self.remove_constant_features:
+                    self.messages.append("""[INFO] Model "%s": Feature %s excluded because its value is constant across selected languages.  Set "remove_constant_features=False" in config to stop this.""" % (self.name, f))
+                    bad_feats.append(f)
                     continue
                 else:
-                    self.constant_trait = True
+                    self.constant_feature = True
             N = len(uniq)
 
-            self.valuecounts[trait] = N
-            self.counts[trait] = counts
-            self.dimensions[trait] = N*(N-1)/2
-            self.codemaps[trait] = self.build_codemap(uniq)
-        self.traits = [t for t in self.traits if t not in bad_traits]
-        self.traits.sort()
-        self.messages.append("[INFO] Model %s: Using %d traits from data file %s" % (self.name, len(self.traits), self.data_filename))
-        if self.constant_trait and self.rate_variation:
-            self.messages.append("""[WARNING] Model %s: Rate variation enabled with constant traits retained in data.  This may skew rate estimates for non-constant traits.""" % self.name)
+            self.valuecounts[f] = N
+            self.counts[f] = counts
+            self.dimensions[f] = N*(N-1)/2
+            self.codemaps[f] = self.build_codemap(uniq)
+        self.features = [f for f in self.features if f not in bad_feats]
+        self.features.sort()
+        self.messages.append("""[INFO] Model "%s": Using %d features from data source %s""" % (self.name, len(self.features), self.data_filename))
+        if self.constant_feature and self.rate_variation:
+            self.messages.append("""[WARNING] Model "%s": Rate variation enabled with constant features retained in data.  This may skew rate estimates for non-constant features.""" % self.name)
         if self.pruned:
             self.messages.append("""[DEPENDENCY] Model %s: Pruned trees are implemented in the BEAST package "BEASTlabs".""" % self.name)
 
-    def load_traits(self):
-        # Load traits to analyse
-        if os.path.exists(self.traits):
-            traits = []
-            fp = codecs.open(self.traits, "r", "UTF-8")
+    def load_features(self):
+        # Load features to analyse
+        if os.path.exists(self.features):
+            features = []
+            fp = codecs.open(self.features, "r", "UTF-8")
             for line in fp:
                 feature = line.strip()
-                traits.append(feature)
-        elif self.traits == "*":
+                features.append(feature)
+        elif self.features == "*":
             random_iso = self.data.keys()[0]
-            traits = self.data[random_iso].keys()
+            features = self.data[random_iso].keys()
             # Need to remove the languge ID column
             if self.lang_column:
-                traits.remove(self.lang_column)
+                features.remove(self.lang_column)
             else:
                 # If no language column name was explicitly given, just
                 # remove the first of the automatically-recognised names
                 # which we encounter:
                 for lc in _language_column_names:
-                    if lc in traits:
-                        traits.remove(lc)
+                    if lc in features:
+                        features.remove(lc)
                         break
         else:
-            traits = [t.strip() for t in self.traits.split(",")]
-        self.traits = traits
+            features = [f.strip() for f in self.features.split(",")]
+        self.features = features
 
     def add_misc(self, beast):
         pass
@@ -137,15 +137,15 @@ class BaseModel:
 
         # Mutation rates
         if self.rate_variation:
-            for trait in self.traits:
-                traitname = "%s:%s" % (self.name, trait)
+            for f in self.features:
+                fname = "%s:%s" % (self.name, f)
 
                 attribs = {}
-                attribs["id"] = "traitClockRate:%s" % traitname
+                attribs["id"] = "featureClockRate:%s" % fname
                 attribs["name"] = "stateNode"
                 parameter = ET.SubElement(state, "parameter", attribs)
                 parameter.text="1.0"
-            parameter = ET.SubElement(state, "parameter", {"id":"traitClockRateGammaShape:%s" % self.name, "name":"stateNode"})
+            parameter = ET.SubElement(state, "parameter", {"id":"featureClockRateGammaShape:%s" % self.name, "name":"stateNode"})
             parameter.text="2.0"
 
     def add_prior(self, prior):
@@ -156,60 +156,60 @@ class BaseModel:
 
         # Mutation rates
         if self.rate_variation:
-            sub_prior = ET.SubElement(prior, "prior", {"id":"traitClockRatePrior.s:%s" % self.name, "name":"distribution"})
-            compound = ET.SubElement(sub_prior, "input", {"id":"traitClockRateCompound:%s" % self.name, "spec":"beast.core.parameter.CompoundValuable", "name":"x"})
-            for trait in self.traits:
-                traitname = "%s:%s" % (self.name, trait)
-                var = ET.SubElement(compound, "var", {"idref":"traitClockRate:%s" % traitname})
-            gamma  = ET.SubElement(sub_prior, "input", {"id":"traitClockRatePriorGamma:%s" % self.name, "spec":"beast.math.distributions.SingleParamGamma", "name":"distr", "alpha":"@traitClockRateGammaShape:%s" % self.name})
+            sub_prior = ET.SubElement(prior, "prior", {"id":"featureClockRatePrior.s:%s" % self.name, "name":"distribution"})
+            compound = ET.SubElement(sub_prior, "input", {"id":"featureClockRateCompound:%s" % self.name, "spec":"beast.core.parameter.CompoundValuable", "name":"x"})
+            for f in self.features:
+                fname = "%s:%s" % (self.name, f)
+                var = ET.SubElement(compound, "var", {"idref":"featureClockRate:%s" % fname})
+            gamma  = ET.SubElement(sub_prior, "input", {"id":"featureClockRatePriorGamma:%s" % self.name, "spec":"beast.math.distributions.SingleParamGamma", "name":"distr", "alpha":"@featureClockRateGammaShape:%s" % self.name})
 
-            sub_prior = ET.SubElement(prior, "prior", {"id":"traitClockRateGammaShapePrior.s:%s" % self.name, "name":"distribution", "x":"@traitClockRateGammaShape:%s" % self.name})
-            exp = ET.SubElement(sub_prior, "Exponential", {"id":"traitClockRateGammaShapePriorExponential.s:%s" % self.name, "name":"distr"})
-            param = ET.SubElement(exp, "parameter", {"id":"traitClockRateGammaShapePriorParam:%s" % self.name, "name":"mean", "lower":"0.0", "upper":"0.0"})
+            sub_prior = ET.SubElement(prior, "prior", {"id":"featureClockRateGammaShapePrior.s:%s" % self.name, "name":"distribution", "x":"@featureClockRateGammaShape:%s" % self.name})
+            exp = ET.SubElement(sub_prior, "Exponential", {"id":"featureClockRateGammaShapePriorExponential.s:%s" % self.name, "name":"distr"})
+            param = ET.SubElement(exp, "parameter", {"id":"featureClockRateGammaShapePriorParam:%s" % self.name, "name":"mean", "lower":"0.0", "upper":"0.0"})
             param.text = "1.0"
 
-    def add_data(self, distribution, trait, traitname):
+    def add_data(self, distribution, feature, fname):
         # Data
         if self.pruned:
-            data = ET.SubElement(distribution,"data",{"id":"%s.filt" % traitname, "spec":"PrunedAlignment"})
-            source = ET.SubElement(data,"source",{"id":traitname,"spec":"AlignmentFromTrait"})
+            data = ET.SubElement(distribution,"data",{"id":"%s.filt" % fname, "spec":"PrunedAlignment"})
+            source = ET.SubElement(data,"source",{"id":fname,"spec":"AlignmentFromTrait"})
             parent = source
         else:
-            data = ET.SubElement(distribution,"data",{"id":traitname, "spec":"AlignmentFromTrait"})
+            data = ET.SubElement(distribution,"data",{"id":fname, "spec":"AlignmentFromTrait"})
             parent = data
-        traitset = ET.SubElement(parent, "traitSet", {"id":"traitSet.%s" % traitname,"spec":"beast.evolution.tree.TraitSet","taxa":"@taxa","traitname":"discrete"})
+        traitset = ET.SubElement(parent, "traitSet", {"id":"traitSet.%s" % fname,"spec":"beast.evolution.tree.TraitSet","taxa":"@taxa","traitname":"discrete"})
         stringbits = []
         for lang in self.config.languages:
            if lang in self.data:
-               stringbits.append("%s=%s," % (lang, self.data[lang][trait]))
+               stringbits.append("%s=%s," % (lang, self.data[lang][feature]))
            else:
                stringbits.append("%s=?," % lang)
         traitset.text = " ".join(stringbits)
-        userdatatype = ET.SubElement(parent, "userDataType", {"id":"traitDataType.%s"%traitname,"spec":"beast.evolution.datatype.UserDataType","codeMap":self.codemaps[trait],"codelength":"-1","states":str(self.valuecounts[trait])})
+        userdatatype = ET.SubElement(parent, "userDataType", {"id":"traitDataType.%s"%fname,"spec":"beast.evolution.datatype.UserDataType","codeMap":self.codemaps[feature],"codelength":"-1","states":str(self.valuecounts[feature])})
 
 
     def add_likelihood(self, likelihood):
 
-        for n, trait in enumerate(self.traits):
-            traitname = "%s:%s" % (self.name, trait)
-            distribution = ET.SubElement(likelihood, "distribution",{"id":"traitedtreeLikelihood.%s" % traitname,"spec":"TreeLikelihood","useAmbiguities":"true"})
+        for n, f in enumerate(self.features):
+            fname = "%s:%s" % (self.name, f)
+            distribution = ET.SubElement(likelihood, "distribution",{"id":"traitedtreeLikelihood.%s" % fname,"spec":"TreeLikelihood","useAmbiguities":"true"})
 
             # Tree
             if self.pruned:
-                tree = ET.SubElement(distribution, "tree", {"id":"@Tree.t:beastlingTree.%s" % traitname, "spec":"beast.evolution.tree.PrunedTree","quickshortcut":"true","assert":"false"})
+                tree = ET.SubElement(distribution, "tree", {"id":"@Tree.t:beastlingTree.%s" % fname, "spec":"beast.evolution.tree.PrunedTree","quickshortcut":"true","assert":"false"})
                 ET.SubElement(tree, "tree", {"idref":"Tree.t:beastlingTree"})
-                ET.SubElement(tree, "alignment", {"idref":"%s.filt"%traitname})
+                ET.SubElement(tree, "alignment", {"idref":"%s.filt"%fname})
             else:
                 tree = ET.SubElement(distribution, "tree", {"idref":"Tree.t:beastlingTree", "spec":"beast.evolution.tree.Tree"})
 
             # Sitemodel
-            self.add_sitemodel(distribution, trait, traitname)
+            self.add_sitemodel(distribution, f, fname)
 
             # Branchrate
-            branchrate = ET.SubElement(distribution, "branchRateModel", {"id":"StrictClockModel.c:%s"%traitname,"spec":"beast.evolution.branchratemodel.StrictClockModel","clock.rate":"@clockRate.c:%s" % self.name})
+            branchrate = ET.SubElement(distribution, "branchRateModel", {"id":"StrictClockModel.c:%s"%fname,"spec":"beast.evolution.branchratemodel.StrictClockModel","clock.rate":"@clockRate.c:%s" % self.name})
             
             # Data
-            self.add_data(distribution, trait, traitname)
+            self.add_data(distribution, f, fname)
 
     def add_operators(self, run):
 
@@ -219,12 +219,12 @@ class BaseModel:
 
         # Mutation rates
         if self.rate_variation:
-            delta = ET.SubElement(run, "operator", {"id":"traitClockRateDeltaExchanger:%s" % self.name, "spec":"DeltaExchangeOperator", "weight":"3.0"})
-            for trait in self.traits:
-                traitname = "%s:%s" % (self.name, trait)
-                param = ET.SubElement(delta, "parameter", {"idref":"traitClockRate:%s" % traitname})
+            delta = ET.SubElement(run, "operator", {"id":"featureClockRateDeltaExchanger:%s" % self.name, "spec":"DeltaExchangeOperator", "weight":"3.0"})
+            for f in self.features:
+                fname = "%s:%s" % (self.name, f)
+                param = ET.SubElement(delta, "parameter", {"idref":"featureClockRate:%s" % fname})
             
-            ET.SubElement(run, "operator", {"id":"traitClockRateGammaShapeScaler:%s" % self.name, "spec":"ScaleOperator","parameter":"@traitClockRateGammaShape:%s" % self.name, "scaleFactor":"1.0","weight":"0.1"})
+            ET.SubElement(run, "operator", {"id":"featureClockRateGammaShapeScaler:%s" % self.name, "spec":"ScaleOperator","parameter":"@featureClockRateGammaShape:%s" % self.name, "scaleFactor":"1.0","weight":"0.1"})
 
     def add_param_logs(self, logger):
 
@@ -233,7 +233,7 @@ class BaseModel:
 
         # Mutation rates
         if self.rate_variation:
-            for trait in self.traits:
-                traitname = "%s:%s" % (self.name, trait)
-                ET.SubElement(logger,"log",{"idref":"traitClockRate:%s" % traitname})
-            ET.SubElement(logger,"log",{"idref":"traitClockRateGammaShape:%s" % self.name})
+            for f in self.features:
+                fname = "%s:%s" % (self.name, f)
+                ET.SubElement(logger,"log",{"idref":"featureClockRate:%s" % fname})
+            ET.SubElement(logger,"log",{"idref":"featureClockRateGammaShape:%s" % self.name})
