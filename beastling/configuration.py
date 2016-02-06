@@ -132,10 +132,10 @@ class Configuration:
                 config["rate_variation"] = p.getboolean(section,"rate_variation")
             else:
                 config["rate_variation"] = False
-            if "remove_constant_traits" in config:
-                config["remove_constant_traits"] = p.getboolean(section,"remove_constant_traits")
+            if "remove_constant_features" in config:
+                config["remove_constant_features"] = p.getboolean(section,"remove_constant_features")
             else:
-                config["remove_constant_traits"] = True
+                config["remove_constant_features"] = True
             if "file_format" in config:
                 config["file_format"] = p.getboolean(section,"file_format")
             if "language_column" in config:
