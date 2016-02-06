@@ -1,0 +1,9 @@
+monophyly = False
+	DO NOTHING
+
+monophyly = full
+	Full glottolog constraints
+
+monophyly = Indo-European, Uralic
+monophyly-direction = up / down (constrain from given points to root or down to leaves)
+monophyly-grip = tight / loose (include or ignore higher/lower constraints)

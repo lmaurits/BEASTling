@@ -1,0 +1,52 @@
+#!/usr/bin/env python
+import argparse
+import os
+import sys
+import traceback
+
+import beastling.configuration
+import beastling.beastxml
+
+def main():
+
+    # Parse command line arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument("config", help="Beastling configuration file", default=None)
+    parser.add_argument("output", nargs="?", help="Output filename, no extension (default beastling)", default=None)
+    parser.add_argument("--overwrite", default=False, action="store_true")
+    parser.add_argument("--stdin", default=False, action="store_true")
+    parser.add_argument("-v", "--verbose", default=False, action="store_true")
+    args = parser.parse_args()
+
+    # Build config object
+    try:
+        config = beastling.configuration.Configuration(basename=args.output, configfile=args.config, stdin_data=args.stdin)
+        config.process()
+    except Exception as e:
+        sys.stderr.write("Error encountered while parsing configuration file:\n")
+        traceback.print_exc()
+        sys.exit(1)
+
+    # If verbose mode is on, print any messages which were generated while
+    # processing the configuration
+    if args.verbose:
+        for msg in config.messages:
+            sys.stderr.write(msg+"\n")
+
+    # Build XML file
+    try:
+        xml = beastling.beastxml.BeastXml(config)
+    except Exception as e:
+        sys.stderr.write("Error encountered while building BeastXML object:\n")
+        traceback.print_exc()
+        sys.exit(1)
+
+    # Write XML file
+    filename = args.output if args.output else config.basename+".xml"
+    if os.path.exists(filename) and not args.overwrite:
+        sys.stderr.write("File %s already exists!  Run beastling with the --overwrite option if you wish to overwrite it.\n" % filename)
+        sys.exit(1)
+    xml.write_file(filename)
+
+if __name__ == "__main__":
+    main()
