@@ -213,8 +213,8 @@ class BaseModel:
 
     def add_operators(self, run):
 
-        # Clock scaler (only for calibrated analyses)
-        if self.calibrations:
+        # Clock scaler (only if tree is not free to vary arbitrarily)
+        if not self.config.sample_branch_lengths or self.calibrations:
             ET.SubElement(run, "operator", {"id":"clockScaler.c:%s" % self.name, "spec":"ScaleOperator","parameter":"@clockRate.c:%s" % self.name, "scaleFactor":"1.0","weight":"3.0"})
 
         # Mutation rates
