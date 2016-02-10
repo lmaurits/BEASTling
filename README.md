@@ -37,4 +37,4 @@ In summary:
 5. Install BEASTling.
 6. Profit.
 
-But reports, feature requests and pull requests are all welcome.
+Bug reports, feature requests and pull requests are all welcome.
