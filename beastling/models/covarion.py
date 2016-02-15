@@ -37,9 +37,6 @@ class CovarionModel(BaseModel):
         switch = ET.SubElement(state, "parameter", {"id":"%s:covarion_s.s" % self.name, "lower":"1.0E-4", "name":"stateNode", "upper":"Infinity"})
         switch.text="0.5"
 
-        vfreq = ET.SubElement(state, "parameter", {"id":"%s:visiblefrequencies.s" % self.name, "dimension":"2", "lower": "0.0", "upper":"1.0", "name":"stateNode"})
-        vfreq.text="0.5 0.5"
-
     def add_data(self, distribution, feature, fname):
         frange = sorted(list(set(self.data[lang][feature] for lang in self.config.languages)))
         data = ET.SubElement(distribution,"data",{"id":fname, "spec":"Alignment", "ascertained":"true", "excludefrom":"0","excludeto":"1"})
@@ -60,7 +57,7 @@ class CovarionModel(BaseModel):
         # be based on the data (if we are doing an empirical
         # analysis)
         substmodel = ET.SubElement(beast, "substModel",{"id":"covarion.s","spec":"BinaryCovarion","alpha":"@%s:covarion_alpha.s" % self.name, "switchRate":"@%s:covarion_s.s" % self.name})
-        vfreq = ET.SubElement(substmodel, "parameter", {"id":"@%s:visiblefrequencies.s" % self.name,"dimension":"2","name":"vfrequencies"})
+        vfreq = ET.SubElement(substmodel, "parameter", {"id":"%s:visiblefrequencies.s" % self.name,"dimension":"2","name":"vfrequencies"})
         if self.frequencies == "empirical":
             vfreq.text = self.freq_str
         elif self.frequencies == "uniform":
@@ -99,8 +96,6 @@ class CovarionModel(BaseModel):
         BaseModel.add_operators(self, run)
         ET.SubElement(run, "operator", {"id":"covarion_alpha_scaler.s", "spec":"ScaleOperator","parameter":"@%s:covarion_alpha.s" % self.name,"scaleFactor":"0.5","weight":"1.0"})
         ET.SubElement(run, "operator", {"id":"covarion_s_scaler.s", "spec":"ScaleOperator","parameter":"@%s:covarion_s.s" % self.name,"scaleFactor":"0.5","weight":"1.0"})
-        delta = ET.SubElement(run, "operator", {"id":"frequenciesDelta", "spec":"DeltaExchangeOperator","delta":"0.01","weight":"1.0"})
-        ET.SubElement(delta, "parameter", {"idref":"%s:visiblefrequencies.s" % self.name})
 
     def add_param_logs(self, logger):
         BaseModel.add_param_logs(self, logger)
