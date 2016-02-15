@@ -224,7 +224,7 @@ class BaseModel:
                 fname = "%s:%s" % (self.name, f)
                 param = ET.SubElement(delta, "parameter", {"idref":"featureClockRate:%s" % fname})
             
-            ET.SubElement(run, "operator", {"id":"featureClockRateGammaShapeScaler:%s" % self.name, "spec":"ScaleOperator","parameter":"@featureClockRateGammaShape:%s" % self.name, "scaleFactor":"0.5","weight":"0.1"})
+            ET.SubElement(run, "operator", {"id":"featureClockRateGammaShapeScaler:%s" % self.name, "spec":"ScaleOperator","parameter":"@featureClockRateGammaShape:%s" % self.name, "scaleFactor":"0.5","weight":"1.0"})
 
     def add_param_logs(self, logger):
 
