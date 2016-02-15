@@ -104,6 +104,12 @@ class Configuration:
             self.sample_branch_lengths = p.getboolean(sec, "sample_branch_lengths")
         if p.has_option(sec, "sample_topology"):
             self.sample_topology = p.getboolean(sec, "sample_topology")
+        if (self.starting_tree and not
+            (self.sample_topology or self.sample_branch_lengths)):
+            self.tree_logging_pointless = True
+            self.messages.append("[INFO] Tree logging disabled because starting tree is known and fixed.")
+        else:
+           self.tree_logging_pointless = False
         if p.has_option(sec, "monophyletic"):
             self.monophyly = p.getboolean(sec, "monophyletic")
         elif p.has_option(sec, "monophyly"):

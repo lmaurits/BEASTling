@@ -240,7 +240,8 @@ class BeastXml:
                     model.add_param_logs(tracer_logger)
                 
         # Tree log
-        if self.config.log_trees or self.config.log_all:
+        if ((self.config.log_trees or self.config.log_all) and not
+            self.config.tree_logging_pointless):
             tree_logger = ET.SubElement(self.run, "logger", {"mode":"tree", "fileName":self.config.basename+".nex","logEvery":str(self.config.log_every),"id":"treeWithMetaDataLogger"})
             log = ET.SubElement(tree_logger, "log", attrib={"id":"TreeLogger","spec":"beast.evolution.tree.TreeWithMetaDataLogger","tree":"@Tree.t:beastlingTree"})
 
