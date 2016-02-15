@@ -97,9 +97,9 @@ class CovarionModel(BaseModel):
 
     def add_operators(self, run):
         BaseModel.add_operators(self, run)
-        ET.SubElement(run, "operator", {"id":"covarion_alpha_scaler.s", "spec":"ScaleOperator","parameter":"@%s:covarion_alpha.s" % self.name,"scaleFactor":"0.5","weight":"0.1"})
-        ET.SubElement(run, "operator", {"id":"covarion_s_scaler.s", "spec":"ScaleOperator","parameter":"@%s:covarion_s.s" % self.name,"scaleFactor":"0.5","weight":"0.1"})
-        delta = ET.SubElement(run, "operator", {"id":"frequenciesDelta", "spec":"DeltaExchangeOperator","delta":"0.01","weight":"0.1"})
+        ET.SubElement(run, "operator", {"id":"covarion_alpha_scaler.s", "spec":"ScaleOperator","parameter":"@%s:covarion_alpha.s" % self.name,"scaleFactor":"0.5","weight":"1.0"})
+        ET.SubElement(run, "operator", {"id":"covarion_s_scaler.s", "spec":"ScaleOperator","parameter":"@%s:covarion_s.s" % self.name,"scaleFactor":"0.5","weight":"1.0"})
+        delta = ET.SubElement(run, "operator", {"id":"frequenciesDelta", "spec":"DeltaExchangeOperator","delta":"0.01","weight":"1.0"})
         ET.SubElement(delta, "parameter", {"idref":"%s:visiblefrequencies.s" % self.name})
 
     def add_param_logs(self, logger):
