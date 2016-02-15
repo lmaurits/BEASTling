@@ -215,7 +215,7 @@ class BaseModel:
 
         # Clock scaler (only if tree is not free to vary arbitrarily)
         if not self.config.sample_branch_lengths or self.calibrations:
-            ET.SubElement(run, "operator", {"id":"clockScaler.c:%s" % self.name, "spec":"ScaleOperator","parameter":"@clockRate.c:%s" % self.name, "scaleFactor":"1.0","weight":"3.0"})
+            ET.SubElement(run, "operator", {"id":"clockScaler.c:%s" % self.name, "spec":"ScaleOperator","parameter":"@clockRate.c:%s" % self.name, "scaleFactor":"0.5","weight":"3.0"})
 
         # Mutation rates
         if self.rate_variation:
@@ -224,7 +224,7 @@ class BaseModel:
                 fname = "%s:%s" % (self.name, f)
                 param = ET.SubElement(delta, "parameter", {"idref":"featureClockRate:%s" % fname})
             
-            ET.SubElement(run, "operator", {"id":"featureClockRateGammaShapeScaler:%s" % self.name, "spec":"ScaleOperator","parameter":"@featureClockRateGammaShape:%s" % self.name, "scaleFactor":"1.0","weight":"0.1"})
+            ET.SubElement(run, "operator", {"id":"featureClockRateGammaShapeScaler:%s" % self.name, "spec":"ScaleOperator","parameter":"@featureClockRateGammaShape:%s" % self.name, "scaleFactor":"0.5","weight":"0.1"})
 
     def add_param_logs(self, logger):
 

@@ -115,7 +115,7 @@ class BSVSModel(BaseModel):
         BaseModel.add_operators(self, run)
         for n, f in enumerate(self.features):
             fname = "%s:%s" % (self.name, f)
-            ET.SubElement(run, "operator", {"id":"onGeorateScaler.s:%s"% fname,"spec":"ScaleOperator","parameter":"@relativeGeoRates.s:%s"%fname, "indicator":"@rateIndicator.s:%s" % fname, "scaleAllIndependently":"true","scaleFactor":"1.0","weight":"10.0"})
+            ET.SubElement(run, "operator", {"id":"onGeorateScaler.s:%s"% fname,"spec":"ScaleOperator","parameter":"@relativeGeoRates.s:%s"%fname, "indicator":"@rateIndicator.s:%s" % fname, "scaleAllIndependently":"true","scaleFactor":"0.5","weight":"10.0"})
 
             ET.SubElement(run, "operator", {"id":"indicatorFlip.s:%s"%fname,"spec":"BitFlipOperator","parameter":"@rateIndicator.s:%s"%fname, "weight":"30.0"})
             if self.rate_variation:
