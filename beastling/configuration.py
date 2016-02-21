@@ -1,14 +1,19 @@
 import codecs
 import ConfigParser
-import csv
-import itertools
 import pkgutil
 import os
 import sys
+import re
+
+from newick import loads
 
 import beastling.models.bsvs as bsvs
 import beastling.models.covarion as covarion
 import beastling.models.mk as mk
+
+
+GLOTTOLOG_NODE_LABEL = re.compile("'(?P<name>[^\[]+)\[(?P<glottocode>[a-z0-9]{8})\](\[(?P<isocode>[a-z]{3})\])?'")
+
 
 def assert_compare_equal(one, other):
     """ Compare two values. If they match, return that value, otherwise raise an error. """
@@ -151,32 +156,32 @@ class Configuration:
 
     def load_glotto_class(self):
         self.classifications = {}
-        glotto_data = pkgutil.get_data('beastling', 'data/glotto.csv')
-        glotto_classifications = self.parse_glotto_class(glotto_data)
-        iso_glotto_data = pkgutil.get_data('beastling', 'data/iso-glotto.csv')
-        iso_classifications = self.parse_glotto_class(iso_glotto_data)
-        for key in glotto_classifications:
-            self.classifications[key] = glotto_classifications[key]
-        for key in iso_classifications:
-            self.classifications[key] = iso_classifications[key]
+        label2name = {}
 
-    def parse_glotto_class(self, binary_glotto):
-        classifications = {}
-        unicode_glotto = unicode(binary_glotto, "UTF-8")
-        glotto_lines = unicode_glotto.split("\n")
-        glotto_lines = [l for l in glotto_lines if l]
-        for line in glotto_lines:
-            lang, clazz = line.split(",",1)
-            lang = lang.strip().lstrip().lower()
-            if clazz.lstrip().strip() == "Unclassified":
-                continue
+        def parse_label(label):
+            match = GLOTTOLOG_NODE_LABEL.match(label)
+            label2name[label] = match.group('name').strip()
+            return (
+                match.group('name').strip(),
+                match.group('glottocode'),
+                match.group('isocode'))
 
-            clazz = clazz.split(",")
-            if not clazz[0]:
-                clazz[0] = "Isolate_" + lang
-            clazz = ",".join(clazz)
-            classifications[lang] = clazz
-        return classifications
+        def get_classification(node):
+            res = []
+            ancestor = node.ancestor
+            while ancestor:
+                res.append(label2name[ancestor.name])
+                ancestor = ancestor.ancestor
+            return list(reversed(res))
+
+        glottolog_trees = loads(pkgutil.get_data('beastling', 'data/glottolog.newick').decode('utf8'))
+        for tree in glottolog_trees:
+            for node in tree.walk():
+                name, glottocode, isocode = parse_label(node.name)
+                classification = get_classification(node)
+                self.classifications[glottocode] = classification
+                if isocode:
+                    self.classifications[isocode] = classification
 
     def process(self):
 
@@ -277,6 +282,3 @@ class Configuration:
         self.messages.append("[INFO] %d languages included in analysis." % len(self.languages))
 
         self.processed = True
-
-if __name__ == "__main__":
-    main()
