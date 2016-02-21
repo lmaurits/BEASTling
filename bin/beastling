@@ -4,19 +4,41 @@ import os
 import sys
 import traceback
 
-import beastling.configuration
 import beastling.beastxml
+import beastling.configuration
+import beastling.extractor
 
 def main():
 
     # Parse command line arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("config", help="Beastling configuration file", default=None)
+    parser.add_argument("config", help="Beastling configuration file (or XML file if --extract is used)", default=None)
     parser.add_argument("output", nargs="?", help="Output filename, no extension (default beastling)", default=None)
+    parser.add_argument("--extract", default=False, action="store_true")
     parser.add_argument("--overwrite", default=False, action="store_true")
     parser.add_argument("--stdin", default=False, action="store_true")
     parser.add_argument("-v", "--verbose", default=False, action="store_true")
     args = parser.parse_args()
+
+    if args.extract:
+        extract(args)
+    else:
+        generate(args)
+
+def extract(args):
+    if not os.path.exists(args.config):
+        sys.stderr.write("No such BEAST XML file: %s\n", args.config)
+        sys.exit(1)
+    try:
+        messages = beastling.extractor.extract(args.config, args.overwrite)
+    except Exception as e:
+        sys.stderr.write("Error encountered while extracting BEASTling config and/or data files:\n")
+        traceback.print_exc()
+        sys.exit(1)
+    for msg in messages:
+        sys.stdout.write(msg)
+
+def generate(args):
 
     # Build config object
     try:
