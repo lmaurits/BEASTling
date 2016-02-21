@@ -52,6 +52,11 @@ class BeastXml:
             comment_lines.append("No config file to include.")
         self.beast.append(ET.Comment("\n".join(comment_lines)))
 
+        # Embed data
+        if self.config.embed_data:
+            for model in self.config.models:
+                self.beast.append(self.format_data_file(model.data_filename))
+
         # Maps
         for a, b in beast_maps.maps:
             mapp = ET.SubElement(self.beast, "map", attrib={"name":a})
@@ -121,6 +126,14 @@ class BeastXml:
 
         ## Logging
         self.add_loggers()
+
+    def format_data_file(self, filename):
+
+        header = "BEASTling embedded data file: %s" % filename
+        fp = open(filename, "r")
+        data_block = "\n".join([header, fp.read()])
+        fp.close()
+        return ET.Comment(data_block)
 
     def add_prior(self):
 

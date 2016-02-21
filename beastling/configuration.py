@@ -38,6 +38,7 @@ class Configuration:
         self.configfile = None
         self.configfile_text = None
         self.chainlength = 10000000
+        self.embed_data = False
         self.sample_from_prior = False
         self.families = "*"
         self.overlap = "error"
@@ -74,6 +75,8 @@ class Configuration:
         sec = "admin"
         if p.has_option(sec, "basename"):
             self.basename = p.get(sec, "basename")
+        if p.has_option(sec, "embed_data"):
+            self.embed_data = p.getboolean(sec, "embed_data")
         if p.has_option(sec, "screenlog"):
             self.screenlog = p.getboolean(sec, "screenlog")
         if p.has_option(sec, "log_every"):
