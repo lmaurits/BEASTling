@@ -159,7 +159,7 @@ class BeastXml:
                 if clade == "root":
                     langs = self.config.languages
                 else:
-                    langs = [l for l in self.config.languages if any([c==clade for c in [x.lower() for x in self.config.classifications[l.lower()]]])]
+                    langs = [l for l in self.config.languages if any([c==clade for c in [x[0].lower() for x in self.config.classifications[l.lower()]]])]
                 if not langs:
                     continue
                 lower, upper = self.config.calibrations[clade]
@@ -276,7 +276,7 @@ class BeastXml:
 
         def subgroup(name, depth):
             ancestors = self.config.classifications[name.lower()]
-            return ancestors[depth] if depth < len(ancestors) else ''
+            return ancestors[depth][0] if depth < len(ancestors) else ''
 
         levels = list(set([subgroup(l, depth) for l in langs]))
         if len(levels) == 1:
@@ -291,6 +291,7 @@ class BeastXml:
             return sorted([self.make_tight_monophyly_structure(group, depth+1, maxdepth) for group in partition])
 
     def make_loose_monophyly_structure(self, langs):
+        # FIXME: this code is dysfunctional!
         points = self.config.monophyly
         return [[l for l in langs if point in self.config.classifications[l.lower()] ] for point in points]
 

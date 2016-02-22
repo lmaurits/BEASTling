@@ -165,7 +165,7 @@ class Configuration:
 
         def parse_label(label):
             match = GLOTTOLOG_NODE_LABEL.match(label)
-            label2name[label] = match.group('name').strip()
+            label2name[label] = (match.group('name').strip(), match.group('glottocode'))
             return (
                 match.group('name').strip(),
                 match.group('glottocode'),
@@ -223,14 +223,12 @@ class Configuration:
 
         ## Determine final list of languages
         if self.families == ["*"]:
-            self.lang_filter = []
+            self.lang_filter = set()
         else:
-            self.lang_filter = [l for l in self.classifications if any([family in self.classifications[l] for family in self.families])]
-
-        # Hack to fix Glottolog's broken Bontok
-        if "bnc" in self.lang_filter:
-            self.lang_filter.remove("bnc")
-            self.lang_filter.append("lbk")
+            self.lang_filter = {
+                l for l in self.classifications
+                if any([family in [n for t in self.classifications[l] for n in t]
+                        for family in self.families])}
 
         # Handle request to read data from stdin
         if self.stdin_data:
