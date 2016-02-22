@@ -48,7 +48,7 @@ The ``admin`` section may contain the following parameters:
 
 * ``log_every``: an integer specifying how many MCMC samples should elapse between consecutive entries in the log file.  If not specified, BEASTling will set this based on the chainlength such that the log file will be 10,000 entries long.  This is a good compromise between getting lots of information about the posterior and conserving disk space.
 
-  MCMC section
+MCMC section
 ------------
 
 The ``MCMC`` section may contain the following parameters:
