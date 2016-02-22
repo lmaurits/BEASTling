@@ -150,6 +150,8 @@ class Configuration:
                 config["remove_constant_features"] = p.getboolean(section,"remove_constant_features")
             else:
                 config["remove_constant_features"] = True
+            if "minimum_data" in config:
+                config["minimum_data"] = p.getfloat(section,"minimum_data")
             if "file_format" in config:
                 config["file_format"] = p.getboolean(section,"file_format")
             if "language_column" in config:
