@@ -134,6 +134,9 @@ Additionally, each model section *may* contain the following parameters, i.e.  t
 * ``rate_variation``: "True" or "False".  Estimate a separate substitution rate for each feature (using a Gamma prior).
 
 * ``remove_constant_features``: "True" or "False".  By default, this is set to "True", which means that if your data set contains any features which have the same value for all of the languages in your analysis (which is not necessarily all of the languages in your data file, if you are using the "families" parameter in your "languages" section!), BEASTling will automatically remove that feature from the analysis (since it cannot possibly provide any phylogenetic information).  If you want to keep these constant features in for some reason, you must explicitly set this parameter to False.
+
+* ``minimum_data``: Indicates the minimum percentage of languages that a feature should have data present for to be included in an analysis.  E.g, if set to 50, any feature in the dataset which has more question marks than actual values for the selected languages will be excluded.
+
 * ``features``: Is used to select a subset of the features in the given data file.  Should be one of:
    * A comma-separated list of feature names (as they are given in the data CSV's header line)
    * A path to a file which contains one feature name per line

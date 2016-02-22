@@ -25,6 +25,7 @@ class BaseModel:
         self.pruned = model_config.get("pruned", False)
         self.rate_variation = model_config.get("rate_variation", False)
         self.remove_constant_features = model_config.get("remove_constant_features", True)
+        self.minimum_data = float(model_config.get("minimum_data", 0))
         self.lang_column = model_config.get("language_column", None)
 
         self.data = load_data(self.data_filename, file_format=model_config.get("file_format",None), lang_column=model_config.get("language_column",None))
@@ -56,6 +57,7 @@ class BaseModel:
         bad_feats = []
         for f in self.features:
             all_values = [self.data[l][f] for l in self.data]
+            missing_ratio = all_values.count("?") / (1.0*len(all_values))
             all_values = [v for v in all_values if v != "?"]
             uniq = list(set(all_values))
             counts = {}
@@ -74,10 +76,20 @@ class BaseModel:
             # ...otherwise, just sort normally
             else:
                 uniq.sort()
+
+            # Exclude features with no data
             if len(uniq) == 0:
                 self.messages.append("""[INFO] Model "%s": Feature %s excluded because there are no datapoints for selected languages.""" % (self.name, f))
                 bad_feats.append(f)
                 continue
+
+            # Exclude features with lots of missing data
+            if int(100*(1.0-missing_ratio)) < self.minimum_data:
+                self.messages.append("""[INFO] Model "%s": Feature %s excluded because of excessive missing data (%d%%).""" % (self.name, f, int(missing_ratio*100)))
+                bad_feats.append(f)
+                continue
+
+            # Exclude constant features
             if len(uniq) == 1:
                 if self.remove_constant_features:
                     self.messages.append("""[INFO] Model "%s": Feature %s excluded because its value is constant across selected languages.  Set "remove_constant_features=False" in config to stop this.""" % (self.name, f))
@@ -85,8 +97,9 @@ class BaseModel:
                     continue
                 else:
                     self.constant_feature = True
-            N = len(uniq)
 
+            # Compute various things
+            N = len(uniq)
             self.valuecounts[f] = N
             self.counts[f] = counts
             self.dimensions[f] = N*(N-1)/2
