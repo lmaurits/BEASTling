@@ -21,6 +21,9 @@ def setup():
 def teardown():
     os.remove(temp_filename)
     os.remove(os.path.basename(temp_filename)+".state")
+    for ext in (".log", ".nex"):
+        if os.path.exists(os.path.basename(temp_filename)+ext):
+            os.path.remove(os.path.basename(temp_filename)+ext)
 
 def test_basic():
     """Turn each BEASTling config file in tests/configs into a
