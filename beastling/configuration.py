@@ -142,6 +142,14 @@ class Configuration:
         for section in model_sections:
             options = p.options(section)
             config = {option:p.get(section, option) for option in options}
+            # "binarised" is the canonical name for this option and used everywhere internally,
+            # but "binarized" is accepted in the config file.
+            if "binarised" in config:
+                config["binarised"] = p.getboolean(section,"binarised")
+            elif "binarized" in config:
+                config["binarised"] = p.getboolean(section,"binarized")
+            else:
+                config["binarised"] = None
             if "rate_variation" in config:
                 config["rate_variation"] = p.getboolean(section,"rate_variation")
             else:

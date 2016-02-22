@@ -13,6 +13,7 @@ Mk
 
 The `Lewis Mk model <http://sysbio.oxfordjournals.org/content/50/6/913.abstract>`_ is the simplest generic substitution model available in BEASTling.  It is a generalisation of the classic `JC69 <https://en.wikipedia.org/wiki/Models_of_DNA_evolution#JC69_model_.28Jukes_and_Cantor.2C_1969.29.5B1.5D>`_ model from genetics to a statespace of arbitrary size.  Transitions are possible from any state to any other state, and every transition is equally probable.  No parameters are estimated, increasing analysis speed.  This model could be used with any dataset, but the assumptions are not a good match for cognate data.
 
+.. _covarion:
 Binary Covarion
 ---------------
 
@@ -20,7 +21,11 @@ Binary Covarion
 
 The binary Covarion model is defined for binary datasets, i.e. sets where every datapoint is either a 0 or a 1.  This model introduces a latent "fast" or "slow" state, which controls the rate of transitions between 0 and 1 (transitions in either direction are always equally probable).  This model is typically used for cognate data.
 
-Note that in order to use the Covarion model, you should not provide your data in binary format (i.e. do not use a .csv file full of 1s and 0s).  Instead, provide your data in multistate format, i.e., in the case of cognate data one column per meaning slot, with values corresponding to cognate class membership.  BEASTling will automatically translate this into the appropriate number of binary features.  This approach means that you can have a single data file which can be used to generate binary and multistate analyses, and also lets BEASTling share mutation rates across binary features corresponding to a single meaning slot.
+When the binary Covarion model is used, if the specified datafile contains multistate data, BEASTling will automatically translate this into the appropriate number of binary features.  This approach means that you can have a single data file which can be used to generate binary and multistate analyses, and also lets BEASTling share mutation rates across binary features corresponding to a single multistate feature.  This is the recommended way to use the binary Covarion model.
+
+However, if you have pre-binarised data you wish to use, BEASTling should recognise this (by seeing that all features in the dataset have only two possible values) and will avoid binarising it a second time.  Note that when used this way, BEASTling will assign separate mutation rates to each binary feature, as it has no way to know which groups of binary features originally corresponded to a single multistate feature.
+
+If BEASTling decides to treat your data as pre-binarised, a notification will be emitted in ``--verbose`` mode.  You can use the ``binarised`` (or ``binarized``) option in your config's ``[model]`` section to tell BEASTling explicitly whether or not your data has been binarised, and this will disable the automatic detection.
 
 BSVS
 ----
