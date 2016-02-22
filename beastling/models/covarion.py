@@ -10,20 +10,36 @@ class CovarionModel(BaseModel):
     def __init__(self, model_config, global_config):
 
         BaseModel.__init__(self, model_config, global_config)
+        if model_config["binarised"] is None:
+            # We've not been explicitly told if the data has been binarised
+            # or not.  So attempt automagic:
+            if all([self.valuecounts[f]==2 for f in self.features]):
+                self.binarised = True
+                self.messages.append("""[INFO] Model "%s": Assuming that data source %s contains pre-binarised cognate data.  Set "binarised=False" in config to stop this.""" % (self.name, self.data_filename))
+            else:
+                self.binarised = False
+        else:
+            # If we've been told, listen.
+            self.binarised = model_config["binarised"]
         self.freq_str = self.build_freq_str()
 
     def build_freq_str(self):
-        all_data = []
-        for n, f in enumerate(self.features):
-            fname = "%s:%s" % (self.name, f)
-            frange = sorted(list(set(self.data[lang][f] for lang in self.data)))
-            for lang in self.data:
-                if self.data[lang].get(f,"?") == "?":
-                    valuestring = "".join(["?" for i in range(0,len(frange)+1)])
-                else:
-                    valuestring = ["0" for i in range(0,len(frange)+1)]
-                    valuestring[frange.index(self.data[lang][f])+1] = "1"
-                    all_data.extend(valuestring)
+        if self.binarised:
+            all_data = []
+            for f in self.features:
+                for lang in self.data:
+                    all_data.extend(self.data[lang][f])
+        else:
+            all_data = []
+            for f in self.features:
+                frange = sorted(list(set(self.data[lang][f] for lang in self.data)))
+                for lang in self.data:
+                    if self.data[lang].get(f,"?") == "?":
+                        valuestring = "".join(["?" for i in range(0,len(frange)+1)])
+                    else:
+                        valuestring = ["0" for i in range(0,len(frange)+1)]
+                        valuestring[frange.index(self.data[lang][f])+1] = "1"
+                        all_data.extend(valuestring)
 
         all_data = [d for d in all_data if d !="?"]
         zerf = 1.0*all_data.count("0") / len(all_data)
@@ -39,15 +55,23 @@ class CovarionModel(BaseModel):
 
     def add_data(self, distribution, feature, fname):
         frange = sorted(list(set(self.data[lang][feature] for lang in self.config.languages)))
+        if "?" in frange:
+            frange.remove("?")
         data = ET.SubElement(distribution,"data",{"id":fname, "spec":"Alignment", "ascertained":"true", "excludefrom":"0","excludeto":"1"})
         ET.SubElement(data, "userDataType",{"spec":"beast.evolution.datatype.TwoStateCovarion"})
         for lang in self.config.languages:
-            if self.data[lang][feature] == "?":
-                valuestring = "".join(["?" for i in range(0,len(frange)+1)])
+            if self.binarised:
+                if self.data[lang][feature] == "?":
+                    valuestring = "??"
+                else:
+                    valuestring = "0" + str(frange.index(self.data[lang][feature]))
             else:
-                valuestring = ["0" for i in range(0,len(frange)+1)]
-                valuestring[frange.index(self.data[lang][feature])+1] = "1"
-                valuestring = "".join(valuestring)
+                if self.data[lang][feature] == "?":
+                    valuestring = "".join(["?" for i in range(0,len(frange)+1)])
+                else:
+                    valuestring = ["0" for i in range(0,len(frange)+1)]
+                    valuestring[frange.index(self.data[lang][feature])+1] = "1"
+                    valuestring = "".join(valuestring)
 
             seq = ET.SubElement(data, "sequence", {"id":"seq_%s_%s" % (lang, fname), "taxon":lang, "totalcount":"4","value":valuestring})
 

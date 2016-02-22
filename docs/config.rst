@@ -123,6 +123,8 @@ Each model section *must* contain the following parameters, i.e. they are mandat
 
 Additionally, each model section *may* contain the following parameters, i.e.  they are optional:
 
+* ``binarised`` or ``binarized``: "True" or "False".  This option is only relevant if the binary covarion model is being used (see :ref:`covarion`).  If unspecified, BEASTling will try to guess whether the supplied data has already been binarised, and will automatically translate multistate features into multiple binary features if not.  If BEASTling is guessing wrong, you can use this option to explicitly inform it whether or not your data has already been binarised.
+
 * ``file_format``: Can be used to explicitly set which of the two supported .csv file formats the data for this model is supplied in, to be used if BEASTling is mistakenly trying to parse one format as the other (which should be very rare).  Should be one of:
    * "beastling"
    * "cldf"
