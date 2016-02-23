@@ -11,6 +11,7 @@ from beastling import __version__ as version
 requires = [
     'six',
     'newick',
+    'appdirs',
     'clldutils',
 ]
 
@@ -31,6 +32,7 @@ setup(
     ],
     packages=['beastling','beastling.fileio','beastling.models'],
     install_requires=requires,
+    tests_require=['mock==1.0.0', 'nose'],
     package_data={'beastling': ['data/*']},
     scripts=['bin/beastling',],
 )
