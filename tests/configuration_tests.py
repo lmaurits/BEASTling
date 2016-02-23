@@ -18,8 +18,3 @@ class Tests(TestCase):
         cfg2.process()
         self.assertEqual(cfg1.lang_filter, cfg2.lang_filter)
         self.assertEqual(len(cfg1.lang_filter), 6107)
-
-    def test_valid_overlaps(self):
-        with self.assertRaises(ValueError):
-            Configuration.valid_overlaps['error'](1, 2)
-        self.assertEqual(Configuration.valid_overlaps['error'](1, 1), 1)

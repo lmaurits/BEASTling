@@ -15,18 +15,7 @@ import beastling.models.mk as mk
 GLOTTOLOG_NODE_LABEL = re.compile("'(?P<name>[^\[]+)\[(?P<glottocode>[a-z0-9]{8})\](\[(?P<isocode>[a-z]{3})\])?'")
 
 
-def assert_compare_equal(one, other):
-    """ Compare two values. If they match, return that value, otherwise raise an error. """
-    if one != other:
-        raise ValueError("Values {:s} and {:s} were expected to match.".format(one, other))
-    return one
-
 class Configuration:
-    valid_overlaps = {
-        "union": set.union,
-        "intersection": set.intersection,
-        "error": assert_compare_equal}
-
     def __init__(self, basename="beastling", configfile=None, stdin_data=False):
 
         self.processed = False
@@ -41,7 +30,7 @@ class Configuration:
         self.embed_data = False
         self.sample_from_prior = False
         self.families = "*"
-        self.overlap = "error"
+        self.overlap = "union"
         self.starting_tree = ""
         self.sample_branch_lengths = True
         self.sample_topology = True
@@ -103,8 +92,8 @@ class Configuration:
             self.families = p.get(sec, "families")
         if p.has_option(sec, "overlap"):
             self.overlap = p.get(sec, "overlap")
-            if not self.overlap in Configuration.valid_overlaps:
-                raise ValueError("Value for overlap needs to be one of 'union', 'intersection' or 'error'.")
+            if not self.overlap.lower() in ("union", "intersection"):
+                raise ValueError("Value for overlap needs to be 'union' or 'intersection'.")
                 
         if p.has_option(sec, "starting_tree"):
             self.starting_tree = p.get(sec, "starting_tree")
@@ -271,17 +260,33 @@ class Configuration:
             self.models.append(model)
 
         # Finalise language list.
-        ## Start with all the languages from a random data source
-        self.languages = set(self.models[0].data.keys())
-        overlap_resolver = Configuration.valid_overlaps[self.overlap]
+        # We start out setting self.languages to the set of languages in the
+        # data file of the first model, filtered by the user's list of
+        # famlies...
+        if self.lang_filter:
+            self.languages = set(self.models[0].data.keys()) & self.lang_filter
+        else:
+            self.languages = set(self.models[0].data.keys())
+        self.overlap_warning = False
         for model in self.models:
-            # A filter is just a set.
+            # For each model, we take the list of langs in the data, and apply
+            # the filter representing the user's request.  We then compare
+            # this to the current value of self.languages.  Depending upon
+            # self.overlap, we either add it to self.langs, or set self.langs
+            # to the intersection of itself with the addition.
             if self.lang_filter:
                 addition = set(model.data.keys()) & self.lang_filter
             else:
                 addition = set(model.data.keys())
-            # This depends on the value of `overlap`.
-            self.languages = overlap_resolver(self.languages, addition)
+            # If we're about to do a non-trivial union/intersect, alert the
+            # user.
+            if addition != self.languages and not self.overlap_warning:
+                self.messages.append("""[INFO] Not all data files have equal language sets.  BEASTling will use the %s of all language sets.  Set the "overlap" option in [languages] to change this.""" % self.overlap.lower())
+                self.overlap_warning = True
+            if self.overlap.lower() == "union":
+                self.languages = set.union(self.languages, addition)
+            elif self.overlap.lower() == "intersection":
+                self.languages = set.intersection(self.languages, addition)
 
         ## Apply family-based filtering
         ## Make sure there's *something* left
