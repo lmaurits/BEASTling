@@ -1,23 +1,57 @@
 import codecs
 import ConfigParser
-import pkgutil
 import os
 import sys
 import re
 
-from newick import loads
+import newick
+from appdirs import user_data_dir
+from six.moves.urllib.request import FancyURLopener
 
 import beastling.models.bsvs as bsvs
 import beastling.models.covarion as covarion
 import beastling.models.mk as mk
 
 
-GLOTTOLOG_NODE_LABEL = re.compile("'(?P<name>[^\[]+)\[(?P<glottocode>[a-z0-9]{8})\](\[(?P<isocode>[a-z]{3})\])?'")
+GLOTTOLOG_NODE_LABEL = re.compile(
+    "'(?P<name>[^\[]+)\[(?P<glottocode>[a-z0-9]{8})\](\[(?P<isocode>[a-z]{3})\])?'")
 
 
-class Configuration:
+class URLopener(FancyURLopener):
+    def http_error_default(self, url, fp, errcode, errmsg, headers):
+        raise ValueError()
+
+class UniversalSet(set):
+    """Set which intersects fully with any other set."""
+    def __and__(self, other):
+        return other
+
+    def __rand__(self, other):
+        return other
+
+def get_glottolog_newick(release):
+    fname = 'glottolog-%s.newick' % release
+    path = os.path.join(os.path.dirname(__file__), 'data', fname)
+    if not os.path.exists(path):
+        data_dir = user_data_dir('beastling')
+        if not os.path.exists(data_dir):
+            os.makedirs(data_dir)
+        path = os.path.join(data_dir, fname)
+        if not os.path.exists(path):
+            try:
+                URLopener().retrieve(
+                    'http://glottolog.org/static/download/%s/tree-glottolog-newick.txt'
+                    % release,
+                    path)
+            except (IOError, ValueError):
+                raise ValueError(
+                    'Could not retrieve classification for Glottolog %s' % release)
+    return newick.read(path)
+
+
+class Configuration(object):
+
     def __init__(self, basename="beastling", configfile=None, stdin_data=False):
-
         self.processed = False
         self.messages = []
         self.message_flags = []
@@ -47,6 +81,7 @@ class Configuration:
         self.log_trees = True
         self.stdin_data = stdin_data
         self.calibrations = {}
+        self.glottolog_release = '2.7'
 
         if configfile:
             self.read_from_file(configfile)
@@ -60,69 +95,61 @@ class Configuration:
         p = ConfigParser.SafeConfigParser()
         p.read(self.configfile)
 
-        ## Admin
-        sec = "admin"
-        if p.has_option(sec, "basename"):
-            self.basename = p.get(sec, "basename")
-        if p.has_option(sec, "embed_data"):
-            self.embed_data = p.getboolean(sec, "embed_data")
-        if p.has_option(sec, "screenlog"):
-            self.screenlog = p.getboolean(sec, "screenlog")
-        if p.has_option(sec, "log_every"):
-            self.log_every = p.getint(sec, "log_every")
-        if p.has_option(sec, "log_all"):
-            self.log_all = p.getboolean(sec, "log_all")
-        if p.has_option(sec, "log_probabilities"):
-            self.log_probabilities = p.getboolean(sec, "log_probabilities")
-        if p.has_option(sec, "log_params"):
-            self.log_params = p.getboolean(sec, "log_params")
-        if p.has_option(sec, "log_trees"):
-            self.log_trees = p.getboolean(sec, "log_trees")
-            
-        ## MCMC
-        sec = "MCMC"
-        if p.has_option(sec, "chainlength"):
-            self.chainlength = p.getint(sec, "chainlength")
-        if p.has_option(sec, "sample_from_prior"):
-            self.sample_from_prior = p.getboolean(sec, "sample_from_prior")
+        for sec, opts in {
+            'admin': {
+                'basename': p.get,
+                'embed_data': p.getboolean,
+                'screenlog': p.getboolean,
+                'log_every': p.getint,
+                'log_all': p.getboolean,
+                'log_probabilities': p.getboolean,
+                'log_params': p.getboolean,
+                'log_trees': p.getboolean,
+                'glottolog_release': p.get,
+            },
+            'MCMC': {
+                'chainlength': p.getint,
+                'sample_from_prior': p.getboolean,
+            },
+            'languages': {
+                'families': p.get,
+                'overlap': p.get,
+                'starting_tree': p.get,
+                'sample_branch_lengths': p.getboolean,
+                'sample_topology': p.getboolean,
+                'monophyly_start_depth': p.getint,
+                'monophyly_end_depth': p.getint,
+                'monophyly_grip': lambda s, o: p.get(s, o).lower(),
+            },
+        }.items():
+            for opt, getter in opts.items():
+                if p.has_option(sec, opt):
+                    setattr(self, opt, getter(sec, opt))
 
         ## Languages
         sec = "languages"
-        if p.has_option(sec, "families"):
-            self.families = p.get(sec, "families")
-        if p.has_option(sec, "overlap"):
-            self.overlap = p.get(sec, "overlap")
-            if not self.overlap.lower() in ("union", "intersection"):
-                raise ValueError("Value for overlap needs to be 'union' or 'intersection'.")
-                
-        if p.has_option(sec, "starting_tree"):
-            self.starting_tree = p.get(sec, "starting_tree")
-        if p.has_option(sec, "sample_branch_lengths"):
-            self.sample_branch_lengths = p.getboolean(sec, "sample_branch_lengths")
-        if p.has_option(sec, "sample_topology"):
-            self.sample_topology = p.getboolean(sec, "sample_topology")
+        if self.overlap.lower() not in ("union", "intersection"):  # pragma: no cover
+            raise ValueError(
+                "Value for overlap needs to be either 'union', or 'intersection'."
+            )
         if (self.starting_tree and not
-            (self.sample_topology or self.sample_branch_lengths)):
+                (self.sample_topology or self.sample_branch_lengths)):
             self.tree_logging_pointless = True
-            self.messages.append("[INFO] Tree logging disabled because starting tree is known and fixed.")
+            self.messages.append(
+                "[INFO] Tree logging disabled because starting tree is known and fixed.")
         else:
-           self.tree_logging_pointless = False
+            self.tree_logging_pointless = False
+
         if p.has_option(sec, "monophyletic"):
             self.monophyly = p.getboolean(sec, "monophyletic")
         elif p.has_option(sec, "monophyly"):
             self.monophyly = p.getboolean(sec, "monophyly")
-        if p.has_option(sec, "monophyly_start_depth"):
-            self.monophyly_start_depth = p.getint(sec, "monophyly_start_depth")
-        if p.has_option(sec, "monophyly_end_depth"):
-            self.monophyly_end_depth = p.getint(sec, "monophyly_end_depth") - 1
-        if p.has_option(sec, "monophyly_grip"):
-            self.monophyly_grip = p.get(sec, "monophyly_grip").lower()
 
         ## Calibration
         if p.has_section("calibration"):
             for clade, dates in p.items("calibration"):
                 self.calibrations[clade] = [float(x.strip()) for x in dates.split("-")]
-            
+
         ## Models
         sections = p.sections()
         model_sections = [s for s in sections if s.lower().startswith("model")]
@@ -176,7 +203,7 @@ class Configuration:
                 ancestor = ancestor.ancestor
             return list(reversed(res))
 
-        glottolog_trees = loads(pkgutil.get_data('beastling', 'data/glottolog.newick').decode('utf8'))
+        glottolog_trees = get_glottolog_newick(self.glottolog_release)
         for tree in glottolog_trees:
             for node in tree.walk():
                 name, glottocode, isocode = parse_label(node.name)
@@ -186,7 +213,6 @@ class Configuration:
                     self.classifications[isocode] = classification
 
     def process(self):
-
         # Add dependency notice if required
         if self.monophyly and not self.starting_tree:
             self.messages.append("[DEPENDENCY] ConstrainedRandomTree is implemented in the BEAST package BEASTLabs.")
@@ -220,7 +246,7 @@ class Configuration:
 
         ## Determine final list of languages
         if self.families == ["*"]:
-            self.lang_filter = set()
+            self.lang_filter = UniversalSet()
         else:
             self.lang_filter = {
                 l for l in self.classifications
@@ -263,10 +289,7 @@ class Configuration:
         # We start out setting self.languages to the set of languages in the
         # data file of the first model, filtered by the user's list of
         # famlies...
-        if self.lang_filter:
-            self.languages = set(self.models[0].data.keys()) & self.lang_filter
-        else:
-            self.languages = set(self.models[0].data.keys())
+        self.languages = set(self.models[0].data.keys()) & self.lang_filter
         self.overlap_warning = False
         for model in self.models:
             # For each model, we take the list of langs in the data, and apply
@@ -274,10 +297,7 @@ class Configuration:
             # this to the current value of self.languages.  Depending upon
             # self.overlap, we either add it to self.langs, or set self.langs
             # to the intersection of itself with the addition.
-            if self.lang_filter:
-                addition = set(model.data.keys()) & self.lang_filter
-            else:
-                addition = set(model.data.keys())
+            addition = set(model.data.keys()) & self.lang_filter
             # If we're about to do a non-trivial union/intersect, alert the
             # user.
             if addition != self.languages and not self.overlap_warning:

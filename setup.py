@@ -19,7 +19,8 @@ setup(
         'License :: OSI Approved :: BSD License',
     ],
     packages=['beastling','beastling.fileio','beastling.models'],
-    install_requires=['newick'],
+    install_requires=['newick', 'appdirs', 'six'],
+    tests_require=['mock==1.0.0', 'nose'],
     package_data={'beastling': ['data/*']},
     scripts=['bin/beastling',],
 )
