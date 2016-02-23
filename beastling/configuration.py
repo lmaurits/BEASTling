@@ -23,6 +23,7 @@ class URLopener(FancyURLopener):
 
 class UniversalSet(set):
     """Set which intersects fully with any other set."""
+    # Based on https://stackoverflow.com/a/28565931
     def __and__(self, other):
         return other
 
