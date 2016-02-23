@@ -2,12 +2,10 @@ import codecs
 import os
 import xml.etree.ElementTree as ET
 
-import scipy.stats
-
 from ..fileio.datareaders import load_data, _language_column_names
 
-class BaseModel:
 
+class BaseModel(object):
     def __init__(self, model_config, global_config):
 
         self.messages = []

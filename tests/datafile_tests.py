@@ -1,7 +1,3 @@
-import glob
-import os
-import tempfile
-
 from nose.tools import *
 
 import beastling.configuration
@@ -28,6 +24,4 @@ def test_cldf_data_reading():
     assert beastling_format.keys() == cldf_format.keys()
     for key in beastling_format:
         beastling_format[key].pop("iso")
-        print beastling_format[key].items()
-        print cldf_format[key].items()
         assert beastling_format[key].items() == cldf_format[key].items()
