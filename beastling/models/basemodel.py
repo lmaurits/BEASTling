@@ -1,13 +1,11 @@
-import codecs
+import io
 import os
 import xml.etree.ElementTree as ET
 
-import scipy.stats
-
 from ..fileio.datareaders import load_data, _language_column_names
 
-class BaseModel:
 
+class BaseModel(object):
     def __init__(self, model_config, global_config):
 
         self.messages = []
@@ -70,9 +68,9 @@ class BaseModel:
             # This can actually matter for things like ordinal models.
             # So convert these to ints first...
             if all([v.isdigit() for v in uniq]):
-                uniq = map(int, uniq)
+                uniq = list(map(int, uniq))
                 uniq.sort()
-                uniq = map(str, uniq)
+                uniq = list(map(str, uniq))
             # ...otherwise, just sort normally
             else:
                 uniq.sort()
@@ -116,14 +114,13 @@ class BaseModel:
         # Load features to analyse
         if os.path.exists(self.features):
             features = []
-            fp = codecs.open(self.features, "r", "UTF-8")
-            for line in fp:
-                feature = line.strip()
-                features.append(feature)
+            with io.open(self.features, "r", encoding="UTF-8") as fp:
+                for line in fp:
+                    features.append(line.strip())
         elif self.features == "*":
-            random_iso = self.data.keys()[0]
-            features = self.data[random_iso].keys()
-            # Need to remove the languge ID column
+            random_iso = list(self.data.keys())[0]
+            features = list(self.data[random_iso].keys())
+            # Need to remove the language ID column
             if self.lang_column:
                 features.remove(self.lang_column)
             else:

@@ -1,12 +1,13 @@
-import codecs
-import ConfigParser
+from __future__ import division, unicode_literals
 import os
 import sys
 import re
+import io
 
 import newick
 from appdirs import user_data_dir
 from six.moves.urllib.request import FancyURLopener
+from clldutils.inifile import INI
 
 import beastling.models.bsvs as bsvs
 import beastling.models.covarion as covarion
@@ -21,6 +22,7 @@ class URLopener(FancyURLopener):
     def http_error_default(self, url, fp, errcode, errmsg, headers):
         raise ValueError()
 
+
 class UniversalSet(set):
     """Set which intersects fully with any other set."""
     # Based on https://stackoverflow.com/a/28565931
@@ -29,6 +31,7 @@ class UniversalSet(set):
 
     def __rand__(self, other):
         return other
+
 
 def get_glottolog_newick(release):
     fname = 'glottolog-%s.newick' % release
@@ -72,7 +75,7 @@ class Configuration(object):
         self.model_configs = []
         self.monophyly = False
         self.monophyly_start_depth = 0
-        self.monophyly_end_depth = sys.maxint
+        self.monophyly_end_depth = sys.maxsize
         self.monophyly_grip = "tight"
         self.screenlog = True
         self.log_all = False
@@ -83,18 +86,19 @@ class Configuration(object):
         self.stdin_data = stdin_data
         self.calibrations = {}
         self.glottolog_release = '2.7'
+        self.classifications = {}
 
         if configfile:
             self.read_from_file(configfile)
 
     def read_from_file(self, configfile):
         # Read config file and overwrite defaults
-        self.configfile = configfile
-        fp = open(self.configfile, "r")
-        self.configfile_text = fp.read()
-        fp.close()
-        p = ConfigParser.SafeConfigParser()
-        p.read(self.configfile)
+        self.configfile = INI(interpolation=None)
+        if isinstance(configfile, dict):
+            self.configfile.read_dict(configfile)
+        else:
+            self.configfile.read(configfile)
+        p = self.configfile
 
         for sec, opts in {
             'admin': {
@@ -149,45 +153,39 @@ class Configuration(object):
         ## Calibration
         if p.has_section("calibration"):
             for clade, dates in p.items("calibration"):
-                self.calibrations[clade] = [float(x.strip()) for x in dates.split("-")]
+                self.calibrations[clade] = [float(x.strip()) for x in dates.split("-", 1)]
 
         ## Models
-        sections = p.sections()
-        model_sections = [s for s in sections if s.lower().startswith("model")]
+        model_sections = [s for s in p.sections() if s.lower().startswith("model")]
         if not model_sections:
             raise ValueError("Config file contains no model sections.")
         for section in model_sections:
-            options = p.options(section)
-            # Build a dict of all options in the section
-            config = {option:p.get(section, option) for option in options}
-            # Now explicitly handle type casting (boolean, float, etc.) for
-            # those options which are generic to all model types.
-            # Substitution-model-specific options must be cast inside the
-            # appropriate BaseModel subclass.
+            self.model_configs.append(self.get_model_config(p, section))
 
-            # "binarised" is the canonical name for this option and used everywhere internally,
-            # but "binarized" is accepted in the config file.
-            if "binarised" in config:
-                config["binarised"] = p.getboolean(section,"binarised")
-            elif "binarized" in config:
-                config["binarised"] = p.getboolean(section,"binarized")
-            else:
-                config["binarised"] = None
-            if "rate_variation" in config:
-                config["rate_variation"] = p.getboolean(section,"rate_variation")
-            else:
-                config["rate_variation"] = False
-            if "remove_constant_features" in config:
-                config["remove_constant_features"] = p.getboolean(section,"remove_constant_features")
-            else:
-                config["remove_constant_features"] = True
-            if "minimum_data" in config:
-                config["minimum_data"] = p.getfloat(section,"minimum_data")
-            config["name"] = section[5:].strip() # Chop off "model" prefix
-            self.model_configs.append(config)
+    def get_model_config(self, p, section):
+        cfg = {
+            'name': section[5:].strip(),
+            'binarised': None,
+            'rate_variation': False,
+            'remove_constant_features': True,
+        }
+        for key, value in p[section].items():
+            # "binarised" is the canonical name for this option and used everywhere
+            # internally, but "binarized" is accepted in the config file.
+            if key == 'binarized':
+                value = p.getboolean(section, key)
+                key = 'binarised'
+
+            if key in ['rate_variation', 'remove_constant_features']:
+                value = p.getboolean(section, key)
+
+            if key in ['minimum_data']:
+                value = p.getfloat(section, key)
+
+            cfg[key] = value
+        return cfg
 
     def load_glotto_class(self):
-        self.classifications = {}
         label2name = {}
 
         def parse_label(label):
@@ -224,25 +222,21 @@ class Configuration(object):
         # value, then set it such that we expect 10,000 log
         # entries
         if not self.log_every:
-            self.log_every = self.chainlength / 10000
             ## If chainlength < 10000, this results in log_every = zero.
             ## This causes BEAST to die.
             ## So in this case, just log everything.
-            if self.log_every == 0:
-                self.log_every = 1
+            self.log_every = self.chainlength // 10000 or 1
 
         if os.path.exists(self.families):
-            fp = codecs.open(self.families, "r", "UTF-8")
-            self.families = [x.strip() for x in fp.readlines()]
-            fp.close()
+            with io.open(self.families, encoding="UTF-8") as fp:
+                self.families = [x.strip() for x in fp.readlines()]
         else:
             self.families = [x.strip() for x in self.families.split(",")]
 
         # Read starting tree from file
         if os.path.exists(self.starting_tree):
-            fp = codecs.open(self.starting_tree, "r", "UTF-8")
-            self.starting_tree = fp.read().strip()
-            fp.close()
+            with io.open(self.starting_tree, encoding="UTF-8") as fp:
+                self.starting_tree = fp.read().strip()
 
         ## Load Glottolog classifications
         self.load_glotto_class()

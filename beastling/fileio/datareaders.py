@@ -1,49 +1,23 @@
-import sys
 import collections
-from .unicodecsv import UnicodeDictReader
 
-def sniff_format(fp):
-    header = fp.readline()
-    # Is this a CLDF format?
-    if (all([f in header for f in ("Language_ID", "Value")])
-        and
-        any([f in header for f in ("Feature_ID", "Parameter_ID")])
-       ):
-        diag = "cldf"
-    # If not, assume it uses the default BEASTling format
-    else:
-        diag = "beastling"
-    return diag, header
+from clldutils.dsv import UnicodeDictReader
+
 
 def load_data(filename, file_format=None, lang_column=None):
-    # Open file
-    if filename == "stdin":
-        fp = sys.stdin
-    else:
-        fp = open(filename, "r")
-
-    # Determine format (if not given)
-    if not file_format:
-        file_format, header = sniff_format(fp)
-    else:
-        header = fp.readline()
-
-    # Load data
-    if file_format == "cldf":
-        data = load_cldf_data(fp, header)
-    elif file_format == "beastling":
-        data = load_beastling_data(fp, header, lang_column, filename)
-
-    # Close file if necessary
-    if filename != "stdin":
-        fp.close()
+    with UnicodeDictReader(filename) as reader:
+        if all([f in reader.fieldnames for f in ("Language_ID", "Value")]) \
+                and any([f in reader.fieldnames for f in ("Feature_ID", "Parameter_ID")]):
+            data = load_cldf_data(reader)
+        else:
+            data = load_beastling_data(reader, lang_column, filename)
 
     return data
 
+
 _language_column_names = ("iso", "iso_code", "glotto", "glottocode", "language", "language_id", "lang", "lang_id")
 
-def load_beastling_data(fp, header, lang_column, filename):
-    reader = UnicodeDictReader(fp, header)
+
+def load_beastling_data(reader, lang_column, filename):
     if not lang_column:
         for candidate in reader.fieldnames:
             if candidate.lower() in _language_column_names:
@@ -59,12 +33,12 @@ def load_beastling_data(fp, header, lang_column, filename):
         data[row[lang_column]] = collections.defaultdict(lambda : "?", row)
     return data
 
-def load_cldf_data(fp, header):
-    if "Feature_ID" in header:
+
+def load_cldf_data(reader):
+    if "Feature_ID" in reader.fieldnames:
         feature_column = "Feature_ID"
     else:
         feature_column = "Parameter_ID"
-    reader = UnicodeDictReader(fp, header)
     data = collections.defaultdict(lambda: collections.defaultdict(lambda: "?"))
     for row in reader:
         lang = row["Language_ID"]
