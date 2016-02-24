@@ -1,7 +1,8 @@
-import ConfigParser
 import os
-import StringIO
 import xml.etree.ElementTree as ET
+
+from clldutils.inifile import INI
+from six import StringIO
 
 # The standard library XML parser does not give access to comments, which we
 # need.  The following extended parser remedies this.  # Code taken from
@@ -13,10 +14,10 @@ _config_file_str = "Original config file:"
 _proggen_str = "Configuration built programmatically"
 _data_file_str = "BEASTling embedded data file"
 
-class CommentParser(ET.XMLTreeBuilder):
+class CommentParser(ET.TreeBuilder):
 
    def __init__(self):
-       ET.XMLTreeBuilder.__init__(self)
+       ET.TreeBuilder.__init__(self)
        # assumes ElementTree 1.2.X
        self._parser.CommentHandler = self.handle_comment
 
@@ -55,8 +56,8 @@ def write_config(comment_text, overwrite):
     if lines[1] == _proggen_str:
         return "Original configuration was generated programmatically, no configuration to extract."
     config_text = "\n".join(lines[2:])
-    p = ConfigParser.SafeConfigParser()
-    p.readfp(StringIO.StringIO(config_text))
+    p = INI()
+    p.readfp(StringIO(config_text))
     if p.has_option("admin", "basename"):
         filename = "%s.conf" % p.get("admin", "basename")
     else:
