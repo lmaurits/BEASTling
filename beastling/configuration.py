@@ -177,8 +177,6 @@ class Configuration(object):
                 config["remove_constant_features"] = True
             if "minimum_data" in config:
                 config["minimum_data"] = p.getfloat(section,"minimum_data")
-            if "file_format" in config:
-                config["file_format"] = p.getboolean(section,"file_format")
             if "language_column" in config:
                 config["language_column"] = p.get(section,"language_column")
             config["name"] = section[5:].strip() # Chop off "model" prefix
