@@ -265,7 +265,7 @@ class BeastXml(object):
         if not filename:
             filename = self.config.basename+".xml"
         if filename in ("stdout", "-"):
-            sys.stdout.write(xml_string)
+            sys.stdout.write(xml_string.decode('utf8'))
         else:
             with open(filename, "wb") as fp:
                 fp.write(xml_string)
