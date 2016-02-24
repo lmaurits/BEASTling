@@ -6,6 +6,7 @@ from tempfile import mktemp
 from shutil import rmtree
 import io
 
+from nose.tools import *
 from mock import patch, Mock
 
 from beastling.configuration import Configuration, get_glottolog_newick
@@ -22,6 +23,11 @@ class Tests(TestCase):
     def _make_cfg(self, name):
         return Configuration(configfile=os.path.join(
             os.path.dirname(__file__), 'configs', '%s.conf' % name))
+
+    def _make_bad_cfg(self, name):
+        return Configuration(configfile=os.path.join(
+            os.path.dirname(__file__), 'configs/bad_configs/',
+            '%s.conf' % name))
 
     def test_get_glottolog_newick(self):
         with io.open(
@@ -70,11 +76,6 @@ class Tests(TestCase):
         self.assertEqual(cfg1.lang_filter, cfg2.lang_filter)
         self.assertEqual(len(cfg1.lang_filter), 6107)
 
-    def test_valid_overlaps(self):
-        with self.assertRaises(ValueError):
-            Configuration.valid_overlaps['error'](1, 2)
-        self.assertEqual(Configuration.valid_overlaps['error'](1, 1), 1)
-
     def test_config(self):
         cfg = Configuration(configfile={
             'admin': {
@@ -107,3 +108,33 @@ class Tests(TestCase):
 
         with self.assertRaisesRegexp(ValueError, 'Config file') as e:
             Configuration(configfile={'languages': {}})
+
+    @raises(ValueError)
+    def test_no_data(self):
+        cfg = self._make_bad_cfg("no_data")
+        cfg.process()
+
+    @raises(ValueError)
+    def test_no_langs(self):
+        cfg = self._make_bad_cfg("no_langs")
+        cfg.process()
+
+    @raises(ValueError)
+    def test_no_langs(self):
+        cfg = self._make_bad_cfg("no_model_sec")
+        cfg.process()
+        
+    @raises(ValueError)
+    def test_no_langs(self):
+        cfg = self._make_bad_cfg("no_model")
+        cfg.process()
+        
+    @raises(ValueError)
+    def test_no_langs(self):
+        cfg = self._make_bad_cfg("unknown_model")
+        cfg.process()
+
+    @raises(ValueError)
+    def bad_overlap(self):
+        cfg = self._make_bad_cfg("bad_overlap")
+        cfg.process()

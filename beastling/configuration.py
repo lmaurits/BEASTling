@@ -23,6 +23,16 @@ class URLopener(FancyURLopener):
         raise ValueError()
 
 
+class UniversalSet(set):
+    """Set which intersects fully with any other set."""
+    # Based on https://stackoverflow.com/a/28565931
+    def __and__(self, other):
+        return other
+
+    def __rand__(self, other):
+        return other
+
+
 def get_glottolog_newick(release):
     fname = 'glottolog-%s.newick' % release
     path = os.path.join(os.path.dirname(__file__), 'data', fname)
@@ -43,18 +53,7 @@ def get_glottolog_newick(release):
     return newick.read(path)
 
 
-def assert_compare_equal(one, other):
-    """ Compare two values. If they match, return that value, otherwise raise an error."""
-    if one != other:
-        raise ValueError("Values {:s} and {:s} were expected to match.".format(one, other))
-    return one
-
-
 class Configuration(object):
-    valid_overlaps = {
-        "union": set.union,
-        "intersection": set.intersection,
-        "error": assert_compare_equal}
 
     def __init__(self, basename="beastling", configfile=None, stdin_data=False):
         self.processed = False
@@ -69,7 +68,7 @@ class Configuration(object):
         self.embed_data = False
         self.sample_from_prior = False
         self.families = "*"
-        self.overlap = "error"
+        self.overlap = "union"
         self.starting_tree = ""
         self.sample_branch_lengths = True
         self.sample_topology = True
@@ -134,11 +133,10 @@ class Configuration(object):
 
         ## Languages
         sec = "languages"
-        if self.overlap not in Configuration.valid_overlaps:
+        if self.overlap.lower() not in ("union", "intersection"):  # pragma: no cover
             raise ValueError(
-                "Value for overlap needs to be one of 'union', 'intersection' or 'error'."
+                "Value for overlap needs to be either 'union', or 'intersection'."
             )
-
         if (self.starting_tree and not
                 (self.sample_topology or self.sample_branch_lengths)):
             self.tree_logging_pointless = True
@@ -245,7 +243,7 @@ class Configuration(object):
 
         ## Determine final list of languages
         if self.families == ["*"]:
-            self.lang_filter = set()
+            self.lang_filter = UniversalSet()
         else:
             self.lang_filter = {
                 l for l in self.classifications
@@ -285,17 +283,27 @@ class Configuration(object):
             self.models.append(model)
 
         # Finalise language list.
-        ## Start with all the languages from a random data source
-        self.languages = set(self.models[0].data.keys())
-        overlap_resolver = Configuration.valid_overlaps[self.overlap]
+        # We start out setting self.languages to the set of languages in the
+        # data file of the first model, filtered by the user's list of
+        # famlies...
+        self.languages = set(self.models[0].data.keys()) & self.lang_filter
+        self.overlap_warning = False
         for model in self.models:
-            # A filter is just a set.
-            if self.lang_filter:
-                addition = set(model.data.keys()) & self.lang_filter
-            else:
-                addition = set(model.data.keys())
-            # This depends on the value of `overlap`.
-            self.languages = overlap_resolver(self.languages, addition)
+            # For each model, we take the list of langs in the data, and apply
+            # the filter representing the user's request.  We then compare
+            # this to the current value of self.languages.  Depending upon
+            # self.overlap, we either add it to self.langs, or set self.langs
+            # to the intersection of itself with the addition.
+            addition = set(model.data.keys()) & self.lang_filter
+            # If we're about to do a non-trivial union/intersect, alert the
+            # user.
+            if addition != self.languages and not self.overlap_warning:
+                self.messages.append("""[INFO] Not all data files have equal language sets.  BEASTling will use the %s of all language sets.  Set the "overlap" option in [languages] to change this.""" % self.overlap.lower())
+                self.overlap_warning = True
+            if self.overlap.lower() == "union":
+                self.languages = set.union(self.languages, addition)
+            elif self.overlap.lower() == "intersection":
+                self.languages = set.intersection(self.languages, addition)
 
         ## Apply family-based filtering
         ## Make sure there's *something* left

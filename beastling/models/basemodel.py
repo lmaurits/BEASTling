@@ -159,6 +159,8 @@ class BaseModel(object):
                 parameter.text="1.0"
             parameter = ET.SubElement(state, "parameter", {"id":"featureClockRateGammaShape:%s" % self.name, "name":"stateNode"})
             parameter.text="2.0"
+            parameter = ET.SubElement(state, "parameter", {"id":"featureClockRateGammaScale:%s" % self.name, "name":"stateNode"})
+            parameter.text="0.5"
 
     def add_prior(self, prior):
 
@@ -173,7 +175,7 @@ class BaseModel(object):
             for f in self.features:
                 fname = "%s:%s" % (self.name, f)
                 var = ET.SubElement(compound, "var", {"idref":"featureClockRate:%s" % fname})
-            gamma  = ET.SubElement(sub_prior, "input", {"id":"featureClockRatePriorGamma:%s" % self.name, "spec":"beast.math.distributions.SingleParamGamma", "name":"distr", "alpha":"@featureClockRateGammaShape:%s" % self.name})
+            gamma  = ET.SubElement(sub_prior, "input", {"id":"featureClockRatePriorGamma:%s" % self.name, "spec":"beast.math.distributions.Gamma", "name":"distr", "alpha":"@featureClockRateGammaShape:%s" % self.name, "beta":"@featureClockRateGammaScale:%s" % self.name})
 
             sub_prior = ET.SubElement(prior, "prior", {"id":"featureClockRateGammaShapePrior.s:%s" % self.name, "name":"distribution", "x":"@featureClockRateGammaShape:%s" % self.name})
             exp = ET.SubElement(sub_prior, "Exponential", {"id":"featureClockRateGammaShapePriorExponential.s:%s" % self.name, "name":"distr"})
@@ -241,7 +243,9 @@ class BaseModel(object):
                 fname = "%s:%s" % (self.name, f)
                 param = ET.SubElement(delta, "parameter", {"idref":"featureClockRate:%s" % fname})
             
-            ET.SubElement(run, "operator", {"id":"featureClockRateGammaShapeScaler:%s" % self.name, "spec":"ScaleOperator","parameter":"@featureClockRateGammaShape:%s" % self.name, "scaleFactor":"0.5","weight":"1.0"})
+            updown = ET.SubElement(run, "operator", {"id":"featureClockRateGammaUpDown:%s" % self.name, "spec":"UpDownOperator", "scaleFactor":"0.5","weight":"1.0"})
+            ET.SubElement(updown, "parameter", {"idref":"featureClockRateGammaShape:%s" % self.name, "name":"up"})
+            ET.SubElement(updown, "parameter", {"idref":"featureClockRateGammaScale:%s" % self.name, "name":"down"})
 
     def add_param_logs(self, logger):
 
@@ -253,4 +257,5 @@ class BaseModel(object):
             for f in self.features:
                 fname = "%s:%s" % (self.name, f)
                 ET.SubElement(logger,"log",{"idref":"featureClockRate:%s" % fname})
+            # Log the shape, but not the scale, as it is always 1 / shape
             ET.SubElement(logger,"log",{"idref":"featureClockRateGammaShape:%s" % self.name})
