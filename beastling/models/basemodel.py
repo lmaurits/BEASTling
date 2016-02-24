@@ -100,7 +100,7 @@ class BaseModel(object):
             N = len(uniq)
             self.valuecounts[f] = N
             self.counts[f] = counts
-            self.dimensions[f] = N*(N-1)/2
+            self.dimensions[f] = N*(N-1) // 2
             self.codemaps[f] = self.build_codemap(uniq)
         self.features = [f for f in self.features if f not in bad_feats]
         self.features.sort()
