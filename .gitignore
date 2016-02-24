@@ -1,6 +1,7 @@
 TODO
 .coverage
 .idea
+.tox
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

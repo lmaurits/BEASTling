@@ -1,16 +1,14 @@
 # coding: utf8
 from __future__ import unicode_literals
 from unittest import TestCase
-import glob
 import os
 from tempfile import mktemp
-from shutil import rmtree, copy
+from shutil import rmtree
 import io
 
 from nose.tools import *
 from mock import patch, Mock
 
-import beastling
 from beastling.configuration import Configuration, get_glottolog_newick
 
 
@@ -77,6 +75,39 @@ class Tests(TestCase):
         cfg2.process()
         self.assertEqual(cfg1.lang_filter, cfg2.lang_filter)
         self.assertEqual(len(cfg1.lang_filter), 6107)
+
+    def test_config(self):
+        cfg = Configuration(configfile={
+            'admin': {
+
+            },
+            'languages': {
+                'monophyly': True,
+                'starting_tree': 'T',
+                'sample_topology': False,
+                'sample_branch_lengths': False,
+            },
+            'calibration': {
+                'abcd1234': '10-20',
+            },
+            'model': {
+                'binarised': True,
+                'minimum_data': '4.5'
+            },
+            'model2': {
+                'binarized': True,
+            },
+        })
+        self.assertTrue(cfg.tree_logging_pointless)
+        self.assertAlmostEqual(cfg.calibrations['abcd1234'][1], 20)
+        #self.assertAlmostEqual(cfg.model_configs[0]['minimum_data'], 4.5)
+        self.assertTrue(cfg.model_configs[1]['binarised'])
+
+        with self.assertRaisesRegexp(ValueError, 'Value for overlap') as e:
+            Configuration(configfile={'languages': {'overlap': 'invalid'}, 'models': {}})
+
+        with self.assertRaisesRegexp(ValueError, 'Config file') as e:
+            Configuration(configfile={'languages': {}})
 
     @raises(ValueError)
     def test_no_data(self):
