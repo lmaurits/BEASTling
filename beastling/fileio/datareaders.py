@@ -1,9 +1,12 @@
+import sys
 import collections
 
 from clldutils.dsv import UnicodeDictReader
 
 
 def load_data(filename, file_format=None, lang_column=None):
+    if filename == 'stdin':
+        filename = sys.stdin
     with UnicodeDictReader(filename) as reader:
         if all([f in reader.fieldnames for f in ("Language_ID", "Value")]) \
                 and any([f in reader.fieldnames for f in ("Feature_ID", "Parameter_ID")]):

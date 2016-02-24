@@ -1,8 +1,7 @@
-import os
 import xml.etree.ElementTree as ET
 
 from clldutils.inifile import INI
-from clldutils.path import Path
+from clldutils.path import Path, as_posix
 
 # The standard library XML parser does not give access to comments, which we
 # need.  The following extended parser remedies this.  # Code taken from
@@ -44,7 +43,7 @@ else:  # pragma: no cover
 
 def read_comments(filename):
     parser = CommentParser.get_parser()
-    with open(filename, "r") as fp:
+    with open(as_posix(filename), "rb") as fp:
         parser.feed(fp.read())
     return [e for e in parser.close() if e.tag == ET.Comment]
 
@@ -80,8 +79,8 @@ def write_config(comment_text, overwrite):
     filename = Path(filename)
     if filename.exists() and not overwrite:
         return "BEASTling configuration file %s already exists!  Run beastling with the --overwrite option if you wish to overwrite it.\n" % filename
-    if not os.path.exists(filename.parent):
-        os.makedirs(filename.parent)
+    if not filename.parent.exists():
+        filename.parent.mkdir()
 
     p.write(filename)
     return "Wrote BEASTling configuration file %s.\n" % filename
@@ -92,8 +91,8 @@ def write_data_file(comment_text, overwrite):
     filename = Path(lines[0].split(":",1)[1].strip())
     if filename.exists() and not overwrite:
         return "Embedded data file %s already exists!  Run beastling with the --overwrite option if you wish to overwrite it.\n" % filename
-    if not os.path.exists(filename.parent):
-        os.makedirs(filename.parent)
-    with open(filename, "w") as fp:
+    if not filename.parent.exists():
+        filename.parent.mkdir()
+    with filename.open("w", encoding='utf8') as fp:
         fp.write("\n".join(lines[1:]))
     return "Wrote embedded data file %s.\n" % filename
