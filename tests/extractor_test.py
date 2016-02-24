@@ -7,6 +7,8 @@ import beastling.beastxml
 import beastling.configuration
 import beastling.extractor
 
+_test_dir = os.path.dirname(__file__)
+
 def test_extractor():
     config = beastling.configuration.Configuration(configfile="tests/configs/embed_data.conf")
     config.process()
@@ -15,6 +17,7 @@ def test_extractor():
     os.chdir("testing_tmp_dir")
     xml.write_file("beastling.xml")
     beastling.extractor.extract("beastling.xml")
-    os.chdir("..")
+
+def teardown():
+    os.chdir(os.path.join(_test_dir, ".."))
     shutil.rmtree("testing_tmp_dir")
-    assert not os.path.exists("testing_tmp_dir")
