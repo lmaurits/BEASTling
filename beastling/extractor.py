@@ -63,6 +63,9 @@ def write_config(comment_text, overwrite):
         filename = "beastling.conf"
     if os.path.exists(filename) and not overwrite:
         return "BEASTling configuration file %s already exists!  Run beastling with the --overwrite option if you wish to overwrite it.\n" % filename
+    directory = os.path.dirname(filename)
+    if directory and not os.path.exists(directory):
+        os.makedirs(directory)
     fp = open(filename, "w")
     fp.write(config_text)
     fp.close()
@@ -73,6 +76,9 @@ def write_data_file(comment_text, overwrite):
     filename = lines[0].split(":",1)[1].strip()
     if os.path.exists(filename) and not overwrite:
         return "Embedded data file %s already exists!  Run beastling with the --overwrite option if you wish to overwrite it.\n" % filename
+    directory = os.path.dirname(filename)
+    if directory and not os.path.exists(directory):
+        os.makedirs(directory)
     fp = open(filename, "w")
     fp.write("\n".join(lines[1:]))
     fp.close()
