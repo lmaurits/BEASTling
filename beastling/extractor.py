@@ -14,10 +14,10 @@ _config_file_str = "Original config file:"
 _proggen_str = "Configuration built programmatically"
 _data_file_str = "BEASTling embedded data file"
 
-class CommentParser(ET.TreeBuilder):
+class CommentParser(ET.XMLTreeBuilder):
 
    def __init__(self):
-       ET.TreeBuilder.__init__(self)
+       ET.XMLTreeBuilder.__init__(self)
        # assumes ElementTree 1.2.X
        self._parser.CommentHandler = self.handle_comment
 
