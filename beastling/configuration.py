@@ -158,7 +158,13 @@ class Configuration(object):
             raise ValueError("Config file contains no model sections.")
         for section in model_sections:
             options = p.options(section)
+            # Build a dict of all options in the section
             config = {option:p.get(section, option) for option in options}
+            # Now explicitly handle type casting (boolean, float, etc.) for
+            # those options which are generic to all model types.
+            # Substitution-model-specific options must be cast inside the
+            # appropriate BaseModel subclass.
+
             # "binarised" is the canonical name for this option and used everywhere internally,
             # but "binarized" is accepted in the config file.
             if "binarised" in config:
@@ -177,8 +183,6 @@ class Configuration(object):
                 config["remove_constant_features"] = True
             if "minimum_data" in config:
                 config["minimum_data"] = p.getfloat(section,"minimum_data")
-            if "language_column" in config:
-                config["language_column"] = p.get(section,"language_column")
             config["name"] = section[5:].strip() # Chop off "model" prefix
             self.model_configs.append(config)
 
