@@ -12,6 +12,12 @@ class BSVSModel(BaseModel):
 
         BaseModel.__init__(self, model_config, global_config)
         self.symmetric = model_config.get("symmetric", True)
+        # This is pretty ugly!
+        # It happens because we don't (right here) have access to the
+        # ConfigParser which read the BEASTling config, so we caan't use
+        # getBoolean, and self.symmetric is a string which always tests True
+        if str(self.symmetric).lower() == "false":
+            self.symmetric = False
         self.svsprior = model_config.get("svsprior", "poisson")
 
     def add_state(self, state):
@@ -95,7 +101,7 @@ class BSVSModel(BaseModel):
                 substmodel = ET.SubElement(sitemodel, "substModel",{"id":"svs.s:%s"%fname,"rateIndicator":"@rateIndicator.s:%s"%fname,"rates":"@relativeGeoRates.s:%s"%fname,"spec":"SVSGeneralSubstitutionModel", "symmetric":"false"})
             freq = ET.SubElement(substmodel,"frequencies",{"id":"feature_freqs.s:%s"%fname,"spec":"Frequencies"})
             if self.frequencies == "uniform":
-                freq_string = str(1.0/self.valuecounts[f])
+                freq_string = str(1.0/self.valuecounts[feature])
             elif self.frequencies == "empirical":
                 freqs = [self.counts[feature].get(str(v),0) for v in range(1,self.valuecounts[feature]+1)]
                 norm = float(sum(freqs))
