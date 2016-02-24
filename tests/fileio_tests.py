@@ -23,7 +23,8 @@ class Tests(TestCase):
     def test(self):
         beastling_format = load_data(TEST_DATA.joinpath("basic.csv"))
         cldf_format = load_data(TEST_DATA.joinpath("cldf.csv"))
-        assert beastling_format.keys() == cldf_format.keys()
+        assert set(list(beastling_format.keys())) == set(list(cldf_format.keys()))
         for key in beastling_format:
             beastling_format[key].pop("iso")
-            self.assertEqual(beastling_format[key].items(), cldf_format[key].items())
+            self.assertEqual(
+                set(beastling_format[key].items()), set(cldf_format[key].items()))

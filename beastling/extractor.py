@@ -2,7 +2,7 @@ import os
 import xml.etree.ElementTree as ET
 
 from clldutils.inifile import INI
-from six import StringIO
+from clldutils.path import Path
 
 # The standard library XML parser does not give access to comments, which we
 # need.  The following extended parser remedies this.  # Code taken from
@@ -14,30 +14,44 @@ _config_file_str = "Original config file:"
 _proggen_str = "Configuration built programmatically"
 _data_file_str = "BEASTling embedded data file"
 
-class CommentParser(ET.XMLTreeBuilder):
 
-   def __init__(self):
-       ET.XMLTreeBuilder.__init__(self)
-       # assumes ElementTree 1.2.X
-       self._parser.CommentHandler = self.handle_comment
+if getattr(ET, 'XMLTreeBuilder', None):  # pragma: no cover
+    # Ensure compatibility with Python 2.7
+    class CommentParser(ET.XMLTreeBuilder):
+        def __init__(self):
+            ET.XMLTreeBuilder.__init__(self)
+            self._parser.CommentHandler = self.comment
 
-   def handle_comment(self, data):
-       self._target.start(ET.Comment, {})
-       self._target.data(data)
-       self._target.end(ET.Comment)
+        def comment(self, data):
+            self._target.start(ET.Comment, {})
+            self._target.data(data)
+            self._target.end(ET.Comment)
+
+        @classmethod
+        def get_parser(cls):
+            return CommentParser()
+else:  # pragma: no cover
+    class CommentParser(ET.TreeBuilder):
+        def comment(self, data):
+            self.start(ET.Comment, {})
+            self.data(data)
+            self.end(ET.Comment)
+
+        @classmethod
+        def get_parser(cls):
+            return ET.XMLParser(target=cls())
+
+
+def read_comments(filename):
+    parser = CommentParser.get_parser()
+    with open(filename, "r") as fp:
+        parser.feed(fp.read())
+    return [e for e in parser.close() if e.tag == ET.Comment]
+
 
 def extract(filename, overwrite=False):
-
     messages = []
-
-    # Parse XML file
-    parser = CommentParser()
-    fp = open(filename, "r")
-    parser.feed(fp.read())
-    fp.close()
-    xml = parser.close()
-
-    comments = [e for e in xml if e.tag == ET.Comment]
+    comments = read_comments(filename)
     beastling_confs = [c for c in comments if c.text.startswith(_generated_str)]
     if not len(beastling_confs) == 1:
         # Zero or several embedded configs - is this one of our files?!
@@ -50,6 +64,7 @@ def extract(filename, overwrite=False):
 
     return [msg for msg in messages if msg]
 
+
 def write_config(comment_text, overwrite):
     lines = comment_text.split("\n")
     assert lines[1] in (_config_file_str, _proggen_str)
@@ -57,30 +72,28 @@ def write_config(comment_text, overwrite):
         return "Original configuration was generated programmatically, no configuration to extract."
     config_text = "\n".join(lines[2:])
     p = INI()
-    p.readfp(StringIO(config_text))
+    p.read_string(config_text)
     if p.has_option("admin", "basename"):
         filename = "%s.conf" % p.get("admin", "basename")
     else:
         filename = "beastling.conf"
-    if os.path.exists(filename) and not overwrite:
+    filename = Path(filename)
+    if filename.exists() and not overwrite:
         return "BEASTling configuration file %s already exists!  Run beastling with the --overwrite option if you wish to overwrite it.\n" % filename
-    directory = os.path.dirname(filename)
-    if directory and not os.path.exists(directory):
-        os.makedirs(directory)
-    fp = open(filename, "w")
-    fp.write(config_text)
-    fp.close()
+    if not os.path.exists(filename.parent):
+        os.makedirs(filename.parent)
+
+    p.write(filename)
     return "Wrote BEASTling configuration file %s.\n" % filename
+
 
 def write_data_file(comment_text, overwrite):
     lines = comment_text.split("\n")
-    filename = lines[0].split(":",1)[1].strip()
-    if os.path.exists(filename) and not overwrite:
+    filename = Path(lines[0].split(":",1)[1].strip())
+    if filename.exists() and not overwrite:
         return "Embedded data file %s already exists!  Run beastling with the --overwrite option if you wish to overwrite it.\n" % filename
-    directory = os.path.dirname(filename)
-    if directory and not os.path.exists(directory):
-        os.makedirs(directory)
-    fp = open(filename, "w")
-    fp.write("\n".join(lines[1:]))
-    fp.close()
+    if not os.path.exists(filename.parent):
+        os.makedirs(filename.parent)
+    with open(filename, "w") as fp:
+        fp.write("\n".join(lines[1:]))
     return "Wrote embedded data file %s.\n" % filename
