@@ -3,12 +3,11 @@ from __future__ import unicode_literals
 from unittest import TestCase
 import os
 from tempfile import mktemp
-from shutil import rmtree, copy
+from shutil import rmtree
 import io
 
 from mock import patch, Mock
 
-import beastling
 from beastling.configuration import Configuration, get_glottolog_newick
 
 
@@ -75,3 +74,36 @@ class Tests(TestCase):
         with self.assertRaises(ValueError):
             Configuration.valid_overlaps['error'](1, 2)
         self.assertEqual(Configuration.valid_overlaps['error'](1, 1), 1)
+
+    def test_config(self):
+        cfg = Configuration(configfile={
+            'admin': {
+
+            },
+            'languages': {
+                'monophyly': True,
+                'starting_tree': 'T',
+                'sample_topology': False,
+                'sample_branch_lengths': False,
+            },
+            'calibration': {
+                'abcd1234': '10-20',
+            },
+            'model': {
+                'binarised': True,
+                'minimum_data': '4.5'
+            },
+            'model2': {
+                'binarized': True,
+            },
+        })
+        self.assertTrue(cfg.tree_logging_pointless)
+        self.assertAlmostEqual(cfg.calibrations['abcd1234'][1], 20)
+        #self.assertAlmostEqual(cfg.model_configs[0]['minimum_data'], 4.5)
+        self.assertTrue(cfg.model_configs[1]['binarised'])
+
+        with self.assertRaisesRegexp(ValueError, 'Value for overlap') as e:
+            Configuration(configfile={'languages': {'overlap': 'invalid'}, 'models': {}})
+
+        with self.assertRaisesRegexp(ValueError, 'Config file') as e:
+            Configuration(configfile={'languages': {}})
