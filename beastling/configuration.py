@@ -243,11 +243,6 @@ class Configuration(object):
         else:
             self.families = [x.strip() for x in self.families.split(",")]
 
-        # Read starting tree from file
-        if os.path.exists(self.starting_tree):
-            with io.open(self.starting_tree, encoding="UTF-8") as fp:
-                self.starting_tree = fp.read().strip()
-
         ## Load Glottolog classifications
         self.load_glotto_class()
 
@@ -322,6 +317,83 @@ class Configuration(object):
                 self.languages = set.union(self.languages, addition)
             elif self.overlap.lower() == "intersection":
                 self.languages = set.intersection(self.languages, addition)
+
+        # Read starting tree from file
+        if os.path.exists(self.starting_tree):
+            with io.open(self.starting_tree, encoding="UTF-8") as fp:
+                self.starting_tree = fp.read().strip()
+        if self.starting_tree:
+            # Make sure starting tree can be parsed
+            try:
+                tree = newick.loads(self.starting_tree)[0]
+            except:
+                raise ValueError("Could not parse starting tree.  Is it valid Newick?")
+            # Make sure starting tree contains no duplicate taxa
+            tree_langs = [n.name for n in tree.walk() if n.is_leaf]
+            if not len(set(tree_langs)) == len(tree_langs):
+                dupes = [l for l in tree_langs if tree_langs.count(l) > 1]
+                dupestring = ",".join(["%s (%d)" % (d, tree_langs.count(d)) for d in dupes])
+                raise ValueError("Starting tree contains duplicate taxa: %s" % dupestring)
+            tree_langs = set(tree_langs)
+            # Make sure languges in tree is a superset of languages in the analysis
+            if not tree_langs.issuperset(self.languages):
+                missing_langs = self.languages.difference(tree_langs)
+                miss_string = ",".join(missing_langs)
+                raise ValueError("Some languages in the data are not in the starting tree: %s" % miss_string)
+            # If the trees' language set is a proper superset, prune the tree to fit the analysis
+            if not tree_langs == self.languages:
+                # First remove all the unwanted nodes
+                targets = [n for n in tree.walk() if n.is_leaf and n.name not in self.languages]
+                for target in targets:
+                    target.ancestor.descendants.remove(target)
+                # Now patch the topology until it looks sane
+                finished = False
+                while not finished:
+                    finished = True
+                    # Reroot
+                    if len(tree.descendants) == 1:
+                        finished = False
+                        tree = tree.descendants[0]
+                        tree.ancestor = None
+                    for n in tree.walk(mode="postorder"):
+                        if n.is_leaf and n.name != "1":
+                            continue
+                        if len(n.descendants) == 0:
+                            finished = False
+                            # Kill useless node
+                            n.ancestor.descendants.remove(n)
+                        elif len(n.descendants) == 1:
+                            finished = False
+                            if n.ancestor is None:
+                                continue
+                            # Remove myself from my ancestor, and add my child
+                            n.ancestor.descendants.remove(n)
+                            n.ancestor.descendants.append(n.descendants[0])
+                            # Remove myself from my child, and add my ancestor
+                            n.descendants[0].ancestor = n.ancestor
+                            if n.length != None or n.descendants[0].length != None:
+                                new_length = float(n.length or 0.0)
+                                new_length += float(n.descendants[0].length or 0.0)
+                                n.descendants[0].length = "%f" % new_length
+                # Make sure the above worked
+                tree_langs = set([n.name for n in tree.walk() if n.is_leaf])
+                assert tree_langs == self.languages
+            # Make sure tree is binary, and if it isn't resolve polytomies
+            # by adding branches of length zero.
+            if not all([len(n.descendants) == 2 for n in tree.walk() if not n.is_leaf]):
+                for n in tree.walk(mode="preorder"):
+                    if n.is_leaf:
+                        continue
+                    elif len(n.descendants) > 2:
+                        new = newick.Node(length=0)
+                        while len(n.descendants) > 1:
+                            new.add_descendant(n.descendants.pop())
+                        n.descendants.append(new)
+                # Make sure the above worked
+                assert all([len(n.descendants) == 2 for n in tree.walk() if not n.is_leaf])
+
+            # Replace the starting_tree from the config with the new one
+            self.starting_tree = newick.dumps(tree)
 
         ## Apply family-based filtering
         ## Make sure there's *something* left
