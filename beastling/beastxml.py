@@ -98,7 +98,7 @@ class BeastXml(object):
         ## Init
         ### If a starting tree is specified, use it...
         if self.config.starting_tree:
-            init = ET.SubElement(self.run, "init", {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "spec":"beast.util.TreeParser","newick":self.config.starting_tree})
+            init = ET.SubElement(self.run, "init", {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "spec":"beast.util.TreeParser","IsLabelledNewick":"true", "newick":self.config.starting_tree})
         ### ...if not, use a random tree
         else:
             ### But the random tree must respect any constraints!
