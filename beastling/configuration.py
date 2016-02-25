@@ -68,6 +68,7 @@ class Configuration(object):
         self.embed_data = False
         self.sample_from_prior = False
         self.families = "*"
+        self.languages = "*"
         self.overlap = "union"
         self.starting_tree = ""
         self.sample_branch_lengths = True
@@ -117,6 +118,7 @@ class Configuration(object):
                 'sample_from_prior': p.getboolean,
             },
             'languages': {
+                'languages': p.get,
                 'families': p.get,
                 'overlap': p.get,
                 'starting_tree': p.get,
@@ -227,6 +229,14 @@ class Configuration(object):
             ## So in this case, just log everything.
             self.log_every = self.chainlength // 10000 or 1
 
+        # Handle languages - could be a list or a file
+        if os.path.exists(self.languages):
+            with io.open(self.languages, encoding="UTF-8") as fp:
+                self.languages = [x.strip() for x in fp.readlines()]
+        else:
+            self.languages = [x.strip() for x in self.languages.split(",")]
+
+        # Handle families - could be a list or a file
         if os.path.exists(self.families):
             with io.open(self.families, encoding="UTF-8") as fp:
                 self.families = [x.strip() for x in fp.readlines()]
@@ -241,14 +251,22 @@ class Configuration(object):
         ## Load Glottolog classifications
         self.load_glotto_class()
 
-        ## Determine final list of languages
-        if self.families == ["*"]:
-            self.lang_filter = UniversalSet()
-        else:
+        ## Build language filter
+        ## The final list of languages will be the intersection of this set
+        ## with the set of all languages present in the data
+        if self.languages != ["*"] and self.families != ["*"]:
+            # Can't filter by languages and families at same time!
+            raise ValueError("languages and families both defined in [languages]!")
+        elif self.languages != ["*"]:
+            # Filter by language
+            self.lang_filter = set(self.languages)
+        elif self.families != ["*"]:
             self.lang_filter = {
                 l for l in self.classifications
                 if any([family in [n for t in self.classifications[l] for n in t]
                         for family in self.families])}
+        else:
+            self.lang_filter = UniversalSet()
 
         # Handle request to read data from stdin
         if self.stdin_data:

@@ -66,8 +66,13 @@ The ``languages`` section may contain the following parameters:
 
 * ``families``: One of:
    * A comma-separated list of language families to include in the analysis, spelled exactly as they are in Glottolog.  E.g. ``Indo-European, Uralic, Dravidian``.
-   * The path to a file which contains one language family per line.  If no value is assigned to this parameter, all languages present in the data file will be included.
+   * The path to a file which contains one language family per line.
+ If no value is assigned to this parameter, all languages present in the data file will be included (unless ``languages`` (see below) is used.  ``families`` and ``languages`` cannot both be used in a single configuration.
 
+* ``languages``: One of:
+   * A comma-separated list of language names to include in the analysis, spelled exactly as they are in the data file(s).
+   * The path to a file which contains one language per line.  
+ If no value is assigned to this parameter, all languages present in the data file will be included (unless ``families`` (see above) is used.  ``languages`` and ``families`` cannot both be used in a single configuration.
 * ``monophyletic``: "True" or "False".  Controls whether or not to impose the family structure in Glottolog as monophyly constraints in the BEAST analysis.  Default is False.
 
 * ``overlap``: One of ``union`` or ``intersection``.  Controls how to deal with language sets mismatches between input data.
