@@ -347,25 +347,25 @@ class Configuration(object):
                 for target in targets:
                     target.ancestor.descendants.remove(target)
                 # Now patch the topology until it looks sane
-                finished = False
-                while not finished:
-                    finished = True
-                    # Reroot
-                    if len(tree.descendants) == 1:
-                        finished = False
-                        tree = tree.descendants[0]
-                        tree.ancestor = None
-                    for n in tree.walk(mode="postorder"):
-                        if n.is_leaf and n.name != "1":
-                            continue
-                        if len(n.descendants) == 0:
-                            finished = False
-                            # Kill useless node
-                            n.ancestor.descendants.remove(n)
-                        elif len(n.descendants) == 1:
-                            finished = False
-                            if n.ancestor is None:
-                                continue
+                for n in tree.walk(mode="postorder"):
+                    if n.is_leaf and n.name in self.languages:
+                        continue
+                    if len(n.descendants) == 0:
+                        # Kill useless node
+                        n.ancestor.descendants.remove(n)
+                    elif len(n.descendants) == 1:
+                        if n.ancestor is None:
+                            # I am the root of the tree, and I've lost all but
+                            # one of my children.  Kill that child and steal
+                            # its children
+                            only_child = n.descendants.pop()
+                            for grandchild in only_child.descendants:
+                                n.add_descendant(grandchild)
+                                if only_child.length is not None or grandchild.length is not None:
+                                    new_length = float(only_child.length or 0.0)
+                                    new_length += float(grandchild.length or 0.0)
+                                    grandchild.length = "%f" % new_length
+                        else:
                             # Remove myself from my ancestor, and add my child
                             n.ancestor.descendants.remove(n)
                             n.ancestor.descendants.append(n.descendants[0])
