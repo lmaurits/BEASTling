@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 import xml.etree.ElementTree as ET
 
 from clldutils.inifile import INI
@@ -72,11 +73,9 @@ def write_config(comment_text, overwrite):
     config_text = "\n".join(lines[2:])
     p = INI()
     p.read_string(config_text)
-    if p.has_option("admin", "basename"):
-        filename = "%s.conf" % p.get("admin", "basename")
-    else:
-        filename = "beastling.conf"
-    filename = Path(filename)
+    filename = p.get("admin", "basename") \
+        if p.has_option("admin", "basename") else 'beastling'
+    filename = Path(filename + '.conf')
     if filename.exists() and not overwrite:
         return "BEASTling configuration file %s already exists!  Run beastling with the --overwrite option if you wish to overwrite it.\n" % filename
     if not filename.parent.exists():
