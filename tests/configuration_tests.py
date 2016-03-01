@@ -10,6 +10,7 @@ from nose.tools import *
 from mock import patch, Mock
 
 from beastling.configuration import Configuration, get_glottolog_newick
+from beastling.beastxml import BeastXml
 
 
 class Tests(TestCase):
@@ -138,3 +139,22 @@ class Tests(TestCase):
     def bad_overlap(self):
         cfg = self._make_bad_cfg("bad_overlap")
         cfg.process()
+
+    def test_calibration(self):
+        config = self._make_cfg('calibration')
+        config.process()
+        self.assertIn('austronesian', config.calibrations)
+        v = config.calibrations['austronesian']
+        xml1 = BeastXml(config).tostring()
+
+        # Now remove one calibration point ...
+        del config.calibrations['austronesian']
+        xml2 = BeastXml(config).tostring()
+        self.assertNotEqual(
+            len(xml1.split('CalibrationNormal.')), len(xml2.split('CalibrationNormal.')))
+
+        # ... and add it back in with using the glottocode:
+        config.calibrations['aust1307'] = v
+        xml2 = BeastXml(config).tostring()
+        self.assertEqual(
+            len(xml1.split('CalibrationNormal.')), len(xml2.split('CalibrationNormal.')))
