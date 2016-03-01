@@ -19,6 +19,11 @@ class CovarionModel(BaseModel):
         else:
             # If we've been told, listen.
             self.binarised = model_config["binarised"]
+        if self.constant_feature:
+            self.ascertained = False
+            self.messages.append("""[INFO] Model "%s": Constant features in data have been retained, so ascertainment correction will be disabled.""" % (self.name))
+        else:
+            self.ascertained = True
         self.freq_str = self.build_freq_str()
 
     def build_freq_str(self):
@@ -55,20 +60,30 @@ class CovarionModel(BaseModel):
         frange = sorted(list(set(self.data[lang][feature] for lang in self.config.languages)))
         if "?" in frange:
             frange.remove("?")
-        data = ET.SubElement(distribution,"data",{"id":fname, "spec":"Alignment", "ascertained":"true", "excludefrom":"0","excludeto":"1"})
+        attribs = {"id":fname, "spec":"Alignment"}
+        if self.ascertained:
+            attribs["ascertained"] = "true"
+            attribs["excludefrom"] = "0"
+            attribs["excludeto"] = "1"
+        else:
+            attribs["ascertained"] = "false"
+        data = ET.SubElement(distribution,"data",attribs)
         ET.SubElement(data, "userDataType",{"spec":"beast.evolution.datatype.TwoStateCovarion"})
+        extra_columns = 1 if self.ascertained else 0
         for lang in self.config.languages:
             if self.binarised:
                 if self.data[lang][feature] == "?":
-                    valuestring = "??"
+                    valuestring = "??" if self.ascertained else "?"
                 else:
-                    valuestring = "0" + str(frange.index(self.data[lang][feature]))
+                    valuestring = str(frange.index(self.data[lang][feature]))
+                    if self.ascertained:
+                        valuestring = "0" + valuestring
             else:
                 if self.data[lang][feature] == "?":
-                    valuestring = "".join(["?" for i in range(0,len(frange)+1)])
+                    valuestring = "".join(["?" for i in range(0,len(frange)+extra_columns)])
                 else:
-                    valuestring = ["0" for i in range(0,len(frange)+1)]
-                    valuestring[frange.index(self.data[lang][feature])+1] = "1"
+                    valuestring = ["0" for i in range(0,len(frange)+extra_columns)]
+                    valuestring[frange.index(self.data[lang][feature])+extra_columns] = "1"
                     valuestring = "".join(valuestring)
 
             seq = ET.SubElement(data, "sequence", {"id":"seq_%s_%s" % (lang, fname), "taxon":lang, "totalcount":"4","value":valuestring})
