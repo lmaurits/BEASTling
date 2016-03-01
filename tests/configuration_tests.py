@@ -89,7 +89,7 @@ class Tests(TestCase):
                 'sample_branch_lengths': False,
             },
             'calibration': {
-                'abcd1234': '10-20',
+                'abcd1234, efgh5678': '10-20',
             },
             'model': {
                 'binarised': True,
@@ -103,6 +103,7 @@ class Tests(TestCase):
         self.assertAlmostEqual(cfg.calibrations['abcd1234'][1], 20)
         #self.assertAlmostEqual(cfg.model_configs[0]['minimum_data'], 4.5)
         self.assertTrue(cfg.model_configs[1]['binarised'])
+        self.assertEqual(len(cfg.calibrations), 2)
 
         with self.assertRaisesRegexp(ValueError, 'Value for overlap') as e:
             Configuration(configfile={'languages': {'overlap': 'invalid'}, 'models': {}})
