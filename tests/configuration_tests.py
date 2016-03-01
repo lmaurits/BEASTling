@@ -146,16 +146,16 @@ class Tests(TestCase):
         config.process()
         self.assertIn('austronesian', config.calibrations)
         v = config.calibrations['austronesian']
-        xml1 = BeastXml(config).tostring()
+        xml1 = BeastXml(config).tostring().decode('utf8')
 
         # Now remove one calibration point ...
         del config.calibrations['austronesian']
-        xml2 = BeastXml(config).tostring()
+        xml2 = BeastXml(config).tostring().decode('utf8')
         self.assertNotEqual(
             len(xml1.split('CalibrationNormal.')), len(xml2.split('CalibrationNormal.')))
 
         # ... and add it back in with using the glottocode:
         config.calibrations['aust1307'] = v
-        xml2 = BeastXml(config).tostring()
+        xml2 = BeastXml(config).tostring().decode('utf8')
         self.assertEqual(
             len(xml1.split('CalibrationNormal.')), len(xml2.split('CalibrationNormal.')))
