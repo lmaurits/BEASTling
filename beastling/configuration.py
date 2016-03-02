@@ -346,56 +346,11 @@ class Configuration(object):
                 raise ValueError("Some languages in the data are not in the starting tree: %s" % miss_string)
             # If the trees' language set is a proper superset, prune the tree to fit the analysis
             if not tree_langs == self.languages:
-                # First remove all the unwanted nodes
-                targets = [n for n in tree.walk() if n.is_leaf and n.name not in self.languages]
-                for target in targets:
-                    target.ancestor.descendants.remove(target)
-                # Now patch the topology until it looks sane
-                for n in tree.walk(mode="postorder"):
-                    if n.is_leaf and n.name in self.languages:
-                        continue
-                    if len(n.descendants) == 0:
-                        # Kill useless node
-                        n.ancestor.descendants.remove(n)
-                    elif len(n.descendants) == 1:
-                        if n.ancestor is None:
-                            # I am the root of the tree, and I've lost all but
-                            # one of my children.  Kill that child and steal
-                            # its children
-                            only_child = n.descendants.pop()
-                            for grandchild in only_child.descendants:
-                                n.add_descendant(grandchild)
-                                if only_child.length is not None or grandchild.length is not None:
-                                    new_length = float(only_child.length or 0.0)
-                                    new_length += float(grandchild.length or 0.0)
-                                    grandchild.length = "%f" % new_length
-                        else:
-                            # Remove myself from my ancestor, and add my child
-                            n.ancestor.descendants.remove(n)
-                            n.ancestor.descendants.append(n.descendants[0])
-                            # Remove myself from my child, and add my ancestor
-                            n.descendants[0].ancestor = n.ancestor
-                            if n.length != None or n.descendants[0].length != None:
-                                new_length = float(n.length or 0.0)
-                                new_length += float(n.descendants[0].length or 0.0)
-                                n.descendants[0].length = "%f" % new_length
-                # Make sure the above worked
-                tree_langs = set([n.name for n in tree.walk() if n.is_leaf])
-                assert tree_langs == self.languages
-            # Make sure tree is binary, and if it isn't resolve polytomies
-            # by adding branches of length zero.
-            if not all([len(n.descendants) == 2 for n in tree.walk() if not n.is_leaf]):
-                for n in tree.walk(mode="preorder"):
-                    if n.is_leaf:
-                        continue
-                    elif len(n.descendants) > 2:
-                        new = newick.Node(length=0)
-                        while len(n.descendants) > 1:
-                            new.add_descendant(n.descendants.pop())
-                        n.descendants.append(new)
-                # Make sure the above worked
-                assert all([len(n.descendants) == 2 for n in tree.walk() if not n.is_leaf])
-
+                tree.prune_by_names(self.languages, inverse=True)
+                self.messages.append("[INFO] Starting tree includes languages not present in any data set and will be pruned.")
+            # Get the tree looking nice
+            tree.remove_redundant_nodes()
+            tree.resolve_polytomies()
             # Replace the starting_tree from the config with the new one
             self.starting_tree = newick.dumps(tree)
 
