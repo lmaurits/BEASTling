@@ -10,6 +10,7 @@ from nose.tools import *
 from mock import patch, Mock
 
 from beastling.configuration import Configuration, get_glottolog_newick
+from beastling.beastxml import BeastXml
 
 
 class Tests(TestCase):
@@ -88,7 +89,7 @@ class Tests(TestCase):
                 'sample_branch_lengths': False,
             },
             'calibration': {
-                'abcd1234': '10-20',
+                'abcd1234, efgh5678': '10-20',
             },
             'model': {
                 'binarised': True,
@@ -102,6 +103,7 @@ class Tests(TestCase):
         self.assertAlmostEqual(cfg.calibrations['abcd1234'][1], 20)
         #self.assertAlmostEqual(cfg.model_configs[0]['minimum_data'], 4.5)
         self.assertTrue(cfg.model_configs[1]['binarised'])
+        self.assertEqual(len(cfg.calibrations), 2)
 
         with self.assertRaisesRegexp(ValueError, 'Value for overlap') as e:
             Configuration(configfile={'languages': {'overlap': 'invalid'}, 'models': {}})
@@ -138,3 +140,22 @@ class Tests(TestCase):
     def bad_overlap(self):
         cfg = self._make_bad_cfg("bad_overlap")
         cfg.process()
+
+    def test_calibration(self):
+        config = self._make_cfg('calibration')
+        config.process()
+        self.assertIn('austronesian', config.calibrations)
+        v = config.calibrations['austronesian']
+        xml1 = BeastXml(config).tostring().decode('utf8')
+
+        # Now remove one calibration point ...
+        del config.calibrations['austronesian']
+        xml2 = BeastXml(config).tostring().decode('utf8')
+        self.assertNotEqual(
+            len(xml1.split('CalibrationNormal.')), len(xml2.split('CalibrationNormal.')))
+
+        # ... and add it back in with using the glottocode:
+        config.calibrations['aust1307'] = v
+        xml2 = BeastXml(config).tostring().decode('utf8')
+        self.assertEqual(
+            len(xml1.split('CalibrationNormal.')), len(xml2.split('CalibrationNormal.')))

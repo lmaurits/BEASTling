@@ -160,7 +160,12 @@ class BeastXml(object):
                 if clade == "root":
                     langs = self.config.languages
                 else:
-                    langs = [l for l in self.config.languages if any([c==clade for c in [x[0].lower() for x in self.config.classifications[l.lower()]]])]
+                    langs = []
+                    for l in self.config.languages:
+                        for name, glottocode in self.config.classifications[l.lower()]:
+                            if clade == name.lower() or clade == glottocode:
+                                langs.append(l)
+                                break
                 if not langs:
                     continue
                 lower, upper = self.config.calibrations[clade]
@@ -259,9 +264,12 @@ class BeastXml(object):
             tree_logger = ET.SubElement(self.run, "logger", {"mode":"tree", "fileName":self.config.basename+".nex","logEvery":str(self.config.log_every),"id":"treeWithMetaDataLogger"})
             log = ET.SubElement(tree_logger, "log", attrib={"id":"TreeLogger","spec":"beast.evolution.tree.TreeWithMetaDataLogger","tree":"@Tree.t:beastlingTree"})
 
-    def write_file(self, filename=None):
+    def tostring(self):
         indent(self.beast)
-        xml_string = ET.tostring(self.beast, encoding="UTF-8")
+        return ET.tostring(self.beast, encoding="UTF-8")
+
+    def write_file(self, filename=None):
+        xml_string = self.tostring()
         if not filename:
             filename = self.config.basename+".xml"
         if filename in ("stdout", "-"):

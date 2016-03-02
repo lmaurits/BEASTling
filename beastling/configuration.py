@@ -154,8 +154,12 @@ class Configuration(object):
 
         ## Calibration
         if p.has_section("calibration"):
-            for clade, dates in p.items("calibration"):
-                self.calibrations[clade] = [float(x.strip()) for x in dates.split("-", 1)]
+            for clades, dates in p.items("calibration"):
+                for clade in clades.split(','):
+                    clade = clade.strip()
+                    if clade:
+                        self.calibrations[clade.lower()] = [
+                            float(x.strip()) for x in dates.split("-", 1)]
 
         ## Models
         model_sections = [s for s in p.sections() if s.lower().startswith("model")]
