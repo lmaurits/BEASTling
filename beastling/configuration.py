@@ -196,7 +196,7 @@ class Configuration(object):
 
         def parse_label(label):
             match = GLOTTOLOG_NODE_LABEL.match(label)
-            label2name[label] = (match.group('name').strip(), match.group('glottocode'))
+            label2name[label] = (match.group('name').strip().replace("\\'","'"), match.group('glottocode'))
             return (
                 match.group('name').strip(),
                 match.group('glottocode'),
