@@ -281,15 +281,20 @@ class BeastXml(object):
     def make_monophyly_newick(self, langs):
         # First we build a "monophyly structure".  This can be done in either
         # a "top-down" or "bottom-up" way.
-        if self.config.monophyly_direction == "top_down":
+        if self.config.monophyly_end_depth is not None:
+            # A power user has explicitly provided start and end depths
             start = self.config.monophyly_start_depth
-            finish = start + self.config.monophyly_levels
+            end = self.config.monophyly_end_depth
+        elif self.config.monophyly_direction == "top_down":
+            # Compute start and end in a top-down fashion
+            start = self.config.monophyly_start_depth
+            end = start + self.config.monophyly_levels
         elif self.config.monophyly_direction == "bottom_up":
+            # Compute start and end in a bottom-up fashion
             classifications = [self.config.classifications[name.lower()] for name in langs]
-            finish = max([len(c) for c in classifications])
-            start = max(0, finish - self.config.monophyly_levels)
-        print(start, finish)
-        struct = self.make_monophyly_structure(langs, depth=start, maxdepth=finish)
+            end = max([len(c) for c in classifications]) - self.config.monophyly_start_depth
+            start = max(0, end - self.config.monophyly_levels)
+        struct = self.make_monophyly_structure(langs, depth=start, maxdepth=end)
         # Now we serialise the "monophyly structure" into a Newick tree.
         return self.make_monophyly_string(struct)
 
