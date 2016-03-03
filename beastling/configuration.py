@@ -76,8 +76,9 @@ class Configuration(object):
         self.model_configs = []
         self.monophyly = False
         self.monophyly_start_depth = 0
-        self.monophyly_end_depth = sys.maxsize
-        self.monophyly_grip = "tight"
+        self.monophyly_end_depth = None
+        self.monophyly_levels = sys.maxsize
+        self.monophyly_direction = "top_down"
         self.screenlog = True
         self.log_all = False
         self.log_every = 0
@@ -126,7 +127,8 @@ class Configuration(object):
                 'sample_topology': p.getboolean,
                 'monophyly_start_depth': p.getint,
                 'monophyly_end_depth': p.getint,
-                'monophyly_grip': lambda s, o: p.get(s, o).lower(),
+                'monophyly_levels': p.getint,
+                'monophyly_direction': lambda s, o: p.get(s, o).lower(),
             },
         }.items():
             for opt, getter in opts.items():
