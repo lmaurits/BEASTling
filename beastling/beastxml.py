@@ -162,7 +162,7 @@ class BeastXml(object):
                 else:
                     langs = []
                     for l in self.config.languages:
-                        for name, glottocode in self.config.classifications[l.lower()]:
+                        for name, glottocode in self.config.classifications.get(l.lower(),""):
                             if clade == name.lower() or clade == glottocode:
                                 langs.append(l)
                                 break
