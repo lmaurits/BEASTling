@@ -1,13 +1,11 @@
-import codecs
+import io
 import os
 import xml.etree.ElementTree as ET
 
-import scipy.stats
-
 from ..fileio.datareaders import load_data, _language_column_names
 
-class BaseModel:
 
+class BaseModel(object):
     def __init__(self, model_config, global_config):
 
         self.messages = []
@@ -25,6 +23,7 @@ class BaseModel:
         self.pruned = model_config.get("pruned", False)
         self.rate_variation = model_config.get("rate_variation", False)
         self.remove_constant_features = model_config.get("remove_constant_features", True)
+        self.minimum_data = float(model_config.get("minimum_data", 0))
         self.lang_column = model_config.get("language_column", None)
 
         self.data = load_data(self.data_filename, file_format=model_config.get("file_format",None), lang_column=model_config.get("language_column",None))
@@ -56,6 +55,7 @@ class BaseModel:
         bad_feats = []
         for f in self.features:
             all_values = [self.data[l][f] for l in self.data]
+            missing_ratio = all_values.count("?") / (1.0*len(all_values))
             all_values = [v for v in all_values if v != "?"]
             uniq = list(set(all_values))
             counts = {}
@@ -68,16 +68,26 @@ class BaseModel:
             # This can actually matter for things like ordinal models.
             # So convert these to ints first...
             if all([v.isdigit() for v in uniq]):
-                uniq = map(int, uniq)
+                uniq = list(map(int, uniq))
                 uniq.sort()
-                uniq = map(str, uniq)
+                uniq = list(map(str, uniq))
             # ...otherwise, just sort normally
             else:
                 uniq.sort()
+
+            # Exclude features with no data
             if len(uniq) == 0:
                 self.messages.append("""[INFO] Model "%s": Feature %s excluded because there are no datapoints for selected languages.""" % (self.name, f))
                 bad_feats.append(f)
                 continue
+
+            # Exclude features with lots of missing data
+            if int(100*(1.0-missing_ratio)) < self.minimum_data:
+                self.messages.append("""[INFO] Model "%s": Feature %s excluded because of excessive missing data (%d%%).""" % (self.name, f, int(missing_ratio*100)))
+                bad_feats.append(f)
+                continue
+
+            # Exclude constant features
             if len(uniq) == 1:
                 if self.remove_constant_features:
                     self.messages.append("""[INFO] Model "%s": Feature %s excluded because its value is constant across selected languages.  Set "remove_constant_features=False" in config to stop this.""" % (self.name, f))
@@ -85,11 +95,12 @@ class BaseModel:
                     continue
                 else:
                     self.constant_feature = True
-            N = len(uniq)
 
+            # Compute various things
+            N = len(uniq)
             self.valuecounts[f] = N
             self.counts[f] = counts
-            self.dimensions[f] = N*(N-1)/2
+            self.dimensions[f] = N*(N-1) // 2
             self.codemaps[f] = self.build_codemap(uniq)
         self.features = [f for f in self.features if f not in bad_feats]
         self.features.sort()
@@ -103,14 +114,13 @@ class BaseModel:
         # Load features to analyse
         if os.path.exists(self.features):
             features = []
-            fp = codecs.open(self.features, "r", "UTF-8")
-            for line in fp:
-                feature = line.strip()
-                features.append(feature)
+            with io.open(self.features, "r", encoding="UTF-8") as fp:
+                for line in fp:
+                    features.append(line.strip())
         elif self.features == "*":
-            random_iso = self.data.keys()[0]
-            features = self.data[random_iso].keys()
-            # Need to remove the languge ID column
+            random_iso = list(self.data.keys())[0]
+            features = list(self.data[random_iso].keys())
+            # Need to remove the language ID column
             if self.lang_column:
                 features.remove(self.lang_column)
             else:
@@ -149,6 +159,8 @@ class BaseModel:
                 parameter.text="1.0"
             parameter = ET.SubElement(state, "parameter", {"id":"featureClockRateGammaShape:%s" % self.name, "name":"stateNode"})
             parameter.text="2.0"
+            parameter = ET.SubElement(state, "parameter", {"id":"featureClockRateGammaScale:%s" % self.name, "name":"stateNode"})
+            parameter.text="0.5"
 
     def add_prior(self, prior):
 
@@ -163,7 +175,7 @@ class BaseModel:
             for f in self.features:
                 fname = "%s:%s" % (self.name, f)
                 var = ET.SubElement(compound, "var", {"idref":"featureClockRate:%s" % fname})
-            gamma  = ET.SubElement(sub_prior, "input", {"id":"featureClockRatePriorGamma:%s" % self.name, "spec":"beast.math.distributions.SingleParamGamma", "name":"distr", "alpha":"@featureClockRateGammaShape:%s" % self.name})
+            gamma  = ET.SubElement(sub_prior, "input", {"id":"featureClockRatePriorGamma:%s" % self.name, "spec":"beast.math.distributions.Gamma", "name":"distr", "alpha":"@featureClockRateGammaShape:%s" % self.name, "beta":"@featureClockRateGammaScale:%s" % self.name})
 
             sub_prior = ET.SubElement(prior, "prior", {"id":"featureClockRateGammaShapePrior.s:%s" % self.name, "name":"distribution", "x":"@featureClockRateGammaShape:%s" % self.name})
             exp = ET.SubElement(sub_prior, "Exponential", {"id":"featureClockRateGammaShapePriorExponential.s:%s" % self.name, "name":"distr"})
@@ -231,7 +243,9 @@ class BaseModel:
                 fname = "%s:%s" % (self.name, f)
                 param = ET.SubElement(delta, "parameter", {"idref":"featureClockRate:%s" % fname})
             
-            ET.SubElement(run, "operator", {"id":"featureClockRateGammaShapeScaler:%s" % self.name, "spec":"ScaleOperator","parameter":"@featureClockRateGammaShape:%s" % self.name, "scaleFactor":"0.5","weight":"1.0"})
+            updown = ET.SubElement(run, "operator", {"id":"featureClockRateGammaUpDown:%s" % self.name, "spec":"UpDownOperator", "scaleFactor":"0.5","weight":"1.0"})
+            ET.SubElement(updown, "parameter", {"idref":"featureClockRateGammaShape:%s" % self.name, "name":"up"})
+            ET.SubElement(updown, "parameter", {"idref":"featureClockRateGammaScale:%s" % self.name, "name":"down"})
 
     def add_param_logs(self, logger):
 
@@ -243,4 +257,5 @@ class BaseModel:
             for f in self.features:
                 fname = "%s:%s" % (self.name, f)
                 ET.SubElement(logger,"log",{"idref":"featureClockRate:%s" % fname})
+            # Log the shape, but not the scale, as it is always 1 / shape
             ET.SubElement(logger,"log",{"idref":"featureClockRateGammaShape:%s" % self.name})

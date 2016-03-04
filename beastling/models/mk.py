@@ -1,9 +1,7 @@
-import codecs
-import os
 import xml.etree.ElementTree as ET
 
 from .basemodel import BaseModel
-from ..fileio.unicodecsv import UnicodeDictReader
+
 
 class MKModel(BaseModel):
 

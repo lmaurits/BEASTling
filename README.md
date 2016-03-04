@@ -5,10 +5,21 @@ A linguistics-focussed command line tool for generating
 
 For full documentation, see [Read the Docs](https://beastling.readthedocs.org).
 
-BEASTling is written in [Python](http://python.org).  It is available from the
-Python Package Index, aka "the Cheeseshop".  This means you can install it
-easily using `easy_install` or `pip`.  Otherwise, you can clone this repo and
-use the `setup.py` file included to install.
+BEASTling is written in [Python](http://python.org).  Python versions 2.7 and
+3.4+ are supported.  It is available from the Python Package Index, aka "the
+Cheeseshop".  This means you can install it easily using `easy_install` or
+`pip`.  Otherwise, you can clone this repo and use the `setup.py` file
+included to install.
+
+BEASTling has a few dependencies.  If you use `easy_install` or `pip`, they
+should be taken care of automatically for you.  If you are installing manually,
+you will also have to manually install the dependencies before BEASTling will
+work.  The dependencies are:
+
+* [appdirs](https://pypi.python.org/pypi/appdirs)
+* [clldutils](https://pypi.python.org/pypi/clldutils)
+* [newick](https://pypi.python.org/pypi/newick)
+* [six](https://pypi.python.org/pypi/six)
 
 BEASTling will run without BEAST installed, but it won't be very useful.
 Therefore, you should install the latest version of [BEAST
@@ -30,11 +41,11 @@ of its functionality:
 
 In summary:
 
-1. Install Python.
-2. Install/upgrade Java.  You need Java 8.
-3. Install/upgrade BEAST.  You need BEAST 2.
-4. Install required BEAST packages.
-5. Install BEASTling.
+1. Install/upgrade Python.  You need 2.7 or 3.4+
+2. Install BEASTling (plus dependencies if not using `pip` etc.).
+3. Install/upgrade Java.  You need Java 8.
+4. Install/upgrade BEAST.  You need BEAST 2.
+5. Install required BEAST packages.
 6. Profit.
 
 Bug reports, feature requests and pull requests are all welcome.

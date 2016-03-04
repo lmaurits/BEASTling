@@ -36,6 +36,8 @@ The ``admin`` section may contain the following parameters:
 
 * ``basename``: this is any user-friendly string which will be used in e.g. filenames.  If the basename is, say, "IE_cognates", then the BEAST XML file which BEASTling produces will be named IE_cognates.xml, and when the BEAST analysis is run, the trees will be logged in IE_trees.nex, etc.  If unspecified, it will default to "beastling".
 
+* ``glottolog_release``: the number of a Glottolog release (>=2.7), from which to obtain the language classification.
+
 * ``screenlog``: this must be set to "True" or "False" and controls whether or not BEAST should output basic MCMC data like ESS to the screen while running.  Default is True.
 
 * ``log_probabilities``: "True" or "False".  Controls whether or not the prior, likelihood and posterior should be logged to a file called basename.log.  This is generally a good idea, so that you can check e.g. ESSes for these things in Tracer, so the default is True.
@@ -48,7 +50,7 @@ The ``admin`` section may contain the following parameters:
 
 * ``log_every``: an integer specifying how many MCMC samples should elapse between consecutive entries in the log file.  If not specified, BEASTling will set this based on the chainlength such that the log file will be 10,000 entries long.  This is a good compromise between getting lots of information about the posterior and conserving disk space.
 
-  MCMC section
+MCMC section
 ------------
 
 The ``MCMC`` section may contain the following parameters:
@@ -64,14 +66,27 @@ The ``languages`` section may contain the following parameters:
 
 * ``families``: One of:
    * A comma-separated list of language families to include in the analysis, spelled exactly as they are in Glottolog.  E.g. ``Indo-European, Uralic, Dravidian``.
-   * The path to a file which contains one language family per line.  If no value is assigned to this parameter, all languages present in the data file will be included.
+   * The path to a file which contains one language family per line.
+ If no value is assigned to this parameter, all languages present in the data file will be included (unless ``languages`` (see below) is used.  ``families`` and ``languages`` cannot both be used in a single configuration.
 
-* ``monophyletic``: "True" or "False".  Controls whether or not to impose the family structure in Glottolog as monophyly constraints in the BEAST analysis.  Default is False.
+* ``languages``: One of:
+   * A comma-separated list of language names to include in the analysis, spelled exactly as they are in the data file(s).
+   * The path to a file which contains one language per line.  
+ If no value is assigned to this parameter, all languages present in the data file will be included (unless ``families`` (see above) is used.  ``languages`` and ``families`` cannot both be used in a single configuration.
 
-* ``overlap``: One of ``union``, ``intersection`` or ``error``. Controls how to deal with language sets mismatches between input data.
-   * If set to ``union``, languages missing in one data set will be added with all features missing.
+* ``monophyly`` (or ``monophyletic``): "True" or "False".  Controls whether or not to impose the family structure in Glottolog as monophyly constraints in the BEAST analysis.  Default is False.  If True, very fine-grained control over exactly how much constraint is opposed can be gained by using additional options, documented below.
+
+* ``monophyly_levels``: An integer specifying how many levels of the Glottolog classification to impost as a monophyly constraints.  By default, levels are added in a top-down fashion (but see ``monophyly_direction`` below).  E.g. if ``monophyly_levels = 3`` is specified, then Indo-European languages will be constrained to be monophyletic (one level), and so will Armenian, Celtic and Germanic, among others (two levels), and so will be Gothic and Northwest Germanic, among others (three levels), but North Germanic and West Germanic, or any descendant groups, will *not* be.  This allows one to enforce the high level structure of Glottolog, while leaving the "fine details" of relationships among leaves to be inferred from data.  If no value is specified, the entire Glottolog classification will be imposed.
+
+* ``monophyly_direction``: One of ``top_down`` (the default) or ``bottom_up``.  Determines the effect of ``monophyly_levels``.  If ``monophyly_direction = top_down``, constraints will be added from the roots of Glottolog trees downward (e.g. Indo-European, Germanic, North Germanic,...).  If ``bottom_up``, constraints will be added from the leaves upward (e.g. Macro-Swedish, East Scandinavian, North Germanic,...).
+
+* ``monophyly_start_depth``: An integer specifying an initial number of levels of the Glottolog classification to skip over when implying constraints (default 0).  E.g., with top down constraints, setting ``monophyly_start_depth=2`` will skip over Indo-European and Germanic, so that if ``monophyly_levles=3``, the imposed levels will be, e.g. Western Germanic, Franconian and High Franconian.  With bottom up constraints, this controls skipping initial levels above the leaves.
+
+* ``monophyly_end_depth``: An integer specifying a level in the Glottolog classification below which constraints will not be imposed.  If ``monophyly_end_depth`` is specified, then ``monophyly_direction`` and ``monophyly_levels`` are ignored.  The imposed constraints will be those between ``monophyly_start_depth`` and ``monophyly_end_depth``, interpreted in a top down fashion.  This is a "low level" approach to controling monophyly, and in general the "configurational sugar" of using ``monophyly_direction``, ``monophyly_start`` and ``monophyly_levels`` should be preferred.
+
+* ``overlap``: One of ``union`` or ``intersection``.  Controls how to deal with language sets mismatches between input data.
+   * If set to ``union`` (the default), languages missing in one data set will be added with missing datapoints ("?") for all features.
    * If set to ``intersection``, only languages present in all data sets will be used.
-   * If set to ``error`` (the default), BEASTling will exit with an error message when two data sets don't match.
 
 * ``starting_tree``: Used to provide a starting tree.  Can be a Newick format tree or the name of a file which contains a Newick format tree.  If not specified, a random starting tree (compatible with monophyly constraints, if active) will be used.
 
@@ -123,6 +138,8 @@ Each model section *must* contain the following parameters, i.e. they are mandat
 
 Additionally, each model section *may* contain the following parameters, i.e.  they are optional:
 
+* ``binarised`` or ``binarized``: "True" or "False".  This option is only relevant if the binary covarion model is being used (see :ref:`covarion`).  If unspecified, BEASTling will try to guess whether the supplied data has already been binarised, and will automatically translate multistate features into multiple binary features if not.  If BEASTling is guessing wrong, you can use this option to explicitly inform it whether or not your data has already been binarised.
+
 * ``file_format``: Can be used to explicitly set which of the two supported .csv file formats the data for this model is supplied in, to be used if BEASTling is mistakenly trying to parse one format as the other (which should be very rare).  Should be one of:
    * "beastling"
    * "cldf"
@@ -134,6 +151,9 @@ Additionally, each model section *may* contain the following parameters, i.e.  t
 * ``rate_variation``: "True" or "False".  Estimate a separate substitution rate for each feature (using a Gamma prior).
 
 * ``remove_constant_features``: "True" or "False".  By default, this is set to "True", which means that if your data set contains any features which have the same value for all of the languages in your analysis (which is not necessarily all of the languages in your data file, if you are using the "families" parameter in your "languages" section!), BEASTling will automatically remove that feature from the analysis (since it cannot possibly provide any phylogenetic information).  If you want to keep these constant features in for some reason, you must explicitly set this parameter to False.
+
+* ``minimum_data``: Indicates the minimum percentage of languages that a feature should have data present for to be included in an analysis.  E.g, if set to 50, any feature in the dataset which has more question marks than actual values for the selected languages will be excluded.
+
 * ``features``: Is used to select a subset of the features in the given data file.  Should be one of:
    * A comma-separated list of feature names (as they are given in the data CSV's header line)
    * A path to a file which contains one feature name per line
