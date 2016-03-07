@@ -226,7 +226,10 @@ class BeastXml(object):
             ### Include clock rates in up/down only if calibrations are given
             if self.config.calibrations:
                 for model in self.config.models:
-                    ET.SubElement(updown, "parameter", {"idref":"clockRate.c:%s" % model.name, "name":"down"})
+                    if model.relaxed:
+                        ET.SubElement(updown, "parameter", {"idref":"ucldMean.c:%s" % model.name, "name":"down"})
+                    else:
+                        ET.SubElement(updown, "parameter", {"idref":"clockRate.c:%s" % model.name, "name":"down"})
 
         # Birth rate scaler
         # Birth rate is *always* scaled.

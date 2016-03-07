@@ -26,6 +26,8 @@ class BaseModel(object):
         self.minimum_data = float(model_config.get("minimum_data", 0))
         self.lang_column = model_config.get("language_column", None)
 
+        self.relaxed = True
+
         self.data = load_data(self.data_filename, file_format=model_config.get("file_format",None), lang_column=model_config.get("language_column",None))
         self.load_features()
         self.preprocess()
@@ -141,11 +143,18 @@ class BaseModel(object):
     def add_state(self, state):
 
         # Clock
-        attribs = {}
-        attribs["id"] = "clockRate.c:%s" % self.name
-        attribs["name"] = "stateNode"
-        parameter = ET.SubElement(state, "parameter", attribs)
-        parameter.text="1.0"
+        if self.relaxed:
+            # Relaxed clock params
+            ET.SubElement(state, "parameter", {"id":"ucldMean.c:%s" % self.name, "lower":"0.0"}).text = "0.0001"
+            ET.SubElement(state, "parameter", {"id":"ucldSdev.c:%s" % self.name, "lower":"0.0", "upper":"0.0"}).text = "0.1"
+            ET.SubElement(state, "stateNode", {"id":"rateCategories.c:%s" % self.name, "spec":"parameter.IntegerParameter", "dimension":str(len(self.data))}).text = "1"
+        else:
+            # Strict clock params
+            attribs = {}
+            attribs["id"] = "clockRate.c:%s" % self.name
+            attribs["name"] = "stateNode"
+            parameter = ET.SubElement(state, "parameter", attribs)
+            parameter.text="1.0"
 
         # Mutation rates
         if self.rate_variation:
@@ -165,8 +174,16 @@ class BaseModel(object):
     def add_prior(self, prior):
 
         # Clock
-        sub_prior = ET.SubElement(prior, "prior", {"id":"clockPrior:%s" % self.name, "name":"distribution","x":"@clockRate.c:%s" % self.name})
-        uniform = ET.SubElement(sub_prior, "Uniform", {"id":"UniformClockPrior:%s" % self.name, "name":"distr", "upper":"Infinity"})
+        if self.relaxed:
+            sub_prior = ET.SubElement(prior, "prior", {"id":"clockPrior:%s" % self.name, "name":"distribution","x":"@ucldMean.c:%s" % self.name})
+            uniform = ET.SubElement(sub_prior, "Uniform", {"id":"UniformClockPrior:%s" % self.name, "name":"distr", "upper":"Infinity"})
+            sub_prior = ET.SubElement(prior, "prior", {"id":"ucldSdev:%s" % self.name, "name":"distribution","x":"@ucldMean.c:%s" % self.name})
+            gamma = ET.SubElement(sub_prior, "Gamma", {"id":"uclSdevPrior:%s" % self.name, "name":"distr"})
+            ET.SubElement(gamma, "parameter", {"id":"uclSdevPriorAlpha:%s" % self.name, "estimate":"false", "name":"alpha"}).text = "0.5396"
+            ET.SubElement(gamma, "parameter", {"id":"uclSdevPriorBeta:%s" % self.name, "estimate":"false", "name":"beta"}).text = "0.3819"
+        else:
+            sub_prior = ET.SubElement(prior, "prior", {"id":"clockPrior:%s" % self.name, "name":"distribution","x":"@clockRate.c:%s" % self.name})
+            uniform = ET.SubElement(sub_prior, "Uniform", {"id":"UniformClockPrior:%s" % self.name, "name":"distr", "upper":"Infinity"})
 
         # Mutation rates
         if self.rate_variation:
@@ -208,7 +225,7 @@ class BaseModel(object):
             fname = "%s:%s" % (self.name, f)
             attribs = {"id":"traitedtreeLikelihood.%s" % fname,"spec":"TreeLikelihood","useAmbiguities":"true"}
             if self.branchrate_model_instantiated:
-                attribs["branchRateModel"] = "@StrictClockModel.c:%s" % self.name
+                attribs["branchRateModel"] = "@%s" % self.branchrate_model_id
             distribution = ET.SubElement(likelihood, "distribution",attribs)
 
             # Tree
@@ -224,7 +241,16 @@ class BaseModel(object):
 
             # Branchrate
             if not self.branchrate_model_instantiated:
-                branchrate = ET.SubElement(distribution, "branchRateModel", {"id":"StrictClockModel.c:%s"%self.name,"spec":"beast.evolution.branchratemodel.StrictClockModel","clock.rate":"@clockRate.c:%s" % self.name})
+                if self.relaxed:
+                    branchrate = ET.SubElement(distribution, "branchRateModel", {"id":"RelaxedClockModel.c:%s"%self.name,"spec":"beast.evolution.branchratemodel.UCRelaxedClockModel","rateCategories":"@rateCategories.c:%s" % self.name, "tree":"@Tree.t:beastlingTree", "clock.rate":"@ucldMean.c:%s" % self.name})
+                    lognormal = ET.SubElement(branchrate, "LogNormal", {"id":"LogNormalDistributionModel.c:%s"%self.name,
+                        "S":"@ucldSdev.c:%s" % self.name, "meanInRealSpace":"true", "name":"distr"})
+                    param = ET.SubElement(lognormal, "parameter", {"id":"LogNormalM.p:%s" % self.name, "name":"M", "estimate":"false", "lower":"0.0","upper":"1.0"})
+                    param.text = "1.0"
+                    self.branchrate_model_id = "RelaxedClockModel.c:%s" % self.name
+                else:
+                    branchrate = ET.SubElement(distribution, "branchRateModel", {"id":"StrictClockModel.c:%s"%self.name,"spec":"beast.evolution.branchratemodel.StrictClockModel","clock.rate":"@clockRate.c:%s" % self.name})
+                    self.branchrate_model_id = "StrictClockModel.c:%s" % self.name
                 self.branchrate_model_instantiated = True
             
             # Data
@@ -234,7 +260,17 @@ class BaseModel(object):
 
         # Clock scaler (only if tree is not free to vary arbitrarily)
         if not self.config.sample_branch_lengths or self.calibrations:
-            ET.SubElement(run, "operator", {"id":"clockScaler.c:%s" % self.name, "spec":"ScaleOperator","parameter":"@clockRate.c:%s" % self.name, "scaleFactor":"0.5","weight":"3.0"})
+            if self.relaxed:
+                ET.SubElement(run, "operator", {"id":"clockScaler.c:%s" % self.name, "spec":"ScaleOperator","parameter":"@ucldMean.c:%s" % self.name, "scaleFactor":"0.5","weight":"3.0"})
+            else:
+                ET.SubElement(run, "operator", {"id":"clockScaler.c:%s" % self.name, "spec":"ScaleOperator","parameter":"@clockRate.c:%s" % self.name, "scaleFactor":"0.5","weight":"3.0"})
+
+        # Relaxed clock operators
+        if self.relaxed:
+            ET.SubElement(run, "operator", {"id":"ucldSdevScaler.c:%s" % self.name, "spec":"ScaleOperator", "parameter":"@ucldSdev.c:%s" % self.name, "scaleFactor": "0.5", "weight":"3.0"})
+            ET.SubElement(run, "operator", {"id":"rateCategoriesRandomWalkOperator.c:%s" % self.name, "spec":"IntRandomWalkOperator", "parameter":"@rateCategories.c:%s" % self.name, "windowSize": "1", "weight":"10.0"})
+            ET.SubElement(run, "operator", {"id":"rateCategoriesSwapOperator.c:%s" % self.name, "spec":"SwapOperator", "intparameter":"@rateCategories.c:%s" % self.name, "weight":"10.0"})
+            ET.SubElement(run, "operator", {"id":"rateCategoriesUniformOperator.c:%s" % self.name, "spec":"UniformOperator", "parameter":"@rateCategories.c:%s" % self.name, "weight":"10.0"})
 
         # Mutation rates
         if self.rate_variation:
@@ -250,7 +286,10 @@ class BaseModel(object):
     def add_param_logs(self, logger):
 
         # Clock
-        ET.SubElement(logger,"log",{"idref":"clockRate.c:%s" % self.name})
+        if self.relaxed:
+            pass
+        else:
+            ET.SubElement(logger,"log",{"idref":"clockRate.c:%s" % self.name})
 
         # Mutation rates
         if self.rate_variation:
