@@ -11,8 +11,8 @@ class RelaxedClock(BaseClock):
         BaseClock.__init__(self, clock_config, global_config)
         self.mean_rate_id = "ucldMean.c:%s" % self.name
         self.mean_rate_idref = "@%s" % self.mean_rate_id
-        self.branchrate_model_id = "RelaxedClockModel.c:%s" % self.name
         self.distribution = clock_config.get("distribution","lognormal").lower()
+        self.number_of_rates = int(clock_config.get("rates","-1"))
 
     def add_state(self, state):
 
@@ -33,12 +33,16 @@ class RelaxedClock(BaseClock):
         ET.SubElement(gamma, "parameter", {"id":"uclSdevPriorBeta:%s" % self.name, "estimate":"false", "name":"beta"}).text = "0.3819"
 
     def add_branchrate_model(self, beast):
-        branchrate = ET.SubElement(beast, "branchRateModel", {"id":"RelaxedClockModel.c:%s"%self.name,"spec":"beast.evolution.branchratemodel.UCRelaxedClockModel","rateCategories":"@rateCategories.c:%s" % self.name, "tree":"@Tree.t:beastlingTree", "clock.rate":"@ucldMean.c:%s" % self.name})
+        branchrate = ET.SubElement(beast, "branchRateModel", {"id":"RelaxedClockModel.c:%s"%self.name,"spec":"beast.evolution.branchratemodel.UCRelaxedClockModel","rateCategories":"@rateCategories.c:%s" % self.name, "tree":"@Tree.t:beastlingTree", "numberOfDiscreteRates":str(self.number_of_rates),"clock.rate":"@ucldMean.c:%s" % self.name})
         lognormal = ET.SubElement(branchrate, "LogNormal", {"id":"LogNormalDistributionModel.c:%s"%self.name,
             "S":"@ucldSdev.c:%s" % self.name, "meanInRealSpace":"true", "name":"distr"})
         param = ET.SubElement(lognormal, "parameter", {"id":"LogNormalM.p:%s" % self.name, "name":"M", "estimate":"false", "lower":"0.0","upper":"1.0"})
         param.text = "1.0"
         self.branchrate_model_id = "RelaxedClockModel.c:%s" % self.name
+
+    def add_pruned_branchrate_model(self, distribution, name, tree_id):
+        pbrm_id = "PrunedRelaxedClockModel.c:%s" % name
+        pruned_branchrate = ET.SubElement(distribution, "branchRateModel", {"id":pbrm_id,"spec":"beast.evolution.branchratemodel.PrunedRelaxedClockModel", "rates":"@%s" % self.branchrate_model_id, "tree":"@%s"%tree_id})
 
     def add_operators(self, run):
 

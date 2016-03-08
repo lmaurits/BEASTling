@@ -195,16 +195,19 @@ class BaseModel(object):
         for n, f in enumerate(self.features):
             fname = "%s:%s" % (self.name, f)
             attribs = {"id":"traitedtreeLikelihood.%s" % fname,"spec":"TreeLikelihood","useAmbiguities":"true"}
-            attribs["branchRateModel"] = "@%s" % self.clock.branchrate_model_id
-            distribution = ET.SubElement(likelihood, "distribution",attribs)
-
-            # Tree
             if self.pruned:
-                tree = ET.SubElement(distribution, "tree", {"id":"@Tree.t:beastlingTree.%s" % fname, "spec":"beast.evolution.tree.PrunedTree","quickshortcut":"true","assert":"false"})
+                distribution = ET.SubElement(likelihood, "distribution",attribs)
+                # Create pruned tree
+                tree_id = "Tree.t:prunedBeastlingTree.%s" % fname
+                tree = ET.SubElement(distribution, "tree", {"id":tree_id, "spec":"beast.evolution.tree.PrunedTree","quickshortcut":"true","assert":"false"})
                 ET.SubElement(tree, "tree", {"idref":"Tree.t:beastlingTree"})
                 ET.SubElement(tree, "alignment", {"idref":"%s.filt"%fname})
+                # Create pruned branchrate
+                self.clock.add_pruned_branchrate_model(distribution, fname, tree_id)
             else:
-                tree = ET.SubElement(distribution, "tree", {"idref":"Tree.t:beastlingTree", "spec":"beast.evolution.tree.Tree"})
+                attribs["branchRateModel"] = "@%s" % self.clock.branchrate_model_id
+                attribs["tree"] = "@Tree.t:beastlingTree"
+                distribution = ET.SubElement(likelihood, "distribution",attribs)
 
             # Sitemodel
             self.add_sitemodel(distribution, f, fname)
