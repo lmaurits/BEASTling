@@ -79,6 +79,9 @@ class BeastXml(object):
         param = ET.SubElement(state, "parameter", {"id":"birthRate.t:beastlingTree","name":"stateNode"})
         param.text="1.0"
 
+        for clock in self.config.clocks:
+            clock.add_state(state)
+
         for model in self.config.models:
             model.add_state(state)
 
@@ -114,6 +117,9 @@ class BeastXml(object):
 
         ### Prior
         self.add_prior()
+        for clock in self.config.clocks:
+            clock.add_prior(self.prior)
+
         for model in self.config.models:
             model.add_prior(self.prior)
 
@@ -225,15 +231,15 @@ class BeastXml(object):
             ET.SubElement(updown, "parameter", {"idref":"birthRate.t:beastlingTree", "name":"down"})
             ### Include clock rates in up/down only if calibrations are given
             if self.config.calibrations:
-                for model in self.config.models:
-                    if model.relaxed:
-                        ET.SubElement(updown, "parameter", {"idref":"ucldMean.c:%s" % model.name, "name":"down"})
-                    else:
-                        ET.SubElement(updown, "parameter", {"idref":"clockRate.c:%s" % model.name, "name":"down"})
+                for clock in self.config.clocks:
+                    ET.SubElement(updown, "parameter", {"idref":clock.mean_rate_id, "name":"down"})
 
         # Birth rate scaler
         # Birth rate is *always* scaled.
         ET.SubElement(self.run, "operator", {"id":"YuleBirthRateScaler.t:beastlingTree","spec":"ScaleOperator","parameter":"@birthRate.t:beastlingTree", "scaleFactor":"0.5", "weight":"3.0"})
+
+        for clock in self.config.clocks:
+            clock.add_operators(self.run)
 
         # Model specific operators
         for model in self.config.models:
@@ -258,6 +264,8 @@ class BeastXml(object):
                 ET.SubElement(tracer_logger,"log",{"idref":"posterior"})
             if self.config.log_params or self.config.log_all:
                 ET.SubElement(tracer_logger,"log",{"idref":"birthRate.t:beastlingTree"})
+                for clock in self.config.clocks:
+                    clock.add_param_logs(tracer_logger)
                 for model in self.config.models:
                     model.add_param_logs(tracer_logger)
                 

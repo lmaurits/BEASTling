@@ -1,0 +1,58 @@
+import io
+import os
+import xml.etree.ElementTree as ET
+
+from .baseclock import BaseClock
+
+class RelaxedClock(BaseClock):
+
+    def __init__(self, clock_config, global_config):
+
+        BaseClock.__init__(self, clock_config, global_config)
+        self.mean_rate_id = "ucldMean.c:%s" % self.name
+        self.mean_rate_idref = "@%s" % self.mean_rate_id
+
+    def add_state(self, state):
+
+        # Clock
+        # Relaxed clock params
+        ET.SubElement(state, "parameter", {"id":"ucldMean.c:%s" % self.name, "lower":"0.0"}).text = "0.0001"
+        ET.SubElement(state, "parameter", {"id":"ucldSdev.c:%s" % self.name, "lower":"0.0", "upper":"0.0"}).text = "0.1"
+        ET.SubElement(state, "stateNode", {"id":"rateCategories.c:%s" % self.name, "spec":"parameter.IntegerParameter", "dimension":"42"}).text = "1"
+
+    def add_prior(self, prior):
+
+        # Clock
+        sub_prior = ET.SubElement(prior, "prior", {"id":"clockPrior:%s" % self.name, "name":"distribution","x":"@ucldMean.c:%s" % self.name})
+        uniform = ET.SubElement(sub_prior, "Uniform", {"id":"UniformClockPrior:%s" % self.name, "name":"distr", "upper":"Infinity"})
+        sub_prior = ET.SubElement(prior, "prior", {"id":"ucldSdev:%s" % self.name, "name":"distribution","x":"@ucldMean.c:%s" % self.name})
+        gamma = ET.SubElement(sub_prior, "Gamma", {"id":"uclSdevPrior:%s" % self.name, "name":"distr"})
+        ET.SubElement(gamma, "parameter", {"id":"uclSdevPriorAlpha:%s" % self.name, "estimate":"false", "name":"alpha"}).text = "0.5396"
+        ET.SubElement(gamma, "parameter", {"id":"uclSdevPriorBeta:%s" % self.name, "estimate":"false", "name":"beta"}).text = "0.3819"
+
+    def instantiate_branchrate(self, distribution):
+        if self.branchrate_model_instantiated:
+            return
+        branchrate = ET.SubElement(distribution, "branchRateModel", {"id":"RelaxedClockModel.c:%s"%self.name,"spec":"beast.evolution.branchratemodel.UCRelaxedClockModel","rateCategories":"@rateCategories.c:%s" % self.name, "tree":"@Tree.t:beastlingTree", "clock.rate":"@ucldMean.c:%s" % self.name})
+        lognormal = ET.SubElement(branchrate, "LogNormal", {"id":"LogNormalDistributionModel.c:%s"%self.name,
+            "S":"@ucldSdev.c:%s" % self.name, "meanInRealSpace":"true", "name":"distr"})
+        param = ET.SubElement(lognormal, "parameter", {"id":"LogNormalM.p:%s" % self.name, "name":"M", "estimate":"false", "lower":"0.0","upper":"1.0"})
+        param.text = "1.0"
+        self.branchrate_model_id = "RelaxedClockModel.c:%s" % self.name
+        self.branchrate_model_instantiated = True
+
+    def add_operators(self, run):
+
+        # Clock scaler (only if tree is not free to vary arbitrarily)
+        if not self.config.sample_branch_lengths or self.calibrations:
+            ET.SubElement(run, "operator", {"id":"clockScaler.c:%s" % self.name, "spec":"ScaleOperator","parameter":"@ucldMean.c:%s" % self.name, "scaleFactor":"0.5","weight":"3.0"})
+
+        # Relaxed clock operators
+        ET.SubElement(run, "operator", {"id":"ucldSdevScaler.c:%s" % self.name, "spec":"ScaleOperator", "parameter":"@ucldSdev.c:%s" % self.name, "scaleFactor": "0.5", "weight":"3.0"})
+        ET.SubElement(run, "operator", {"id":"rateCategoriesRandomWalkOperator.c:%s" % self.name, "spec":"IntRandomWalkOperator", "parameter":"@rateCategories.c:%s" % self.name, "windowSize": "1", "weight":"10.0"})
+        ET.SubElement(run, "operator", {"id":"rateCategoriesSwapOperator.c:%s" % self.name, "spec":"SwapOperator", "intparameter":"@rateCategories.c:%s" % self.name, "weight":"10.0"})
+        ET.SubElement(run, "operator", {"id":"rateCategoriesUniformOperator.c:%s" % self.name, "spec":"UniformOperator", "parameter":"@rateCategories.c:%s" % self.name, "weight":"10.0"})
+
+    def add_param_logs(self, logger):
+        ET.SubElement(logger,"log",{"idref":"ucldSdev.c:%s" % self.name})
+        ET.SubElement(logger,"log",{"id":"rate.c:%s" % self.name, "spec":"beast.evolution.branchratemodel.RateStatistic", "branchratemodel":"@%s" % self.branchrate_model_id, "tree":"@Tree.t:beastlingTree"})

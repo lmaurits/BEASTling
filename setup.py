@@ -30,7 +30,7 @@ setup(
         'Programming Language :: Python :: 3.4',
         'License :: OSI Approved :: BSD License',
     ],
-    packages=['beastling','beastling.fileio','beastling.models'],
+    packages=['beastling','beastling.clocks','beastling.fileio','beastling.models'],
     install_requires=requires,
     tests_require=['mock==1.0.0', 'nose'],
     package_data={'beastling': ['data/*']},
