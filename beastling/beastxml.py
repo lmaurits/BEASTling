@@ -81,6 +81,7 @@ class BeastXml(object):
 
         for clock in self.config.clocks:
             clock.add_state(state)
+            clock.add_branchrate_model(self.beast)
 
         for model in self.config.models:
             model.add_state(state)

@@ -11,6 +11,7 @@ class StrictClock(BaseClock):
         BaseClock.__init__(self, clock_config, global_config)
         self.mean_rate_id = "clockRate.c:%s" % self.name
         self.mean_rate_idref = "@%s" % self.mean_rate_id
+        self.branchrate_model_id = "StrictClockModel.c:%s" % self.name
 
     def add_state(self, state):
 
@@ -27,12 +28,8 @@ class StrictClock(BaseClock):
         sub_prior = ET.SubElement(prior, "prior", {"id":"clockPrior:%s" % self.name, "name":"distribution","x":"@clockRate.c:%s" % self.name})
         uniform = ET.SubElement(sub_prior, "Uniform", {"id":"UniformClockPrior:%s" % self.name, "name":"distr", "upper":"Infinity"})
 
-    def instantiate_branchrate(self, distribution):
-        if self.branchrate_model_instantiated:
-            return
-        ET.SubElement(distribution, "branchRateModel", {"id":"StrictClockModel.c:%s"%self.name,"spec":"beast.evolution.branchratemodel.StrictClockModel","clock.rate":"@clockRate.c:%s" % self.name})
-        self.branchrate_model_instantiated = True
-        self.branchrate_model_id = "StrictClockModel.c:%s" % self.name
+    def add_branchrate_model(self, beast):
+        ET.SubElement(beast, "branchRateModel", {"id":"StrictClockModel.c:%s"%self.name,"spec":"beast.evolution.branchratemodel.StrictClockModel","clock.rate":"@clockRate.c:%s" % self.name})
 
     def add_operators(self, run):
 

@@ -31,8 +31,6 @@ class BaseModel(object):
         self.load_features()
         self.preprocess()
 
-        self.branchrate_model_instantiated = False
-
     def build_codemap(self, unique_values):
         N = len(unique_values)
         codemapbits = []
@@ -197,8 +195,7 @@ class BaseModel(object):
         for n, f in enumerate(self.features):
             fname = "%s:%s" % (self.name, f)
             attribs = {"id":"traitedtreeLikelihood.%s" % fname,"spec":"TreeLikelihood","useAmbiguities":"true"}
-            if self.clock.branchrate_model_instantiated:
-                attribs["branchRateModel"] = "@%s" % self.clock.branchrate_model_id
+            attribs["branchRateModel"] = "@%s" % self.clock.branchrate_model_id
             distribution = ET.SubElement(likelihood, "distribution",attribs)
 
             # Tree
@@ -212,9 +209,6 @@ class BaseModel(object):
             # Sitemodel
             self.add_sitemodel(distribution, f, fname)
 
-            # Branchrate
-            self.clock.instantiate_branchrate(distribution)
-            
             # Data
             self.add_data(distribution, f, fname)
 

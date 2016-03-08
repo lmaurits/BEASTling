@@ -11,6 +11,8 @@ class RelaxedClock(BaseClock):
         BaseClock.__init__(self, clock_config, global_config)
         self.mean_rate_id = "ucldMean.c:%s" % self.name
         self.mean_rate_idref = "@%s" % self.mean_rate_id
+        self.branchrate_model_id = "RelaxedClockModel.c:%s" % self.name
+        self.distribution = clock_config.get("distribution","lognormal").lower()
 
     def add_state(self, state):
 
@@ -30,16 +32,13 @@ class RelaxedClock(BaseClock):
         ET.SubElement(gamma, "parameter", {"id":"uclSdevPriorAlpha:%s" % self.name, "estimate":"false", "name":"alpha"}).text = "0.5396"
         ET.SubElement(gamma, "parameter", {"id":"uclSdevPriorBeta:%s" % self.name, "estimate":"false", "name":"beta"}).text = "0.3819"
 
-    def instantiate_branchrate(self, distribution):
-        if self.branchrate_model_instantiated:
-            return
-        branchrate = ET.SubElement(distribution, "branchRateModel", {"id":"RelaxedClockModel.c:%s"%self.name,"spec":"beast.evolution.branchratemodel.UCRelaxedClockModel","rateCategories":"@rateCategories.c:%s" % self.name, "tree":"@Tree.t:beastlingTree", "clock.rate":"@ucldMean.c:%s" % self.name})
+    def add_branchrate_model(self, beast):
+        branchrate = ET.SubElement(beast, "branchRateModel", {"id":"RelaxedClockModel.c:%s"%self.name,"spec":"beast.evolution.branchratemodel.UCRelaxedClockModel","rateCategories":"@rateCategories.c:%s" % self.name, "tree":"@Tree.t:beastlingTree", "clock.rate":"@ucldMean.c:%s" % self.name})
         lognormal = ET.SubElement(branchrate, "LogNormal", {"id":"LogNormalDistributionModel.c:%s"%self.name,
             "S":"@ucldSdev.c:%s" % self.name, "meanInRealSpace":"true", "name":"distr"})
         param = ET.SubElement(lognormal, "parameter", {"id":"LogNormalM.p:%s" % self.name, "name":"M", "estimate":"false", "lower":"0.0","upper":"1.0"})
         param.text = "1.0"
         self.branchrate_model_id = "RelaxedClockModel.c:%s" % self.name
-        self.branchrate_model_instantiated = True
 
     def add_operators(self, run):
 
