@@ -293,12 +293,6 @@ class Configuration(object):
                 config["data"] = "stdin"
 
         # Instantiate clocks
-        if not self.clock_configs:
-            # No clocks specified by user, so create a default
-            config = {}
-            config["name"] = "default"
-            config["type"] = "strict"
-            self.clock_configs.append(config)
         self.clocks = []
         self.clocks_by_name = {}
         for config in self.clock_configs:
@@ -308,6 +302,14 @@ class Configuration(object):
                 clock = relaxed.relaxed_clock_factory(config, self)
             elif config["type"].lower() == "random":
                 clock = random.RandomLocalClock(config, self) 
+            self.clocks.append(clock)
+            self.clocks_by_name[clock.name] = clock
+        # Create default clock if necessary
+        if "default" not in self.clocks_by_name:
+            config = {}
+            config["name"] = "default"
+            config["type"] = "strict"
+            clock = strict.StrictClock(config, self)
             self.clocks.append(clock)
             self.clocks_by_name[clock.name] = clock
 
@@ -337,16 +339,22 @@ class Configuration(object):
             if config["model"].lower() != "covarion":
                 self.messages.append("""[DEPENDENCY] Model %s: AlignmentFromTrait is implemented in the BEAST package "BEAST_CLASSIC".""" % config["name"])
 
+            # Associate clocks with models
             if "clock" in config:
+                ## User has explicitly specified a clock
                 if config["clock"] not in self.clocks_by_name:
                     raise ValueError("Unknown clock '%s' for model section '%s'." % (config["clock"], config["name"]))
                 model.clock = self.clocks_by_name[config["clock"]]
+            elif model.name in self.clocks_by_name:
+                ## Clock is associated by a common name
+                model.clock = self.clocks_by_name[model.name]
             else:
-                if len(self.clocks) == 1:
-                    model.clock = self.clocks[0]
-                else:
-                    raise ValueError("Ambiguous configuration: no clock specified for model section '%s', but multiple clocks are defined." % config["name"])
-
+                ## No clock specification - use default
+                model.clock = self.clocks_by_name["default"]
+            model.clock.is_used = True
+            if any([not clock.is_used for clock in self.clocks]):
+                # Warn user about unused clock
+                self.messages.append("""[INFO] Clock %s is not being used.  Change its name to "default", or explicitly associate it with a model.""" % clock.name)
             self.messages.extend(model.messages)
             self.models.append(model)
 

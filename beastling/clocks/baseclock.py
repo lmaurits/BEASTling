@@ -10,6 +10,7 @@ class BaseClock(object):
         self.calibrations = global_config.calibrations
 
         self.name = clock_config["name"] 
+        self.is_used = False
 
     def add_pruned_branchrate_model(self, distribution, name, tree_id):
         # Most clocks will not need special treatment for pruned trees
