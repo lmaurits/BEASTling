@@ -9,11 +9,12 @@ class RandomLocalClock(BaseClock):
     def __init__(self, clock_config, global_config):
 
         BaseClock.__init__(self, clock_config, global_config)
-        self.distribution = clock_config.get("distribution","lognormal").lower()
+        self.mean_rate_id = "meanClockRate.c:%s" % self.name
+        self.mean_rate_idref = "@%s" % self.mean_rate_id
 
     def add_state(self, state):
 
-        # Relaxed clock params
+        ET.SubElement(state, "parameter", {"id":"meanClockRate.c:%s" % self.name, "lower":"0.0"}).text = "1.0"
         ET.SubElement(state, "stateNode", {"id":"Indicators.c:%s" % self.name, "spec":"parameter.BooleanParameter","dimension":"42"}).text="false"
         ET.SubElement(state, "stateNode", {"id":"clockrates.c:%s" % self.name, "spec":"parameter.RealParameter", "dimension":"42"}).text = "0.1"
 
@@ -30,19 +31,15 @@ class RandomLocalClock(BaseClock):
         ET.SubElement(poisson, "parameter", {"id":"RandomRateChangesPoissonLambda","estimate":"false","name":"lambda"}).text = "0.6931471805599453"
 
     def add_branchrate_model(self, beast):
-        branchrate = ET.SubElement(beast, "branchRateModel", {"id":"RandomLocalClock.c:%s"%self.name,"spec":"beast.evolution.branchratemodel.RandomLocalClockModel","indicators":"@Indicators.c:%s" % self.name, "rates":"@clockrates.c:%s" % self.name, "tree":"@Tree.t:beastlingTree"})
-        ET.SubElement(branchrate, "parameter", {"id":"meanClockRate.c:%s" % self.name, "name":"clock.rate", "estimate":"false"}).text = "1.0"
+        branchrate = ET.SubElement(beast, "branchRateModel", {"id":"RandomLocalClock.c:%s"%self.name,"spec":"beast.evolution.branchratemodel.RandomLocalClockModel","clock.rate":self.mean_rate_idref, "indicators":"@Indicators.c:%s" % self.name, "rates":"@clockrates.c:%s" % self.name, "tree":"@Tree.t:beastlingTree"})
         self.branchrate_model_id = "RandomLocalClock.c:%s" % self.name
 
-    def add_operators(self, run):
-
-        # Clock scaler (only if tree is not free to vary arbitrarily)
-#        if not self.config.sample_branch_lengths or self.calibrations:
-#            ET.SubElement(run, "operator", {"id":"clockScaler.c:%s" % self.name, "spec":"ScaleOperator","parameter":"@ucldMean.c:%s" % self.name, "scaleFactor":"0.5","weight":"3.0"})
-
-        # Relaxed clock operators
+    def add_unconditional_operators(self, run):
         ET.SubElement(run, "operator", {"id":"IndicatorsBitFlip.c:%s" % self.name, "spec":"BitFlipOperator", "parameter":"@Indicators.c:%s" % self.name, "weight":"15.0"})
         ET.SubElement(run, "operator", {"id":"ClockRateScaler.c:%s" % self.name, "spec":"ScaleOperator", "parameter":"@clockrates.c:%s" % self.name, "weight":"15.0"})
+
+    def add_timed_tree_operators(self, run):
+        ET.SubElement(run, "operator", {"id":"meanClockRateScaaler.c:%s" % self.name, "spec":"ScaleOperator", "parameter":"@meanClockRate.c:%s" % self.name, "scaleFactor": "0.5", "weight":"3.0"})
 
     def add_param_logs(self, logger):
         ET.SubElement(logger,"log",{"idref":"Indicators.c:%s" % self.name})

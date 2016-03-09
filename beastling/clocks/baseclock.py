@@ -15,3 +15,14 @@ class BaseClock(object):
     def add_pruned_branchrate_model(self, distribution, name, tree_id):
         # Most clocks will not need special treatment for pruned trees
         return self.branchrate_model_id
+
+    def add_operators(self, run):
+        self.add_unconditional_operators(run)
+        if not self.config.sample_branch_lengths or self.calibrations:
+            self.add_timed_tree_operators(run)
+
+    def add_unconditional_operators(self, run):
+        return
+
+    def add_timed_tree_operators(self, run):
+        return

@@ -23,7 +23,10 @@ class RelaxedClock(BaseClock):
         ET.SubElement(state, "stateNode", {"id":"rateCategories.c:%s" % self.name, "spec":"parameter.IntegerParameter", "dimension":"42"}).text = "1"
 
     def add_prior(self, prior):
-        return
+
+        if not self.config.sample_branch_lengths or self.calibrations:
+            sub_prior = ET.SubElement(prior, "prior", {"id":"clockPrior:%s" % self.name, "name":"distribution","x":self.mean_rate_idref})
+            uniform = ET.SubElement(sub_prior, "Uniform", {"id":"UniformClockPrior:%s" % self.name, "name":"distr", "upper":"Infinity"})
 
     def add_branchrate_model(self, beast):
         self.branchrate = ET.SubElement(beast, "branchRateModel", {"id":"RelaxedClockModel.c:%s"%self.name,"spec":"beast.evolution.branchratemodel.UCRelaxedClockModel","rateCategories":"@rateCategories.c:%s" % self.name, "tree":"@Tree.t:beastlingTree", "numberOfDiscreteRates":str(self.number_of_rates),"clock.rate":self.mean_rate_idref})
@@ -33,11 +36,15 @@ class RelaxedClock(BaseClock):
         pbrm_id = "PrunedRelaxedClockModel.c:%s" % name
         pruned_branchrate = ET.SubElement(distribution, "branchRateModel", {"id":pbrm_id,"spec":"beast.evolution.branchratemodel.PrunedRelaxedClockModel", "rates":"@%s" % self.branchrate_model_id, "tree":"@%s"%tree_id})
 
-    def add_operators(self, run):
+    def add_unconditional_operators(self, run):
 
         ET.SubElement(run, "operator", {"id":"rateCategoriesRandomWalkOperator.c:%s" % self.name, "spec":"IntRandomWalkOperator", "parameter":"@rateCategories.c:%s" % self.name, "windowSize": "1", "weight":"10.0"})
         ET.SubElement(run, "operator", {"id":"rateCategoriesSwapOperator.c:%s" % self.name, "spec":"SwapOperator", "intparameter":"@rateCategories.c:%s" % self.name, "weight":"10.0"})
         ET.SubElement(run, "operator", {"id":"rateCategoriesUniformOperator.c:%s" % self.name, "spec":"UniformOperator", "parameter":"@rateCategories.c:%s" % self.name, "weight":"10.0"})
+
+    def add_timed_tree_operators(self, run):
+
+        ET.SubElement(run, "operator", {"id":"clockScaler.c:%s" % self.name, "spec":"ScaleOperator","parameter":self.mean_rate_idref, "scaleFactor":"0.5","weight":"3.0"})
 
     def add_param_logs(self, logger):
 
@@ -53,17 +60,16 @@ class LogNormalRelaxedClock(RelaxedClock):
     def add_state(self, state):
 
         RelaxedClock.add_state(self, state)
-        ET.SubElement(state, "parameter", {"id":"ucldMean.c:%s" % self.name, "lower":"0.0"}).text = "0.0001"
+        ET.SubElement(state, "parameter", {"id":"ucldMean.c:%s" % self.name, "lower":"0.0"}).text = "1.0"
         ET.SubElement(state, "parameter", {"id":"ucldSdev.c:%s" % self.name, "lower":"0.0", "upper":"0.0"}).text = "0.1"
 
     def add_prior(self, prior):
 
-        sub_prior = ET.SubElement(prior, "prior", {"id":"clockPrior:%s" % self.name, "name":"distribution","x":"@ucldMean.c:%s" % self.name})
-        uniform = ET.SubElement(sub_prior, "Uniform", {"id":"UniformClockPrior:%s" % self.name, "name":"distr", "upper":"Infinity"})
-        sub_prior = ET.SubElement(prior, "prior", {"id":"ucldSdev:%s" % self.name, "name":"distribution","x":"@ucldMean.c:%s" % self.name})
-        gamma = ET.SubElement(sub_prior, "Gamma", {"id":"uclSdevPrior:%s" % self.name, "name":"distr"})
-        ET.SubElement(gamma, "parameter", {"id":"uclSdevPriorAlpha:%s" % self.name, "estimate":"false", "name":"alpha"}).text = "0.5396"
-        ET.SubElement(gamma, "parameter", {"id":"uclSdevPriorBeta:%s" % self.name, "estimate":"false", "name":"beta"}).text = "0.3819"
+        if not self.config.sample_branch_lengths or self.calibrations:
+            sub_prior = ET.SubElement(prior, "prior", {"id":"ucldSdev:%s" % self.name, "name":"distribution","x":"@ucldMean.c:%s" % self.name})
+            gamma = ET.SubElement(sub_prior, "Gamma", {"id":"uclSdevPrior:%s" % self.name, "name":"distr"})
+            ET.SubElement(gamma, "parameter", {"id":"uclSdevPriorAlpha:%s" % self.name, "estimate":"false", "name":"alpha"}).text = "0.5396"
+            ET.SubElement(gamma, "parameter", {"id":"uclSdevPriorBeta:%s" % self.name, "estimate":"false", "name":"beta"}).text = "0.3819"
 
     def add_branchrate_model(self, beast):
         RelaxedClock.add_branchrate_model(self, beast)
@@ -72,13 +78,8 @@ class LogNormalRelaxedClock(RelaxedClock):
         param = ET.SubElement(lognormal, "parameter", {"id":"LogNormalM.p:%s" % self.name, "name":"M", "estimate":"false", "lower":"0.0","upper":"1.0"})
         param.text = "1.0"
 
-    def add_operators(self, run):
-        RelaxedClock.add_operators(self, run)
-        # Clock scaler (only if tree is not free to vary arbitrarily)
-        if not self.config.sample_branch_lengths or self.calibrations:
-            ET.SubElement(run, "operator", {"id":"clockScaler.c:%s" % self.name, "spec":"ScaleOperator","parameter":"@ucldMean.c:%s" % self.name, "scaleFactor":"0.5","weight":"3.0"})
-
-        # Relaxed clock operators
+    def add_timed_tree_operators(self, run):
+        RelaxedClock.add_timed_tree_operators(self, run)
         ET.SubElement(run, "operator", {"id":"ucldSdevScaler.c:%s" % self.name, "spec":"ScaleOperator", "parameter":"@ucldSdev.c:%s" % self.name, "scaleFactor": "0.5", "weight":"3.0"})
 
     def add_param_logs(self, logger):
@@ -93,17 +94,12 @@ class ExponentialRelaxedClock(RelaxedClock):
         self.mean_rate_idref = "@%s" % self.mean_rate_id
 
     def add_state(self, state):
-
         RelaxedClock.add_state(self, state)
+        ET.SubElement(state, "parameter", {"id":"ExponLambda.p:%s" % self.name, "lower":"0.0"}).text = "1.0"
 
     def add_branchrate_model(self, beast):
         RelaxedClock.add_branchrate_model(self, beast)
-        expon = ET.SubElement(self.branchrate, "Exponential", {"id":"ExponentialDistribution.c:%s"%self.name, "name":"distr"})
-        param = ET.SubElement(expon, "parameter", {"id":"ExponLambda.p:%s" % self.name, "name":"mean"})
-        param.text = "1.0"
-
-    def add_operators(self, run):
-        RelaxedClock.add_operators(self, run)
+        expon = ET.SubElement(self.branchrate, "Exponential", {"id":"ExponentialDistribution.c:%s"%self.name, "mean":self.mean_rate_idref, "name":"distr"})
 
     def add_param_logs(self, logger):
         RelaxedClock.add_param_logs(self, logger)
