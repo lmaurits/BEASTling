@@ -9,6 +9,10 @@ from appdirs import user_data_dir
 from six.moves.urllib.request import FancyURLopener
 from clldutils.inifile import INI
 
+import beastling.clocks.strict as strict
+import beastling.clocks.relaxed as relaxed
+import beastling.clocks.random as random
+
 import beastling.models.bsvs as bsvs
 import beastling.models.covarion as covarion
 import beastling.models.mk as mk
@@ -62,6 +66,7 @@ class Configuration(object):
 
         # Set up default options
         self.basename = basename
+        self.clock_configs = []
         self.configfile = None
         self.configfile_text = None
         self.chainlength = 10000000
@@ -163,12 +168,25 @@ class Configuration(object):
                         self.calibrations[clade.lower()] = [
                             float(x.strip()) for x in dates.split("-", 1)]
 
+        ## Clocks
+        clock_sections = [s for s in p.sections() if s.lower().startswith("clock")]
+        for section in clock_sections:
+            self.clock_configs.append(self.get_clock_config(p, section))
+
         ## Models
         model_sections = [s for s in p.sections() if s.lower().startswith("model")]
         if not model_sections:
             raise ValueError("Config file contains no model sections.")
         for section in model_sections:
             self.model_configs.append(self.get_model_config(p, section))
+
+    def get_clock_config(self, p, section):
+        cfg = {
+            'name': section[5:].strip(),
+        }
+        for key, value in p[section].items():
+            cfg[key] = value
+        return cfg
 
     def get_model_config(self, p, section):
         cfg = {
@@ -273,6 +291,28 @@ class Configuration(object):
         if self.stdin_data:
             for config in self.model_configs:
                 config["data"] = "stdin"
+
+        # Instantiate clocks
+        self.clocks = []
+        self.clocks_by_name = {}
+        for config in self.clock_configs:
+            if config["type"].lower() == "strict":
+                clock = strict.StrictClock(config, self) 
+            elif config["type"].lower() == "relaxed":
+                clock = relaxed.relaxed_clock_factory(config, self)
+            elif config["type"].lower() == "random":
+                clock = random.RandomLocalClock(config, self) 
+            self.clocks.append(clock)
+            self.clocks_by_name[clock.name] = clock
+        # Create default clock if necessary
+        if "default" not in self.clocks_by_name:
+            config = {}
+            config["name"] = "default"
+            config["type"] = "strict"
+            clock = strict.StrictClock(config, self)
+            self.clocks.append(clock)
+            self.clocks_by_name[clock.name] = clock
+
         # Instantiate models
         if not self.model_configs:
             raise ValueError("No models specified!")
@@ -298,6 +338,23 @@ class Configuration(object):
                 raise ValueError("Unknown model type '%s' for model section '%s'." % (config["model"], config["name"]))
             if config["model"].lower() != "covarion":
                 self.messages.append("""[DEPENDENCY] Model %s: AlignmentFromTrait is implemented in the BEAST package "BEAST_CLASSIC".""" % config["name"])
+
+            # Associate clocks with models
+            if "clock" in config:
+                ## User has explicitly specified a clock
+                if config["clock"] not in self.clocks_by_name:
+                    raise ValueError("Unknown clock '%s' for model section '%s'." % (config["clock"], config["name"]))
+                model.clock = self.clocks_by_name[config["clock"]]
+            elif model.name in self.clocks_by_name:
+                ## Clock is associated by a common name
+                model.clock = self.clocks_by_name[model.name]
+            else:
+                ## No clock specification - use default
+                model.clock = self.clocks_by_name["default"]
+            model.clock.is_used = True
+            if any([not clock.is_used for clock in self.clocks]):
+                # Warn user about unused clock
+                self.messages.append("""[INFO] Clock %s is not being used.  Change its name to "default", or explicitly associate it with a model.""" % clock.name)
             self.messages.extend(model.messages)
             self.models.append(model)
 

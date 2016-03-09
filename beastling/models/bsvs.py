@@ -127,7 +127,7 @@ class BSVSModel(BaseModel):
             if self.rate_variation:
                 ET.SubElement(run, "operator", {"id":"BSSVSoperator.c:%s"%fname,"spec":"BitFlipBSSVSOperator","indicator":"@rateIndicator.s:%s"%fname, "mu":"@featureClockRate:%s" % fname,"weight":"30.0"})
             else:
-                ET.SubElement(run, "operator", {"id":"BSSVSoperator.c:%s"%fname,"spec":"BitFlipBSSVSOperator","indicator":"@rateIndicator.s:%s"%fname, "mu":"@clockRate.c:%s" % self.name,"weight":"30.0"})
+                ET.SubElement(run, "operator", {"id":"BSSVSoperator.c:%s"%fname,"spec":"BitFlipBSSVSOperator","indicator":"@rateIndicator.s:%s"%fname, "mu":self.clock.mean_rate_idref,"weight":"30.0"})
             sampoffop = ET.SubElement(run, "operator", {"id":"offGeorateSampler:%s" % fname,"spec":"SampleOffValues","all":"false","values":"@relativeGeoRates.s:%s"%fname, "indicators":"@rateIndicator.s:%s" % fname, "weight":"30.0"})
             ET.SubElement(sampoffop, "dist", {"idref":"Gamma:%s.%d.0" % (fname, n)})
 

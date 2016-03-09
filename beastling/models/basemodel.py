@@ -26,11 +26,10 @@ class BaseModel(object):
         self.minimum_data = float(model_config.get("minimum_data", 0))
         self.lang_column = model_config.get("language_column", None)
 
+
         self.data = load_data(self.data_filename, file_format=model_config.get("file_format",None), lang_column=model_config.get("language_column",None))
         self.load_features()
         self.preprocess()
-
-        self.branchrate_model_instantiated = False
 
     def build_codemap(self, unique_values):
         N = len(unique_values)
@@ -140,13 +139,6 @@ class BaseModel(object):
 
     def add_state(self, state):
 
-        # Clock
-        attribs = {}
-        attribs["id"] = "clockRate.c:%s" % self.name
-        attribs["name"] = "stateNode"
-        parameter = ET.SubElement(state, "parameter", attribs)
-        parameter.text="1.0"
-
         # Mutation rates
         if self.rate_variation:
             for f in self.features:
@@ -163,10 +155,6 @@ class BaseModel(object):
             parameter.text="0.5"
 
     def add_prior(self, prior):
-
-        # Clock
-        sub_prior = ET.SubElement(prior, "prior", {"id":"clockPrior:%s" % self.name, "name":"distribution","x":"@clockRate.c:%s" % self.name})
-        uniform = ET.SubElement(sub_prior, "Uniform", {"id":"UniformClockPrior:%s" % self.name, "name":"distr", "upper":"Infinity"})
 
         # Mutation rates
         if self.rate_variation:
@@ -207,34 +195,27 @@ class BaseModel(object):
         for n, f in enumerate(self.features):
             fname = "%s:%s" % (self.name, f)
             attribs = {"id":"traitedtreeLikelihood.%s" % fname,"spec":"TreeLikelihood","useAmbiguities":"true"}
-            if self.branchrate_model_instantiated:
-                attribs["branchRateModel"] = "@StrictClockModel.c:%s" % self.name
-            distribution = ET.SubElement(likelihood, "distribution",attribs)
-
-            # Tree
             if self.pruned:
-                tree = ET.SubElement(distribution, "tree", {"id":"@Tree.t:beastlingTree.%s" % fname, "spec":"beast.evolution.tree.PrunedTree","quickshortcut":"true","assert":"false"})
+                distribution = ET.SubElement(likelihood, "distribution",attribs)
+                # Create pruned tree
+                tree_id = "Tree.t:prunedBeastlingTree.%s" % fname
+                tree = ET.SubElement(distribution, "tree", {"id":tree_id, "spec":"beast.evolution.tree.PrunedTree","quickshortcut":"true","assert":"false"})
                 ET.SubElement(tree, "tree", {"idref":"Tree.t:beastlingTree"})
                 ET.SubElement(tree, "alignment", {"idref":"%s.filt"%fname})
+                # Create pruned branchrate
+                self.clock.add_pruned_branchrate_model(distribution, fname, tree_id)
             else:
-                tree = ET.SubElement(distribution, "tree", {"idref":"Tree.t:beastlingTree", "spec":"beast.evolution.tree.Tree"})
+                attribs["branchRateModel"] = "@%s" % self.clock.branchrate_model_id
+                attribs["tree"] = "@Tree.t:beastlingTree"
+                distribution = ET.SubElement(likelihood, "distribution",attribs)
 
             # Sitemodel
             self.add_sitemodel(distribution, f, fname)
 
-            # Branchrate
-            if not self.branchrate_model_instantiated:
-                branchrate = ET.SubElement(distribution, "branchRateModel", {"id":"StrictClockModel.c:%s"%self.name,"spec":"beast.evolution.branchratemodel.StrictClockModel","clock.rate":"@clockRate.c:%s" % self.name})
-                self.branchrate_model_instantiated = True
-            
             # Data
             self.add_data(distribution, f, fname)
 
     def add_operators(self, run):
-
-        # Clock scaler (only if tree is not free to vary arbitrarily)
-        if not self.config.sample_branch_lengths or self.calibrations:
-            ET.SubElement(run, "operator", {"id":"clockScaler.c:%s" % self.name, "spec":"ScaleOperator","parameter":"@clockRate.c:%s" % self.name, "scaleFactor":"0.5","weight":"3.0"})
 
         # Mutation rates
         if self.rate_variation:
@@ -248,9 +229,6 @@ class BaseModel(object):
             ET.SubElement(updown, "parameter", {"idref":"featureClockRateGammaScale:%s" % self.name, "name":"down"})
 
     def add_param_logs(self, logger):
-
-        # Clock
-        ET.SubElement(logger,"log",{"idref":"clockRate.c:%s" % self.name})
 
         # Mutation rates
         if self.rate_variation:
