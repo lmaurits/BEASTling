@@ -305,7 +305,7 @@ class Configuration(object):
             if config["type"].lower() == "strict":
                 clock = strict.StrictClock(config, self) 
             elif config["type"].lower() == "relaxed":
-                clock = relaxed.RelaxedClock(config, self) 
+                clock = relaxed.relaxed_clock_factory(config, self)
             elif config["type"].lower() == "random":
                 clock = random.RandomLocalClock(config, self) 
             self.clocks.append(clock)
