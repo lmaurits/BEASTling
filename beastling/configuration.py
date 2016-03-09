@@ -11,6 +11,7 @@ from clldutils.inifile import INI
 
 import beastling.clocks.strict as strict
 import beastling.clocks.relaxed as relaxed
+import beastling.clocks.random as random
 
 import beastling.models.bsvs as bsvs
 import beastling.models.covarion as covarion
@@ -305,6 +306,8 @@ class Configuration(object):
                 clock = strict.StrictClock(config, self) 
             elif config["type"].lower() == "relaxed":
                 clock = relaxed.RelaxedClock(config, self) 
+            elif config["type"].lower() == "random":
+                clock = random.RandomLocalClock(config, self) 
             self.clocks.append(clock)
             self.clocks_by_name[clock.name] = clock
 
