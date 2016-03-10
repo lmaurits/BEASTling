@@ -74,15 +74,15 @@ class BaseModel(object):
             self.data.pop(lang)
 
     def apply_feature_filter(self):
-        self.features = []
+        self.features = set()
         for lang in self.data:
             features_in_data = set(self.data[lang].keys())
             features_to_keep = features_in_data & self.feature_filter
-            self.features.extend(features_to_keep)
+            self.features |= features_to_keep
             features_to_remove = features_in_data - features_to_keep
             for feat in features_to_remove:
                 self.data[lang].pop(feat)
-        self.features = sorted(list(set(self.features)))
+        self.features = sorted(list(self.features))
 
     def compute_feature_properties(self):
 

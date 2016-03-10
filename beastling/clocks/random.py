@@ -1,5 +1,4 @@
 import io
-import os
 import xml.etree.ElementTree as ET
 
 from .baseclock import BaseClock
@@ -14,7 +13,7 @@ class RandomLocalClock(BaseClock):
 
     def add_state(self, state):
 
-        ET.SubElement(state, "parameter", {"id":"meanClockRate.c:%s" % self.name, "lower":"0.0"}).text = "1.0"
+        ET.SubElement(state, "parameter", {"id":"meanClockRate.c:%s" % self.name, "lower":"0.0","name":"stateNode"}).text = "1.0"
         ET.SubElement(state, "stateNode", {"id":"Indicators.c:%s" % self.name, "spec":"parameter.BooleanParameter","dimension":"42"}).text="false"
         ET.SubElement(state, "stateNode", {"id":"clockrates.c:%s" % self.name, "spec":"parameter.RealParameter", "dimension":"42"}).text = "0.1"
 

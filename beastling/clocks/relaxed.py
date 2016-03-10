@@ -60,8 +60,8 @@ class LogNormalRelaxedClock(RelaxedClock):
     def add_state(self, state):
 
         RelaxedClock.add_state(self, state)
-        ET.SubElement(state, "parameter", {"id":"ucldMean.c:%s" % self.name, "lower":"0.0"}).text = "1.0"
-        ET.SubElement(state, "parameter", {"id":"ucldSdev.c:%s" % self.name, "lower":"0.0", "upper":"0.0"}).text = "0.1"
+        ET.SubElement(state, "parameter", {"id":"ucldMean.c:%s" % self.name, "lower":"0.0","name":"stateNode"}).text = "1.0"
+        ET.SubElement(state, "parameter", {"id":"ucldSdev.c:%s" % self.name, "lower":"0.0", "upper":"0.0","name":"stateNode"}).text = "0.1"
 
     def add_prior(self, prior):
 
@@ -95,7 +95,7 @@ class ExponentialRelaxedClock(RelaxedClock):
 
     def add_state(self, state):
         RelaxedClock.add_state(self, state)
-        ET.SubElement(state, "parameter", {"id":"ExponLambda.p:%s" % self.name, "lower":"0.0"}).text = "1.0"
+        ET.SubElement(state, "parameter", {"id":"ExponLambda.p:%s" % self.name, "lower":"0.0", "name":"stateNode"}).text = "1.0"
 
     def add_branchrate_model(self, beast):
         RelaxedClock.add_branchrate_model(self, beast)
