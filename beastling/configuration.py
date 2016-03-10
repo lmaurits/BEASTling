@@ -211,6 +211,29 @@ class Configuration(object):
             cfg[key] = value
         return cfg
 
+    def process(self):
+        # Add dependency notice if required
+        if self.monophyly and not self.starting_tree:
+            self.messages.append("[DEPENDENCY] ConstrainedRandomTree is implemented in the BEAST package BEASTLabs.")
+
+        # If log_every was not explicitly set to some non-zero
+        # value, then set it such that we expect 10,000 log
+        # entries
+        if not self.log_every:
+            # If chainlength < 10000, this results in log_every = zero.
+            # This causes BEAST to die.
+            # So in this case, just log everything.
+            self.log_every = self.chainlength // 10000 or 1
+
+        self.load_glotto_class()
+        self.build_language_filter()
+        self.instantiate_clocks()
+        self.instantiate_models()
+        self.link_clocks_to_models()
+        self.build_language_list()
+        self.handle_starting_tree()
+        self.processed = True
+
     def load_glotto_class(self):
         label2name = {}
 
@@ -239,20 +262,7 @@ class Configuration(object):
                 if isocode:
                     self.classifications[isocode] = classification
 
-    def process(self):
-        # Add dependency notice if required
-        if self.monophyly and not self.starting_tree:
-            self.messages.append("[DEPENDENCY] ConstrainedRandomTree is implemented in the BEAST package BEASTLabs.")
-
-        # If log_every was not explicitly set to some non-zero
-        # value, then set it such that we expect 10,000 log
-        # entries
-        if not self.log_every:
-            ## If chainlength < 10000, this results in log_every = zero.
-            ## This causes BEAST to die.
-            ## So in this case, just log everything.
-            self.log_every = self.chainlength // 10000 or 1
-
+    def build_language_filter(self):
         # Handle languages - could be a list or a file
         if os.path.exists(self.languages):
             with io.open(self.languages, encoding="UTF-8") as fp:
@@ -267,12 +277,7 @@ class Configuration(object):
         else:
             self.families = [x.strip() for x in self.families.split(",")]
 
-        ## Load Glottolog classifications
-        self.load_glotto_class()
-
-        ## Build language filter
-        ## The final list of languages will be the intersection of this set
-        ## with the set of all languages present in the data
+        # Build language filter
         if self.languages != ["*"] and self.families != ["*"]:
             # Can't filter by languages and families at same time!
             raise ValueError("languages and families both defined in [languages]!")
@@ -287,11 +292,7 @@ class Configuration(object):
         else:
             self.lang_filter = UniversalSet()
 
-        # Handle request to read data from stdin
-        if self.stdin_data:
-            for config in self.model_configs:
-                config["data"] = "stdin"
-
+    def instantiate_clocks(self):
         # Instantiate clocks
         self.clocks = []
         self.clocks_by_name = {}
@@ -313,15 +314,25 @@ class Configuration(object):
             self.clocks.append(clock)
             self.clocks_by_name[clock.name] = clock
 
+    def instantiate_models(self):
         # Instantiate models
         if not self.model_configs:
             raise ValueError("No models specified!")
+
+        # Handle request to read data from stdin
+        if self.stdin_data:
+            for config in self.model_configs:
+                config["data"] = "stdin"
+
         self.models = []
         for config in self.model_configs:
+            # Validate config
             if "model" not in config:
                 raise ValueError("Model not specified for model section %s." % config["name"])
             if "data" not in config:
                 raise ValueError("Data source not specified in model section %s." % config["name"])
+
+            # Instantiate model
             if config["model"].lower() == "bsvs":
                 model = bsvs.BSVSModel(config, self)
                 if "bsvs_used" not in self.message_flags:
@@ -338,39 +349,36 @@ class Configuration(object):
                 raise ValueError("Unknown model type '%s' for model section '%s'." % (config["model"], config["name"]))
             if config["model"].lower() != "covarion":
                 self.messages.append("""[DEPENDENCY] Model %s: AlignmentFromTrait is implemented in the BEAST package "BEAST_CLASSIC".""" % config["name"])
-
-            # Associate clocks with models
-            if "clock" in config:
-                ## User has explicitly specified a clock
-                if config["clock"] not in self.clocks_by_name:
-                    raise ValueError("Unknown clock '%s' for model section '%s'." % (config["clock"], config["name"]))
-                model.clock = self.clocks_by_name[config["clock"]]
-            elif model.name in self.clocks_by_name:
-                ## Clock is associated by a common name
-                model.clock = self.clocks_by_name[model.name]
-            else:
-                ## No clock specification - use default
-                model.clock = self.clocks_by_name["default"]
-            model.clock.is_used = True
-            if any([not clock.is_used for clock in self.clocks]):
-                # Warn user about unused clock
-                self.messages.append("""[INFO] Clock %s is not being used.  Change its name to "default", or explicitly associate it with a model.""" % clock.name)
             self.messages.extend(model.messages)
             self.models.append(model)
 
+    def link_clocks_to_models(self):
+        # Add a clock object to each model object
+        for model in self.models:
+            if model.clock:
+                # User has explicitly specified a clock
+                if model.clock not in self.clocks_by_name:
+                    raise ValueError("Unknown clock '%s' for model section '%s'." % (model.clock, model.name))
+                model.clock = self.clocks_by_name[model.clock]
+            elif model.name in self.clocks_by_name:
+                # Clock is associated by a common name
+                model.clock = self.clocks_by_name[model.name]
+            else:
+                # No clock specification - use default
+                model.clock = self.clocks_by_name["default"]
+            model.clock.is_used = True
+
+        # Warn user about unused clock(s)
+        for clock in self.clocks:
+            if not clock.is_used:
+                self.messages.append("""[INFO] Clock %s is not being used.  Change its name to "default", or explicitly associate it with a model.""" % clock.name)
+
+    def build_language_list(self):
         # Finalise language list.
-        # We start out setting self.languages to the set of languages in the
-        # data file of the first model, filtered by the user's list of
-        # famlies...
-        self.languages = set(self.models[0].data.keys()) & self.lang_filter
+        self.languages = set(self.models[0].data.keys())
         self.overlap_warning = False
         for model in self.models:
-            # For each model, we take the list of langs in the data, and apply
-            # the filter representing the user's request.  We then compare
-            # this to the current value of self.languages.  Depending upon
-            # self.overlap, we either add it to self.langs, or set self.langs
-            # to the intersection of itself with the addition.
-            addition = set(model.data.keys()) & self.lang_filter
+            addition = set(model.data.keys())
             # If we're about to do a non-trivial union/intersect, alert the
             # user.
             if addition != self.languages and not self.overlap_warning:
@@ -381,6 +389,15 @@ class Configuration(object):
             elif self.overlap.lower() == "intersection":
                 self.languages = set.intersection(self.languages, addition)
 
+        ## Make sure there's *something* left
+        if not self.languages:
+            raise ValueError("No languages specified!")
+
+        ## Convert back into a sorted list
+        self.languages = sorted(self.languages)
+        self.messages.append("[INFO] %d languages included in analysis." % len(self.languages))
+
+    def handle_starting_tree(self):
         # Read starting tree from file
         if os.path.exists(self.starting_tree):
             with io.open(self.starting_tree, encoding="UTF-8") as fp:
@@ -413,13 +430,3 @@ class Configuration(object):
             # Replace the starting_tree from the config with the new one
             self.starting_tree = newick.dumps(tree)
 
-        ## Apply family-based filtering
-        ## Make sure there's *something* left
-        if not self.languages:
-            raise ValueError("No languages specified!")
-
-        ## Convert back into a sorted list
-        self.languages = sorted(self.languages)
-        self.messages.append("[INFO] %d languages included in analysis." % len(self.languages))
-
-        self.processed = True

@@ -14,6 +14,7 @@ class BaseModel(object):
 
         self.name = model_config["name"] 
         self.data_filename = model_config["data"] 
+        self.clock = model_config.get("clock", "")
         if "features" in model_config:
             self.features = model_config["features"] 
         else:
@@ -28,88 +29,10 @@ class BaseModel(object):
 
 
         self.data = load_data(self.data_filename, file_format=model_config.get("file_format",None), lang_column=model_config.get("language_column",None))
-        self.load_features()
-        self.preprocess()
+        self.build_feature_filter()
+        self.process()
 
-    def build_codemap(self, unique_values):
-        N = len(unique_values)
-        codemapbits = []
-        codemapbits.append(",".join(["%s=%d" % (v,n) for (n,v) in enumerate(unique_values)]))
-        codemapbits.append("?=" + " ".join([str(n) for n in range(0,N)]))
-        codemapbits.append("-=" + " ".join([str(n) for n in range(0,N)]))
-        return ",".join(codemapbits)
-
-    def preprocess(self):
-
-        # Remove features which are in the config but not the
-        # data file
-        self.features = [f for f in self.features if
-                any([f in self.data[lang] for lang in self.data]
-                    )]
-
-        self.valuecounts = {}
-        self.counts = {}
-        self.dimensions = {}
-        self.codemaps = {}
-        bad_feats = []
-        for f in self.features:
-            all_values = [self.data[l][f] for l in self.data]
-            missing_ratio = all_values.count("?") / (1.0*len(all_values))
-            all_values = [v for v in all_values if v != "?"]
-            uniq = list(set(all_values))
-            counts = {}
-            for v in all_values:
-                counts[v] = all_values.count(v)
-            uniq = list(set(all_values))
-            # Sort uniq carefully.
-            # Possibly all feature values are numeric strings, e.g. "1", "2", "3".
-            # If we sort these as strings then we get weird things like "10" < "2".
-            # This can actually matter for things like ordinal models.
-            # So convert these to ints first...
-            if all([v.isdigit() for v in uniq]):
-                uniq = list(map(int, uniq))
-                uniq.sort()
-                uniq = list(map(str, uniq))
-            # ...otherwise, just sort normally
-            else:
-                uniq.sort()
-
-            # Exclude features with no data
-            if len(uniq) == 0:
-                self.messages.append("""[INFO] Model "%s": Feature %s excluded because there are no datapoints for selected languages.""" % (self.name, f))
-                bad_feats.append(f)
-                continue
-
-            # Exclude features with lots of missing data
-            if int(100*(1.0-missing_ratio)) < self.minimum_data:
-                self.messages.append("""[INFO] Model "%s": Feature %s excluded because of excessive missing data (%d%%).""" % (self.name, f, int(missing_ratio*100)))
-                bad_feats.append(f)
-                continue
-
-            # Exclude constant features
-            if len(uniq) == 1:
-                if self.remove_constant_features:
-                    self.messages.append("""[INFO] Model "%s": Feature %s excluded because its value is constant across selected languages.  Set "remove_constant_features=False" in config to stop this.""" % (self.name, f))
-                    bad_feats.append(f)
-                    continue
-                else:
-                    self.constant_feature = True
-
-            # Compute various things
-            N = len(uniq)
-            self.valuecounts[f] = N
-            self.counts[f] = counts
-            self.dimensions[f] = N*(N-1) // 2
-            self.codemaps[f] = self.build_codemap(uniq)
-        self.features = [f for f in self.features if f not in bad_feats]
-        self.features.sort()
-        self.messages.append("""[INFO] Model "%s": Using %d features from data source %s""" % (self.name, len(self.features), self.data_filename))
-        if self.constant_feature and self.rate_variation:
-            self.messages.append("""[WARNING] Model "%s": Rate variation enabled with constant features retained in data.  This may skew rate estimates for non-constant features.""" % self.name)
-        if self.pruned:
-            self.messages.append("""[DEPENDENCY] Model %s: Pruned trees are implemented in the BEAST package "BEASTlabs".""" % self.name)
-
-    def load_features(self):
+    def build_feature_filter(self):
         # Load features to analyse
         if os.path.exists(self.features):
             features = []
@@ -132,7 +55,116 @@ class BaseModel(object):
                         break
         else:
             features = [f.strip() for f in self.features.split(",")]
-        self.features = features
+        self.feature_filter = set(features)
+
+    def process(self):
+
+        self.apply_language_filter()
+        self.apply_feature_filter()
+        self.compute_feature_properties()
+        self.remove_unwanted_features()
+        if self.pruned:
+            self.messages.append("""[DEPENDENCY] Model %s: Pruned trees are implemented in the BEAST package "BEASTlabs".""" % self.name)
+
+    def apply_language_filter(self):
+        languages_in_data = set(self.data.keys())
+        languages_to_keep = languages_in_data & self.config.lang_filter
+        languages_to_remove = languages_in_data - languages_to_keep
+        for lang in languages_to_remove:
+            self.data.pop(lang)
+
+    def apply_feature_filter(self):
+        self.features = []
+        for lang in self.data:
+            features_in_data = set(self.data[lang].keys())
+            features_to_keep = features_in_data & self.feature_filter
+            self.features.extend(features_to_keep)
+            features_to_remove = features_in_data - features_to_keep
+            for feat in features_to_remove:
+                self.data[lang].pop(feat)
+        self.features = sorted(list(set(self.features)))
+
+    def compute_feature_properties(self):
+
+        self.valuecounts = {}
+        self.missing_ratios = {}
+        self.counts = {}
+        self.dimensions = {}
+        self.codemaps = {}
+        for f in self.features:
+            # Compute various things
+            all_values = [self.data[l].get(f,"?") for l in self.data]
+            missing_data_ratio = all_values.count("?") / (1.0*len(all_values))
+            non_q_values = [v for v in all_values if v != "?"]
+            counts = {}
+            for v in non_q_values:
+                counts[v] = non_q_values.count(v)
+            unique_values = list(set(non_q_values))
+            # Sort unique_values carefully.
+            # Possibly all feature values are numeric strings, e.g. "1", "2", "3".
+            # If we sort these as strings then we get weird things like "10" < "2".
+            # This can actually matter for things like ordinal models.
+            # So convert these to ints first...
+            if all([v.isdigit() for v in unique_values]):
+                unique_values = list(map(int, unique_values))
+                unique_values.sort()
+                unique_values = list(map(str, unique_values))
+            # ...otherwise, just sort normally
+            else:
+                unique_values.sort()
+
+            N = len(unique_values)
+            self.valuecounts[f] = N
+            self.missing_ratios[f] = missing_data_ratio
+            self.counts[f] = counts
+            self.dimensions[f] = N*(N-1) // 2
+            self.codemaps[f] = self.build_codemap(unique_values)
+
+    def remove_unwanted_features(self):
+
+        bad_feats = []
+        for f in self.features:
+
+            # Exclude features with no data
+            if self.valuecounts[f] == 0:
+                self.messages.append("""[INFO] Model "%s": Feature %s excluded because there are no datapoints for selected languages.""" % (self.name, f))
+                bad_feats.append(f)
+                continue
+
+            # Exclude features with lots of missing data
+            missing_ratio = self.missing_ratios[f]
+            if int(100*(1.0-missing_ratio)) < self.minimum_data:
+                self.messages.append("""[INFO] Model "%s": Feature %s excluded because of excessive missing data (%d%%).""" % (self.name, f, int(missing_ratio*100)))
+                bad_feats.append(f)
+                continue
+
+            # Exclude constant features
+            if self.valuecounts[f] == 1:
+                if self.remove_constant_features:
+                    self.messages.append("""[INFO] Model "%s": Feature %s excluded because its value is constant across selected languages.  Set "remove_constant_features=False" in config to stop this.""" % (self.name, f))
+                    bad_feats.append(f)
+                    continue
+                else:
+                    self.constant_feature = True
+
+        for bad in bad_feats:
+            self.features.remove(bad)
+            for lang in self.data:
+                if bad in self.data[lang]:
+                    self.data[lang].pop(bad)
+
+        self.features.sort()
+        self.messages.append("""[INFO] Model "%s": Using %d features from data source %s""" % (self.name, len(self.features), self.data_filename))
+        if self.constant_feature and self.rate_variation:
+            self.messages.append("""[WARNING] Model "%s": Rate variation enabled with constant features retained in data.  This may skew rate estimates for non-constant features.""" % self.name)
+
+    def build_codemap(self, unique_values):
+        N = len(unique_values)
+        codemapbits = []
+        codemapbits.append(",".join(["%s=%d" % (v,n) for (n,v) in enumerate(unique_values)]))
+        codemapbits.append("?=" + " ".join([str(n) for n in range(0,N)]))
+        codemapbits.append("-=" + " ".join([str(n) for n in range(0,N)]))
+        return ",".join(codemapbits)
 
     def add_misc(self, beast):
         pass
@@ -188,7 +220,6 @@ class BaseModel(object):
                stringbits.append("%s=?," % lang)
         traitset.text = " ".join(stringbits)
         userdatatype = ET.SubElement(parent, "userDataType", {"id":"traitDataType.%s"%fname,"spec":"beast.evolution.datatype.UserDataType","codeMap":self.codemaps[feature],"codelength":"-1","states":str(self.valuecounts[feature])})
-
 
     def add_likelihood(self, likelihood):
 
