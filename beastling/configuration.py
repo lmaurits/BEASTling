@@ -216,6 +216,11 @@ class Configuration(object):
         if self.monophyly and not self.starting_tree:
             self.messages.append("[DEPENDENCY] ConstrainedRandomTree is implemented in the BEAST package BEASTLabs.")
 
+        # BEAST can't handle really long chains
+        _BEAST_MAX_LENGTH = 2147483647
+        if self.chainlength > _BEAST_MAX_LENGTH:
+            self.chainlength = _BEAST_MAX_LENGTH
+            self.messages.append("[INFO] Chain length truncated to %d, as BEAST cannot handle longer chains." % self.chainlength)
         # If log_every was not explicitly set to some non-zero
         # value, then set it such that we expect 10,000 log
         # entries
