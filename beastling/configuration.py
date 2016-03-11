@@ -1,9 +1,10 @@
 from __future__ import division, unicode_literals
-import os
-import sys
-import re
-import io
 import importlib
+import io
+import os
+import re
+import six
+import sys
 
 import newick
 from appdirs import user_data_dir
@@ -105,7 +106,10 @@ class Configuration(object):
         if isinstance(configfile, dict):
             self.configfile.read_dict(configfile)
         else:
-            self.configfile.read(configfile)
+            if isinstance(configfile, six.string_types):
+                configfile = (configfile,)
+            for conf in configfile:
+                self.configfile.read(conf)
         p = self.configfile
 
         for sec, opts in {
