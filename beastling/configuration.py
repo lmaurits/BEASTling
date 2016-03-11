@@ -3,6 +3,7 @@ import os
 import sys
 import re
 import io
+import importlib
 
 import newick
 from appdirs import user_data_dir
@@ -351,7 +352,15 @@ class Configuration(object):
                     self.message_flags.append("mk_used")
                     self.messages.append(mk.MKModel.package_notice)
             else:
-                raise ValueError("Unknown model type '%s' for model section '%s'." % (config["model"], config["name"]))
+                try:
+                    sys.path.insert(0, os.getcwd())
+                    module_path, class_name = config["model"].rsplit(".",1)
+                    module = importlib.import_module(module_path)
+                    UserClass = getattr(module, class_name)
+                    model = UserClass(config, self)
+                except:
+                    raise ValueError("Unknown model type '%s' for model section '%s', and failed to import a third-party model." % (config["model"], config["name"]))
+
             if config["model"].lower() != "covarion":
                 self.messages.append("""[DEPENDENCY] Model %s: AlignmentFromTrait is implemented in the BEAST package "BEAST_CLASSIC".""" % config["name"])
             self.messages.extend(model.messages)
