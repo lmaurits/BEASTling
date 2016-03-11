@@ -27,7 +27,7 @@ def main():
 
 def extract(args):
     if not os.path.exists(args.config):
-        sys.stderr.write("No such BEAST XML file: %s\n", args.config)
+        sys.stderr.write("No such BEAST XML file: %s\n" % args.config)
         sys.exit(1)
     try:
         messages = beastling.extractor.extract(args.config, args.overwrite)
@@ -41,6 +41,9 @@ def extract(args):
 def generate(args):
 
     # Build config object
+    if not os.path.exists(args.config):
+        sys.stderr.write("No such configuration file: %s\n" % args.config)
+        sys.exit(1)
     try:
         config = beastling.configuration.Configuration(basename=args.output, configfile=args.config, stdin_data=args.stdin)
         config.process()
