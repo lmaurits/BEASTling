@@ -117,7 +117,7 @@ The only time this matters is when it comes time to interpret tree heights or cl
 model sections
 --------------
 
-A BEASTling config file *must* include at least one model section, but it can contain several.  Model sections are different from all other sections in that you must give each one a name.  A ``[model]`` section is invalid, but ``[model mymodel]`` will work.  Suppose you want to perform an analysis using both cognate data and structural data, and you want to use different model settings for the different kinds of data (say different substitution models).  You could have a ``[model cognate]`` section and a ``[model structure]`` section.  You can have as many models as you like, as long as each one gets a unique name.
+A BEASTling config file *must* include at least one model section, but it can contain several.  Model sections are different from almost all other sections in that you must give each one a name.  A ``[model]`` section is invalid, but ``[model mymodel]`` will work.  Suppose you want to perform an analysis using both cognate data and structural data, and you want to use different model settings for the different kinds of data (say different substitution models).  You could have a ``[model cognate]`` section and a ``[model structure]`` section.  You can have as many models as you like, as long as each one gets a unique name.
 
 Each model section *must* contain the following parameters, i.e. they are mandatory and BEASTling will refuse to work if you ommit them:
 
@@ -140,6 +140,8 @@ Additionally, each model section *may* contain the following parameters, i.e.  t
 
 * ``binarised`` or ``binarized``: "True" or "False".  This option is only relevant if the binary covarion model is being used (see :ref:`covarion`).  If unspecified, BEASTling will try to guess whether the supplied data has already been binarised, and will automatically translate multistate features into multiple binary features if not.  If BEASTling is guessing wrong, you can use this option to explicitly inform it whether or not your data has already been binarised.
 
+* ``clock``: Assigns the clock to use for this model.  See :ref:`clock sections` below for details.
+
 * ``file_format``: Can be used to explicitly set which of the two supported .csv file formats the data for this model is supplied in, to be used if BEASTling is mistakenly trying to parse one format as the other (which should be very rare).  Should be one of:
    * "beastling"
    * "cldf"
@@ -157,3 +159,25 @@ Additionally, each model section *may* contain the following parameters, i.e.  t
 * ``features``: Is used to select a subset of the features in the given data file.  Should be one of:
    * A comma-separated list of feature names (as they are given in the data CSV's header line)
    * A path to a file which contains one feature name per line
+
+.. _clock_sections:
+
+clock sections
+--------------
+
+``clock`` sections are quite similar to ``model`` sections, in that they must be given names, e.g. ``[clock myclock]``.  A BEASTling config file may include any number of ``clock`` sections, including zero, but it makes no practical sense to define more ``clock`` sections than you have ``model`` sections.  ``clock`` sections are used to define clock models, which determine how tree branch lengths are transformed into a measure of evolutionary time.  Each ``model`` in your analysis has an associated clock model.  You can share one clock across all your models, or give each model its own clock, or assign clocks in any other way you like.
+
+If no ``clock`` section is defined, all models will be associated with a default clock (of ``type`` "strict").  Alternatively:
+
+* You may define your own ``[clock default]`` section.  Because the name is ``default``, this clock will be associated with all model sections, unless those sections have a different clock specifically assigned.
+* You may explicitly assign a clock to a model by setting the model section's ``clock`` option equal to the name of a ``clock`` section.
+* If a ``model`` section and a ``clock`` section have the same name, then they are automatically associated with each other (unless the ``model`` section explicitly assigns a different clock.
+
+Each clock section *must* contain the following parameters, i.e. they are mandatory and BEASTling will refuse to work if you ommit them:
+
+* ``type``: should specify the type of clock model type you want to use.  Available models are:
+   * "strict" (Strict clock)
+   * "relaxed" (Uncorrelated relaxed clock)
+   * "random" (Random local clock)
+
+   For more information on the available models, see :doc:`clocks`.
