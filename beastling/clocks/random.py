@@ -10,6 +10,7 @@ class RandomLocalClock(BaseClock):
         BaseClock.__init__(self, clock_config, global_config)
         self.mean_rate_id = "meanClockRate.c:%s" % self.name
         self.mean_rate_idref = "@%s" % self.mean_rate_id
+        self.correlated = clock_config.get("correlated","false").lower()
 
     def add_state(self, state):
 
@@ -30,7 +31,7 @@ class RandomLocalClock(BaseClock):
         ET.SubElement(poisson, "parameter", {"id":"RandomRateChangesPoissonLambda","estimate":"false","name":"lambda"}).text = "0.6931471805599453"
 
     def add_branchrate_model(self, beast):
-        branchrate = ET.SubElement(beast, "branchRateModel", {"id":"RandomLocalClock.c:%s"%self.name,"spec":"beast.evolution.branchratemodel.RandomLocalClockModel","clock.rate":self.mean_rate_idref, "indicators":"@Indicators.c:%s" % self.name, "rates":"@clockrates.c:%s" % self.name, "tree":"@Tree.t:beastlingTree"})
+        branchrate = ET.SubElement(beast, "branchRateModel", {"id":"RandomLocalClock.c:%s"%self.name,"spec":"beast.evolution.branchratemodel.RandomLocalClockModel","clock.rate":self.mean_rate_idref, "indicators":"@Indicators.c:%s" % self.name, "rates":"@clockrates.c:%s" % self.name, "ratesAreMultipliers":self.correlated, "tree":"@Tree.t:beastlingTree"})
         self.branchrate_model_id = "RandomLocalClock.c:%s" % self.name
 
     def add_unconditional_operators(self, run):

@@ -14,7 +14,7 @@ Strict
 A strict clock is the simplest clock model available in BEASTling.  It is basically a single value which represents a conversion rate between branch lengths and evolutionary time.  This same value is valid over all branches on the tree.  Strict clocks are simple and result in fast-running analyses, but they represent an assumption about language change which most linguists do not believe is plausible for most situations, i.e. that the rate at which a particular feature changes is fixed at all points in time and all subfamilies in a tree.
 
 Uncorrelated Relaxed Clock
----------------
+--------------------------
 
 (set ``type=relaxed`` in config file)
 
@@ -25,10 +25,11 @@ The different rates are sampled from a probability distribution, whose parameter
 The relaxed clock implementation in BEAST works by assigning each branch one rate from a fixed number of discrete rates.  The number of discrete rates can be set using the ``rates`` option in the config file.  For example, if rates were set to 11, the provided distribution would be sampled at the 0.0, 0.1, 0.2,..., and 1.0 quartiles, and each branch would be assigned one of these 11 rates.  Lower numbers of rates resulting in better Markov chain mixing, but result a less accurate representation of the underlying distribution, and may skew estimates of the clock rate's mean or standard deviation.  If no rate count is explicitly set, the number of discrete rates will be set equal to the number of branches in the tree.
 
 Random Local Clock
-----
+------------------
 
 (set ``type=random`` in config file)
 
 `Random local clocks <http://bmcbiol.biomedcentral.com/articles/10.1186/1741-7007-8-114>`_ permit an amount of variation in clock rate across a tree which is more than the strict clock (which has no variation) but less than the relaxed clock (which has a different rate for each branch).  They work by permiting the clock rate to change a fixed number of times at certain locations on the tree.  The number of changes may be zero (in which case the resulting clock is a strict clock), or it may be equal to the number of branches (in which case the resulting clock is a relaxed clock), or it may be somewhere in between.  The MCMC chain samples over both the number of changes and their locations on the tree.  A Poisson prior is placed on the number of changes.
 
-The various rates are sampled from a Gamma distribution, whose parameters are estimated by the chain.
+The various rates are sampled from a Gamma distribution.  The random local clock can be configured in uncorrelated mode (``correlated=false``, the default), where each rate is sampled independently from the Gamma distribution, and in correlated mode (``correlated=true``), where what are sampled from the Gamma distribution are *multipliers*, with each new rate being a scaling of the rate before the change point.
+

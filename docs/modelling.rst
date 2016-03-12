@@ -21,4 +21,4 @@ If calibration points have been provided, then branch lengths will be in the sam
 Clocks
 ------
 
-BEASTling currently only supports fixed clock models, i.e. the mutation rate of any particular feature is the same at all points across the tree.
+BEASTling supports three different clock models.  These are: strict clocks, where the mutation rate of any particular feature is the same at all points across the tree; relaxed clocks, where the mutation rate of every branch on the tree is tree is sampled individually; and random local clocks, which can be thought of as an interpolation between these two extremes.
