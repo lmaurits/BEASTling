@@ -6,8 +6,16 @@ from ..fileio.datareaders import load_data, _language_column_names
 
 
 class BaseModel(object):
-    def __init__(self, model_config, global_config):
+    """
+    Base class from which all substitution model classes are descended.
+    Implements generic functionality which is common to all substitution
+    models, such as rate variation.
+    """
 
+    def __init__(self, model_config, global_config):
+        """
+        Parse configuration options, load data from file and pre-process data.
+        """
         self.messages = []
         self.config = global_config
         self.calibrations = global_config.calibrations
@@ -33,6 +41,11 @@ class BaseModel(object):
         self.process()
 
     def build_feature_filter(self):
+        """
+        Create the self.feature_filter attribute, which is a set of feature
+        names that functions analogously to Configuration.lang_filter
+        attribute.
+        """
         # Load features to analyse
         if os.path.exists(self.features):
             features = []
@@ -58,7 +71,10 @@ class BaseModel(object):
         self.feature_filter = set(features)
 
     def process(self):
-
+        """
+        Subsample the data set to include only those languages and features
+        which are compatible with the settings.
+        """
         self.apply_language_filter()
         self.apply_feature_filter()
         self.compute_feature_properties()
@@ -67,6 +83,10 @@ class BaseModel(object):
             self.messages.append("""[DEPENDENCY] Model %s: Pruned trees are implemented in the BEAST package "BEASTlabs".""" % self.name)
 
     def apply_language_filter(self):
+        """
+        Remove all languages from the data set which are not part of the
+        configured language filter.
+        """
         languages_in_data = set(self.data.keys())
         languages_to_keep = languages_in_data & self.config.lang_filter
         languages_to_remove = languages_in_data - languages_to_keep
@@ -74,6 +94,10 @@ class BaseModel(object):
             self.data.pop(lang)
 
     def apply_feature_filter(self):
+        """
+        Remove all features from the data set which are not part of the
+        configured feature filter.
+        """
         self.features = set()
         for lang in self.data:
             features_in_data = set(self.data[lang].keys())
@@ -85,6 +109,9 @@ class BaseModel(object):
         self.features = sorted(list(self.features))
 
     def compute_feature_properties(self):
+        """
+        Compute various items of metadata for all remaining features.
+        """
 
         self.valuecounts = {}
         self.missing_ratios = {}
@@ -121,6 +148,10 @@ class BaseModel(object):
             self.codemaps[f] = self.build_codemap(unique_values)
 
     def remove_unwanted_features(self):
+        """
+        Remove any undesirable features from the dataset, such as those with
+        no data for the configured set of languages, constant features, etc.
+        """
 
         bad_feats = []
         for f in self.features:
@@ -159,6 +190,9 @@ class BaseModel(object):
             self.messages.append("""[WARNING] Model "%s": Rate variation enabled with constant features retained in data.  This may skew rate estimates for non-constant features.""" % self.name)
 
     def build_codemap(self, unique_values):
+        """
+        Build a codemap string for a feature.
+        """
         N = len(unique_values)
         codemapbits = []
         codemapbits.append(",".join(["%s=%d" % (v,n) for (n,v) in enumerate(unique_values)]))
@@ -170,8 +204,10 @@ class BaseModel(object):
         pass
 
     def add_state(self, state):
-
-        # Mutation rates
+        """
+        Add parameters for Gamma-distributed rate heterogenetiy, if
+        configured.
+        """
         if self.rate_variation:
             for f in self.features:
                 fname = "%s:%s" % (self.name, f)
@@ -187,8 +223,10 @@ class BaseModel(object):
             parameter.text="0.5"
 
     def add_prior(self, prior):
-
-        # Mutation rates
+        """
+        Add prior distributions for Gamma-distributed rate heterogenetiy, if
+        configured.
+        """
         if self.rate_variation:
             sub_prior = ET.SubElement(prior, "prior", {"id":"featureClockRatePrior.s:%s" % self.name, "name":"distribution"})
             compound = ET.SubElement(sub_prior, "input", {"id":"featureClockRateCompound:%s" % self.name, "spec":"beast.core.parameter.CompoundValuable", "name":"x"})
@@ -202,27 +240,11 @@ class BaseModel(object):
             param = ET.SubElement(exp, "parameter", {"id":"featureClockRateGammaShapePriorParam:%s" % self.name, "name":"mean", "lower":"0.0", "upper":"0.0"})
             param.text = "1.0"
 
-    def add_data(self, distribution, feature, fname):
-        # Data
-        if self.pruned:
-            data = ET.SubElement(distribution,"data",{"id":"%s.filt" % fname, "spec":"PrunedAlignment"})
-            source = ET.SubElement(data,"source",{"id":fname,"spec":"AlignmentFromTrait"})
-            parent = source
-        else:
-            data = ET.SubElement(distribution,"data",{"id":fname, "spec":"AlignmentFromTrait"})
-            parent = data
-        traitset = ET.SubElement(parent, "traitSet", {"id":"traitSet.%s" % fname,"spec":"beast.evolution.tree.TraitSet","taxa":"@taxa","traitname":"discrete"})
-        stringbits = []
-        for lang in self.config.languages:
-           if lang in self.data:
-               stringbits.append("%s=%s," % (lang, self.data[lang][feature]))
-           else:
-               stringbits.append("%s=?," % lang)
-        traitset.text = " ".join(stringbits)
-        userdatatype = ET.SubElement(parent, "userDataType", {"id":"traitDataType.%s"%fname,"spec":"beast.evolution.datatype.UserDataType","codeMap":self.codemaps[feature],"codelength":"-1","states":str(self.valuecounts[feature])})
-
     def add_likelihood(self, likelihood):
-
+        """
+        Add likelihood distribution corresponding to all features in the
+        dataset.
+        """
         for n, f in enumerate(self.features):
             fname = "%s:%s" % (self.name, f)
             attribs = {"id":"traitedtreeLikelihood.%s" % fname,"spec":"TreeLikelihood","useAmbiguities":"true"}
@@ -246,9 +268,33 @@ class BaseModel(object):
             # Data
             self.add_data(distribution, f, fname)
 
-    def add_operators(self, run):
+    def add_data(self, distribution, feature, fname):
+        """
+        Add <data> element corresponding to the indicated feature, descending
+        from the indicated likelihood distribution.
+        """
+        if self.pruned:
+            data = ET.SubElement(distribution,"data",{"id":"%s.filt" % fname, "spec":"PrunedAlignment"})
+            source = ET.SubElement(data,"source",{"id":fname,"spec":"AlignmentFromTrait"})
+            parent = source
+        else:
+            data = ET.SubElement(distribution,"data",{"id":fname, "spec":"AlignmentFromTrait"})
+            parent = data
+        traitset = ET.SubElement(parent, "traitSet", {"id":"traitSet.%s" % fname,"spec":"beast.evolution.tree.TraitSet","taxa":"@taxa","traitname":"discrete"})
+        stringbits = []
+        for lang in self.config.languages:
+           if lang in self.data:
+               stringbits.append("%s=%s," % (lang, self.data[lang][feature]))
+           else:
+               stringbits.append("%s=?," % lang)
+        traitset.text = " ".join(stringbits)
+        userdatatype = ET.SubElement(parent, "userDataType", {"id":"traitDataType.%s"%fname,"spec":"beast.evolution.datatype.UserDataType","codeMap":self.codemaps[feature],"codelength":"-1","states":str(self.valuecounts[feature])})
 
-        # Mutation rates
+    def add_operators(self, run):
+        """
+        Add <operators> for individual feature substitution rates if rate
+        variation is configured.
+        """
         if self.rate_variation:
             delta = ET.SubElement(run, "operator", {"id":"featureClockRateDeltaExchanger:%s" % self.name, "spec":"DeltaExchangeOperator", "weight":"3.0"})
             for f in self.features:
@@ -260,8 +306,10 @@ class BaseModel(object):
             ET.SubElement(updown, "parameter", {"idref":"featureClockRateGammaScale:%s" % self.name, "name":"down"})
 
     def add_param_logs(self, logger):
-
-        # Mutation rates
+        """
+        Add entires to the logfile corresponding to individual feature
+        substition rates if rate variation is configured.
+        """
         if self.rate_variation:
             for f in self.features:
                 fname = "%s:%s" % (self.name, f)

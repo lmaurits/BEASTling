@@ -60,8 +60,18 @@ def get_glottolog_newick(release):
 
 
 class Configuration(object):
+    """
+    A container object for all of the settings which define a BEASTling
+    analysis.  Configuration objects are initialised with default values
+    for all options.
+    """
 
     def __init__(self, basename="beastling", configfile=None, stdin_data=False):
+        """
+        Set all options to their default values and then, if a configuration
+        file has been provided, override the default values for those options
+        set in the file.
+        """
         self.processed = False
         self.messages = []
         self.message_flags = []
@@ -101,7 +111,10 @@ class Configuration(object):
             self.read_from_file(configfile)
 
     def read_from_file(self, configfile):
-        # Read config file and overwrite defaults
+        """
+        Read one or several INI-style configuration files and overwrite
+        default option settings accordingly.
+        """
         self.configfile = INI(interpolation=None)
         if isinstance(configfile, dict):
             self.configfile.read_dict(configfile)
@@ -217,6 +230,19 @@ class Configuration(object):
         return cfg
 
     def process(self):
+        """
+        Prepares a Configuration object for being passed to the BeastXml
+
+        constructor.
+
+        This method checks the values of all options for invalid or ambiguous
+        settings, internal consistency, etc.  Information is read from
+        external files as required.  If this method returns without raising
+        any exceptions then this should function as a guarantee that a
+        BeastXml object can be instantiated from this Configuration with no
+        problems.
+        """
+
         # Add dependency notice if required
         if self.monophyly and not self.starting_tree:
             self.messages.append("[DEPENDENCY] ConstrainedRandomTree is implemented in the BEAST package BEASTLabs.")
@@ -245,6 +271,11 @@ class Configuration(object):
         self.processed = True
 
     def load_glotto_class(self):
+        """
+        Loads the Glottolog classification information from the appropriate
+        newick file, parses it and stores the required datastructure in
+        self.classification.
+        """
         label2name = {}
 
         def parse_label(label):
@@ -273,7 +304,16 @@ class Configuration(object):
                     self.classifications[isocode] = classification
 
     def build_language_filter(self):
-        # Handle languages - could be a list or a file
+        """
+        Examines the values of various options, including self.languages and
+        self.families, and constructs self.lang_filter.
+
+        self.lang_filter is a Set object containing all ISO and glotto codes
+        which are compatible with the provided settings (e.g. belong to the
+        requested families).  This set is later used as a mask with data sets.
+        Datapoints with language identifiers not in this set will not be used
+        in an analysis.
+        """
         if os.path.exists(self.languages):
             with io.open(self.languages, encoding="UTF-8") as fp:
                 self.languages = [x.strip() for x in fp.readlines()]
@@ -303,7 +343,10 @@ class Configuration(object):
             self.lang_filter = UniversalSet()
 
     def instantiate_clocks(self):
-        # Instantiate clocks
+        """
+        Populates self.clocks with a list of BaseClock subclasses, one for each
+        dictionary of settings in self.clock_configs.
+        """
         self.clocks = []
         self.clocks_by_name = {}
         for config in self.clock_configs:
@@ -325,7 +368,10 @@ class Configuration(object):
             self.clocks_by_name[clock.name] = clock
 
     def instantiate_models(self):
-        # Instantiate models
+        """
+        Populates self.models with a list of BaseModel subclasses, one for each
+        dictionary of settings in self.model_configs.
+        """
         if not self.model_configs:
             raise ValueError("No models specified!")
 
@@ -371,7 +417,10 @@ class Configuration(object):
             self.models.append(model)
 
     def link_clocks_to_models(self):
-        # Add a clock object to each model object
+        """
+        Ensures that for each model object in self.models, the attribute
+        "clock" is a reference to one of the clock objects in self.clocks.
+        """
         for model in self.models:
             if model.clock:
                 # User has explicitly specified a clock
@@ -392,7 +441,11 @@ class Configuration(object):
                 self.messages.append("""[INFO] Clock %s is not being used.  Change its name to "default", or explicitly associate it with a model.""" % clock.name)
 
     def build_language_list(self):
-        # Finalise language list.
+        """
+        Combines the language sets of each model's data set, according to the
+        value of self.overlap, to construct a final list of all the languages
+        in the analysis.
+        """
         self.languages = set(self.models[0].data.keys())
         self.overlap_warning = False
         for model in self.models:
@@ -416,7 +469,17 @@ class Configuration(object):
         self.messages.append("[INFO] %d languages included in analysis." % len(self.languages))
 
     def handle_starting_tree(self):
-        # Read starting tree from file
+        """
+        Makes any changes to the user-provided starting tree required to make
+        it suitable for passing to BEAST.
+
+        In particular, this method checks that the supplied string or the
+        contents of the supplied file:
+            * seems to be a valid Newick tree
+            * contains no duplicate taxa
+            * has taxa which are a superset of the languages in the analysis
+            * has no polytomies or unifurcations.
+        """
         if os.path.exists(self.starting_tree):
             with io.open(self.starting_tree, encoding="UTF-8") as fp:
                 self.starting_tree = fp.read().strip()
