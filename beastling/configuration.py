@@ -476,7 +476,7 @@ class Configuration(object):
             raise ValueError("No languages specified!")
 
         ## Convert back into a sorted list
-        self.languages = sorted(self.languages)
+        self.languages = sorted(self.lang_filter.intersection(self.languages))
         self.messages.append("[INFO] %d languages included in analysis." % len(self.languages))
 
     def handle_starting_tree(self):
@@ -509,9 +509,9 @@ class Configuration(object):
             tree_langs = set(tree_langs)
             # Make sure languges in tree is a superset of languages in the analysis
             if not tree_langs.issuperset(self.languages):
-                missing_langs = self.languages.difference(tree_langs)
+                missing_langs = set(self.languages).difference(tree_langs)
                 miss_string = ",".join(missing_langs)
-                raise ValueError("Some languages in the data are not in the starting tree: %s" % miss_string)
+                raise ValueError("Some languages in the data are not in the starting tree: %s" % miss_string[:200]+"..."+miss_string[-1] if len(miss_string)>202 else miss_string)
             # If the trees' language set is a proper superset, prune the tree to fit the analysis
             if not tree_langs == self.languages:
                 tree.prune_by_names(self.languages, inverse=True)
