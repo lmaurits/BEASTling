@@ -18,6 +18,7 @@ def main():
     parser.add_argument("-o", "--output", help="Output filename, no extension", default=None)
     parser.add_argument("--overwrite", default=False, action="store_true")
     parser.add_argument("--stdin", default=False, action="store_true")
+    parser.add_argument("--prior", "--sample-from-prior", "-p", help="Sample only from the prior", default=False, action="store_true")
     parser.add_argument("-v", "--verbose", default=False, action="store_true")
     args = parser.parse_args()
 
@@ -49,7 +50,7 @@ def generate(args):
             sys.stderr.write("No such configuration file: %s\n" % conf)
             sys.exit(1)
     try:
-        config = beastling.configuration.Configuration(configfile=args.config, stdin_data=args.stdin)
+        config = beastling.configuration.Configuration(configfile=args.config, stdin_data=args.stdin, prior=args.prior)
         config.process()
     except Exception as e:
         sys.stderr.write("Error encountered while parsing configuration file:\n")

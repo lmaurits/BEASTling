@@ -93,7 +93,7 @@ class Configuration(object):
     for all options.
     """
 
-    def __init__(self, basename="beastling", configfile=None, stdin_data=False):
+    def __init__(self, basename="beastling", configfile=None, stdin_data=False, prior=False):
         """
         Set all options to their default values and then, if a configuration
         file has been provided, override the default values for those options
@@ -104,12 +104,18 @@ class Configuration(object):
         self.message_flags = []
 
         # Set up default options
-        self.basename = basename
+        self.basename = basename+"_prior" if prior else basename
         self.clock_configs = []
         self.configfile = None
         self.configfile_text = None
         self.chainlength = 10000000
         self.embed_data = False
+        # We need two different attributes, because specifying prior
+        # sampling in the config file does not affect names, whereas
+        # it does on the command line to avoid overwriting generated
+        # beast output. Also, the command line switch has precendent
+        # over the config file setting.
+        self.prior = prior
         self.sample_from_prior = False
         self.families = "*"
         self.languages = "*"
@@ -169,7 +175,7 @@ class Configuration(object):
             },
             'MCMC': {
                 'chainlength': p.getint,
-                'sample_from_prior': p.getboolean,
+                'sample_from_prior': p.getboolean(x),
             },
             'languages': {
                 'languages': p.get,
@@ -188,6 +194,11 @@ class Configuration(object):
             for opt, getter in opts.items():
                 if p.has_option(sec, opt):
                     setattr(self, opt, getter(sec, opt))
+
+        ## MCMC
+        self.sample_from_prior |= self.prior
+        if self.prior and not self.basename.endswith("_prior"):
+            self.basename += "_prior"
 
         ## Languages
         sec = "languages"
