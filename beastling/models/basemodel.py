@@ -184,6 +184,9 @@ class BaseModel(object):
                 if bad in self.data[lang]:
                     self.data[lang].pop(bad)
 
+        # Make sure there's something left
+        if not self.features:
+            raise ValueError("No features specified for model %s!" % self.name)
         self.features.sort()
         self.messages.append("""[INFO] Model "%s": Using %d features from data source %s""" % (self.name, len(self.features), self.data_filename))
         if self.constant_feature and self.rate_variation:
