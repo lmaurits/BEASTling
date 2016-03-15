@@ -23,10 +23,7 @@ class BaseModel(object):
         self.name = model_config["name"] 
         self.data_filename = model_config["data"] 
         self.clock = model_config.get("clock", "")
-        if "features" in model_config:
-            self.features = model_config["features"] 
-        else:
-            self.features = "*"
+        self.features = model_config.get("features",["*"])
         self.constant_feature = False
         self.frequencies = model_config.get("frequencies", "empirical")
         self.pruned = model_config.get("pruned", False)
@@ -46,29 +43,21 @@ class BaseModel(object):
         names that functions analogously to Configuration.lang_filter
         attribute.
         """
-        # Load features to analyse
-        if os.path.exists(self.features):
-            features = []
-            with io.open(self.features, "r", encoding="UTF-8") as fp:
-                for line in fp:
-                    features.append(line.strip())
-        elif self.features == "*":
+        if self.features == ["*"]:
             random_iso = list(self.data.keys())[0]
-            features = list(self.data[random_iso].keys())
+            self.features = list(self.data[random_iso].keys())
             # Need to remove the language ID column
             if self.lang_column:
-                features.remove(self.lang_column)
+                self.features.remove(self.lang_column)
             else:
                 # If no language column name was explicitly given, just
                 # remove the first of the automatically-recognised names
                 # which we encounter:
                 for lc in _language_column_names:
-                    if lc in features:
-                        features.remove(lc)
+                    if lc in self.features:
+                        self.features.remove(lc)
                         break
-        else:
-            features = [f.strip() for f in self.features.split(",")]
-        self.feature_filter = set(features)
+        self.feature_filter = set(self.features)
 
     def process(self):
         """

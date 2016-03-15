@@ -268,7 +268,8 @@ class Configuration(object):
             if key == 'binarized':
                 value = p.getboolean(section, key)
                 key = 'binarised'
-
+            if key == "features":
+                value = self.handle_file_or_list(value)
             if key in ['rate_variation', 'remove_constant_features']:
                 value = p.getboolean(section, key)
 
@@ -381,20 +382,10 @@ class Configuration(object):
         Datapoints with language identifiers not in this set will not be used
         in an analysis.
         """
-
-        def handle_file_or_list(value):
-            if os.path.exists(value):
-                with io.open(value, encoding="UTF-8") as fp:
-                    result = [x.strip() for x in fp.readlines()]
-                self.files_to_embed.append(value)
-            else:
-                result = [x.strip() for x in value.split(",")]
-            return result
-
         # Load requirements
-        self.languages = handle_file_or_list(self.languages)
-        self.families = handle_file_or_list(self.families)
-        self.macroareas = handle_file_or_list(self.macroareas)
+        self.languages = self.handle_file_or_list(self.languages)
+        self.families = self.handle_file_or_list(self.families)
+        self.macroareas = self.handle_file_or_list(self.macroareas)
 
         # Build language filter based on languages or families
         if self.languages != ["*"] and self.families != ["*"]:
@@ -417,6 +408,15 @@ class Configuration(object):
             self.geo_filter = {
                     l for l in self.glotto_macroareas if self.glotto_macroareas[l] in self.macroareas}
             self.lang_filter = self.lang_filter & self.geo_filter
+
+    def handle_file_or_list(self, value):
+        if os.path.exists(value):
+            with io.open(value, encoding="UTF-8") as fp:
+                result = [x.strip() for x in fp.readlines()]
+            self.files_to_embed.append(value)
+        else:
+            result = [x.strip() for x in value.split(",")]
+        return result
 
     def instantiate_clocks(self):
         """
