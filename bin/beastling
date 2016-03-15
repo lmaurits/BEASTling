@@ -14,12 +14,12 @@ def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("config", help="Beastling configuration file(s) (or XML file if --extract is used)", default=None, nargs="+")
-    parser.add_argument("--extract", default=False, action="store_true")
+    parser.add_argument("--extract", default=False, action="store_true", help="Extract configuration file (and possibly data files) from a BEASTling-generated XML file.")
     parser.add_argument("-o", "--output", help="Output filename, no extension", default=None)
-    parser.add_argument("--overwrite", default=False, action="store_true")
-    parser.add_argument("--stdin", default=False, action="store_true")
-    parser.add_argument("--prior", "--sample-from-prior", "-p", help="Sample only from the prior", default=False, action="store_true")
-    parser.add_argument("-v", "--verbose", default=False, action="store_true")
+    parser.add_argument("--overwrite", help="Overwrite an existing configuration file.", default=False, action="store_true")
+    parser.add_argument("--stdin", help="Read data from stdin.", default=False, action="store_true")
+    parser.add_argument("--prior", "--sample-from-prior", "-p", help="Generate XML file which samples from the prior, not posterior.", default=False, action="store_true")
+    parser.add_argument("-v", "--verbose", help="Display details of the generated analysis.", default=False, action="store_true")
     args = parser.parse_args()
 
     if args.extract:
