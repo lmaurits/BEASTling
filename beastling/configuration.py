@@ -1,10 +1,14 @@
 from __future__ import division, unicode_literals
+import collections
 import importlib
+import itertools
 import io
 import os
 import re
 import six
 import sys
+from random import uniform as uniformrand
+from random import sample as randsample
 
 import newick
 from appdirs import user_data_dir
@@ -15,6 +19,7 @@ import beastling.clocks.strict as strict
 import beastling.clocks.relaxed as relaxed
 import beastling.clocks.random as random
 
+import beastling.models.geo as geo
 import beastling.models.bsvs as bsvs
 import beastling.models.covarion as covarion
 import beastling.models.mk as mk
@@ -58,6 +63,28 @@ def get_glottolog_newick(release):
                     'Could not retrieve classification for Glottolog %s' % release)
     return newick.read(path)
 
+def get_glottolog_macroareas(glottolog_release):
+        """MOCK"""
+
+        def parse_label(label):
+            match = GLOTTOLOG_NODE_LABEL.match(label)
+            return (
+                match.group('name').strip(),
+                match.group('glottocode'),
+                match.group('isocode'))
+
+        macro = {}
+        trees = get_glottolog_newick(glottolog_release)
+        for t in trees:
+            for lang in t.get_leaf_names():
+                name, glotto, iso = parse_label(lang)
+                macro[glotto] = randsample(["Africa","Australia", "Eurasia","North America", "South America", "Papunesia"],1)[0]
+                macro[iso] = macro[glotto]
+        return macro
+
+def get_glottolog_locations(glottolog_release):
+        """MOCK"""
+        return collections.defaultdict(lambda: (uniformrand(-90,90), uniformrand(-180,180)))
 
 class Configuration(object):
     """
@@ -86,6 +113,7 @@ class Configuration(object):
         self.sample_from_prior = False
         self.families = "*"
         self.languages = "*"
+        self.macroareas = "*"
         self.overlap = "union"
         self.starting_tree = ""
         self.sample_branch_lengths = True
@@ -106,6 +134,8 @@ class Configuration(object):
         self.calibrations = {}
         self.glottolog_release = '2.7'
         self.classifications = {}
+        self.glotto_macroareas = {}
+        self.locations = {}
 
         if configfile:
             self.read_from_file(configfile)
@@ -144,6 +174,7 @@ class Configuration(object):
             'languages': {
                 'languages': p.get,
                 'families': p.get,
+                'macroareas': p.get,
                 'overlap': p.get,
                 'starting_tree': p.get,
                 'sample_branch_lengths': p.getboolean,
@@ -197,6 +228,12 @@ class Configuration(object):
             raise ValueError("Config file contains no model sections.")
         for section in model_sections:
             self.model_configs.append(self.get_model_config(p, section))
+        
+        # Geography
+        if p.has_section("geography"):
+            self.geo_config = self.get_geo_config(p, "geography")
+        else:
+            self.geo_config = None
 
     def get_clock_config(self, p, section):
         cfg = {
@@ -227,6 +264,13 @@ class Configuration(object):
                 value = p.getfloat(section, key)
 
             cfg[key] = value
+        return cfg
+
+    def get_geo_config(self, p, section):
+        cfg = {
+            'name': 'geography',
+            'model': 'geo',
+        }
         return cfg
 
     def process(self):
@@ -262,6 +306,7 @@ class Configuration(object):
             self.log_every = self.chainlength // 10000 or 1
 
         self.load_glotto_class()
+        self.load_glotto_geo()
         self.build_language_filter()
         self.instantiate_clocks()
         self.instantiate_models()
@@ -303,6 +348,16 @@ class Configuration(object):
                 if isocode:
                     self.classifications[isocode] = classification
 
+    def load_glotto_geo(self):
+        """
+        Loads the Glottolog geographic information from the appropriate .csv
+        file, parses it and stores the required datastructures in
+        self.glotto_macroareas and self.locations.
+        """
+
+        self.glotto_macroareas = get_glottolog_macroareas(self.glottolog_release)
+        self.locations = get_glottolog_locations(self.glottolog_release)
+
     def build_language_filter(self):
         """
         Examines the values of various options, including self.languages and
@@ -314,20 +369,21 @@ class Configuration(object):
         Datapoints with language identifiers not in this set will not be used
         in an analysis.
         """
-        if os.path.exists(self.languages):
-            with io.open(self.languages, encoding="UTF-8") as fp:
-                self.languages = [x.strip() for x in fp.readlines()]
-        else:
-            self.languages = [x.strip() for x in self.languages.split(",")]
 
-        # Handle families - could be a list or a file
-        if os.path.exists(self.families):
-            with io.open(self.families, encoding="UTF-8") as fp:
-                self.families = [x.strip() for x in fp.readlines()]
-        else:
-            self.families = [x.strip() for x in self.families.split(",")]
+        def handle_file_or_list(value):
+            if os.path.exists(value):
+                with io.open(value, encoding="UTF-8") as fp:
+                    result = [x.strip() for x in fp.readlines()]
+            else:
+                result = [x.strip() for x in value.split(",")]
+            return result
 
-        # Build language filter
+        # Load requirements
+        self.languages = handle_file_or_list(self.languages)
+        self.families = handle_file_or_list(self.families)
+        self.macroareas = handle_file_or_list(self.macroareas)
+
+        # Build language filter based on languages or families
         if self.languages != ["*"] and self.families != ["*"]:
             # Can't filter by languages and families at same time!
             raise ValueError("languages and families both defined in [languages]!")
@@ -335,12 +391,19 @@ class Configuration(object):
             # Filter by language
             self.lang_filter = set(self.languages)
         elif self.families != ["*"]:
+            # Filter by glottolog classification
             self.lang_filter = {
                 l for l in self.classifications
                 if any([family in [n for t in self.classifications[l] for n in t]
                         for family in self.families])}
         else:
             self.lang_filter = UniversalSet()
+        
+        # Impose macro-area requirements
+        if self.macroareas != ["*"]:
+            self.geo_filter = {
+                    l for l in self.glotto_macroareas if self.glotto_macroareas[l] in self.macroareas}
+            self.lang_filter = self.lang_filter & self.geo_filter
 
     def instantiate_clocks(self):
         """
@@ -415,13 +478,20 @@ class Configuration(object):
                 self.messages.append("""[DEPENDENCY] Model %s: AlignmentFromTrait is implemented in the BEAST package "BEAST_CLASSIC".""" % config["name"])
             self.messages.extend(model.messages)
             self.models.append(model)
+            
+        if self.geo_config:
+            self.geo_model = geo.GeoModel(self.geo_config, self)
+            self.messages.extend(self.geo_model.messages)
+            self.all_models = [self.geo_model] + self.models
+        else:
+            self.all_models = self.models
 
     def link_clocks_to_models(self):
         """
         Ensures that for each model object in self.models, the attribute
         "clock" is a reference to one of the clock objects in self.clocks.
         """
-        for model in self.models:
+        for model in self.all_models:
             if model.clock:
                 # User has explicitly specified a clock
                 if model.clock not in self.clocks_by_name:

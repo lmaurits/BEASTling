@@ -45,7 +45,7 @@ class BeastXml(object):
         self.add_maps()
         for clock in self.config.clocks:
             clock.add_branchrate_model(self.beast)
-        for model in self.config.models:
+        for model in self.config.all_models:
             model.add_misc(self.beast)
         self.add_run()
 
@@ -119,7 +119,7 @@ class BeastXml(object):
         self.add_tree_state()
         for clock in self.config.clocks:
             clock.add_state(self.state)
-        for model in self.config.models:
+        for model in self.config.all_models:
             model.add_state(self.state)
 
     def add_tree_state(self):
@@ -169,7 +169,7 @@ class BeastXml(object):
         self.add_tree_prior()
         for clock in self.config.clocks:
             clock.add_prior(self.prior)
-        for model in self.config.models:
+        for model in self.config.all_models:
             model.add_prior(self.prior)
 
     def add_monophyly_constraints(self):
@@ -245,7 +245,7 @@ class BeastXml(object):
         Add all likelihood distribution elements.
         """
         self.likelihood = ET.SubElement(self.master_distribution,"distribution",{"id":"likelihood","spec":"util.CompoundDistribution"})
-        for model in self.config.models:
+        for model in self.config.all_models:
             model.add_likelihood(self.likelihood)
 
     def add_operators(self):
@@ -255,7 +255,7 @@ class BeastXml(object):
         self.add_tree_operators()
         for clock in self.config.clocks:
             clock.add_operators(self.run)
-        for model in self.config.models:
+        for model in self.config.all_models:
             model.add_operators(self.run)
 
     def add_tree_operators(self):
@@ -324,7 +324,7 @@ class BeastXml(object):
             ET.SubElement(tracer_logger,"log",{"idref":"birthRate.t:beastlingTree"})
             for clock in self.config.clocks:
                 clock.add_param_logs(tracer_logger)
-            for model in self.config.models:
+            for model in self.config.all_models:
                     model.add_param_logs(tracer_logger)
 
     def add_tree_logger(self):
