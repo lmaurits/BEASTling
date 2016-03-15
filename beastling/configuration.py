@@ -110,6 +110,7 @@ class Configuration(object):
         self.configfile_text = None
         self.chainlength = 10000000
         self.embed_data = False
+        self.files_to_embed = []
         # We need two different attributes, because specifying prior
         # sampling in the config file does not affect names, whereas
         # it does on the command line to avoid overwriting generated
@@ -385,6 +386,7 @@ class Configuration(object):
             if os.path.exists(value):
                 with io.open(value, encoding="UTF-8") as fp:
                     result = [x.strip() for x in fp.readlines()]
+                self.files_to_embed.append(value)
             else:
                 result = [x.strip() for x in value.split(",")]
             return result

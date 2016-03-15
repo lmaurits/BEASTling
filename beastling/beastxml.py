@@ -70,9 +70,12 @@ class BeastXml(object):
         Embed a copy of each data file in a comment at the top of the XML
         document.
         """
-        if self.config.embed_data:
-            for model in self.config.models:
-                self.beast.append(self.format_data_file(model.data_filename))
+        if not self.config.embed_data:
+            return
+        for filename in self.files_to_embed:
+            self.beast.append(self.format_data_file(model.data_filename))
+        for model in self.config.models:
+            self.beast.append(self.format_data_file(model.data_filename))
 
     def format_data_file(self, filename):
         """
