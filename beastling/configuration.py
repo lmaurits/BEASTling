@@ -175,7 +175,7 @@ class Configuration(object):
             },
             'MCMC': {
                 'chainlength': p.getint,
-                'sample_from_prior': p.getboolean(x),
+                'sample_from_prior': p.getboolean,
             },
             'languages': {
                 'languages': p.get,
