@@ -268,6 +268,9 @@ class BaseModel(object):
             # Data
             self.add_data(distribution, f, fname)
 
+    def add_sitemodel(self, beast):
+        pass
+
     def add_data(self, distribution, feature, fname):
         """
         Add <data> element corresponding to the indicated feature, descending
