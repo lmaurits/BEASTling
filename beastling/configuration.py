@@ -269,7 +269,7 @@ class Configuration(object):
         for key, value in p[section].items():
             # "binarised" is the canonical name for this option and used everywhere
             # internally, but "binarized" is accepted in the config file.
-            if key == 'binarized':
+            if key in ('binarised', 'binarized'):
                 value = p.getboolean(section, key)
                 key = 'binarised'
             if key == "features":
