@@ -78,8 +78,8 @@ class LogNormalRelaxedClock(RelaxedClock):
         param = ET.SubElement(lognormal, "parameter", {"id":"LogNormalM.p:%s" % self.name, "name":"M", "estimate":"false", "lower":"0.0","upper":"1.0"})
         param.text = "1.0"
 
-    def add_timed_tree_operators(self, run):
-        RelaxedClock.add_timed_tree_operators(self, run)
+    def add_mean_operators(self, run):
+        RelaxedClock.add_mean_operators(self, run)
         ET.SubElement(run, "operator", {"id":"ucldSdevScaler.c:%s" % self.name, "spec":"ScaleOperator", "parameter":"@ucldSdev.c:%s" % self.name, "scaleFactor": "0.5", "weight":"3.0"})
 
     def add_param_logs(self, logger):
