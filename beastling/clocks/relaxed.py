@@ -42,7 +42,7 @@ class RelaxedClock(BaseClock):
         ET.SubElement(run, "operator", {"id":"rateCategoriesSwapOperator.c:%s" % self.name, "spec":"SwapOperator", "intparameter":"@rateCategories.c:%s" % self.name, "weight":"10.0"})
         ET.SubElement(run, "operator", {"id":"rateCategoriesUniformOperator.c:%s" % self.name, "spec":"UniformOperator", "parameter":"@rateCategories.c:%s" % self.name, "weight":"10.0"})
 
-    def add_timed_tree_operators(self, run):
+    def add_mean_operators(self, run):
 
         ET.SubElement(run, "operator", {"id":"clockScaler.c:%s" % self.name, "spec":"ScaleOperator","parameter":self.mean_rate_idref, "scaleFactor":"0.5","weight":"3.0"})
 

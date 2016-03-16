@@ -31,7 +31,7 @@ class StrictClock(BaseClock):
     def add_branchrate_model(self, beast):
         ET.SubElement(beast, "branchRateModel", {"id":"StrictClockModel.c:%s"%self.name,"spec":"beast.evolution.branchratemodel.StrictClockModel","clock.rate":"@clockRate.c:%s" % self.name})
 
-    def add_timed_tree_operators(self, run):
+    def add_mean_operators(self, run):
         ET.SubElement(run, "operator", {"id":"clockScaler.c:%s" % self.name, "spec":"ScaleOperator","parameter":"@clockRate.c:%s" % self.name, "scaleFactor":"0.5","weight":"3.0"})
 
     def add_param_logs(self, logger):

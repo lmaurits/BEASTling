@@ -7,6 +7,7 @@ class BaseClock(object):
     def __init__(self, clock_config, global_config):
 
         self.config = global_config
+        self.estimate_mean = True
         self.calibrations = global_config.calibrations
 
         self.name = clock_config["name"] 
@@ -18,11 +19,11 @@ class BaseClock(object):
 
     def add_operators(self, run):
         self.add_unconditional_operators(run)
-        if not self.config.sample_branch_lengths or self.calibrations:
-            self.add_timed_tree_operators(run)
+        if self.estimate_mean:
+            self.add_mean_operators(run)
 
     def add_unconditional_operators(self, run):
         return
 
-    def add_timed_tree_operators(self, run):
+    def add_mean_operators(self, run):
         return

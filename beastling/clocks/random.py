@@ -38,7 +38,7 @@ class RandomLocalClock(BaseClock):
         ET.SubElement(run, "operator", {"id":"IndicatorsBitFlip.c:%s" % self.name, "spec":"BitFlipOperator", "parameter":"@Indicators.c:%s" % self.name, "weight":"15.0"})
         ET.SubElement(run, "operator", {"id":"ClockRateScaler.c:%s" % self.name, "spec":"ScaleOperator", "parameter":"@clockrates.c:%s" % self.name, "weight":"15.0"})
 
-    def add_timed_tree_operators(self, run):
+    def add_mean_operators(self, run):
         ET.SubElement(run, "operator", {"id":"meanClockRateScaaler.c:%s" % self.name, "spec":"ScaleOperator", "parameter":"@meanClockRate.c:%s" % self.name, "scaleFactor": "0.5", "weight":"3.0"})
 
     def add_param_logs(self, logger):

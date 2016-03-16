@@ -229,6 +229,10 @@ class Configuration(object):
                         self.calibrations[clade.lower()] = [
                             float(x.strip()) for x in dates.split("-", 1)]
 
+        # At this point, we can tell whether or not the tree's length units
+        # can be treated as arbitrary
+        self.arbitrary_tree = self.sample_branch_lengths and not self.calibrations
+
         ## Clocks
         clock_sections = [s for s in p.sections() if s.lower().startswith("clock")]
         for section in clock_sections:
@@ -503,6 +507,7 @@ class Configuration(object):
         """
         Ensures that for each model object in self.models, the attribute
         "clock" is a reference to one of the clock objects in self.clocks.
+        Also determine which clock to estimate the mean of.
         """
         for model in self.all_models:
             if model.clock:
@@ -517,6 +522,14 @@ class Configuration(object):
                 # No clock specification - use default
                 model.clock = self.clocks_by_name["default"]
             model.clock.is_used = True
+
+        # Determine which clocks to estimate a mean for.
+        # First, estimate all model (non-geo) clocks...
+        for model in self.models:
+            model.clock.estimate_mean = True
+        # ...but if the tree is arbitrary, don't estimate the first model clock
+        if self.arbitrary_tree:
+            self.models[0].clock.estimate_mean = False
 
         # Warn user about unused clock(s)
         for clock in self.clocks:
