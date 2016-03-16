@@ -210,7 +210,7 @@ class BeastXml(object):
             mean = (upper + lower) / 2.0
             stddev = (upper - mean) / 2.0
             attribs = {}
-            attribs["id"] = clade + "-calibration.prior"
+            attribs["id"] = clade + "MRCA"
             attribs["monophyletic"] = "true"
             attribs["spec"] = "beast.math.distributions.MRCAPrior"
             attribs["tree"] = "@Tree.t:beastlingTree"
@@ -319,16 +319,29 @@ class BeastXml(object):
         if not(self.config.log_probabilities or self.config.log_params or self.config.log_all):
             return
         tracer_logger = ET.SubElement(self.run,"logger",{"id":"tracelog","fileName":self.config.basename+".log","logEvery":str(self.config.log_every),"model":"@posterior","sanitiseHeaders":"true","sort":"smart"})
+        # Log prior, likelihood and posterior
         if self.config.log_probabilities or self.config.log_all:
             ET.SubElement(tracer_logger,"log",{"idref":"prior"})
             ET.SubElement(tracer_logger,"log",{"idref":"likelihood"})
             ET.SubElement(tracer_logger,"log",{"idref":"posterior"})
+        # Log Yule birth rate
         if self.config.log_params or self.config.log_all:
             ET.SubElement(tracer_logger,"log",{"idref":"birthRate.t:beastlingTree"})
             for clock in self.config.clocks:
                 clock.add_param_logs(tracer_logger)
             for model in self.config.all_models:
                     model.add_param_logs(tracer_logger)
+
+        # Log tree height
+        if not self.config.tree_logging_pointless:
+            ET.SubElement(tracer_logger,"log",{
+                "id":"treeHeight",
+                "spec":"beast.evolution.tree.TreeHeightLogger",
+                "tree":"@Tree.t:beastlingTree"})
+
+        # Log calibration clade heights
+        for clade in self.config.calibrations:
+            ET.SubElement(tracer_logger,"log",{"idref":"%sMRCA" % clade})
 
     def add_tree_logger(self):
         """
