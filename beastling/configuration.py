@@ -452,7 +452,7 @@ class Configuration(object):
         Populates self.models with a list of BaseModel subclasses, one for each
         dictionary of settings in self.model_configs.
         """
-        if not self.model_configs or self.geo_config:
+        if not (self.model_configs or self.geo_config):
             raise ValueError("No models or geography specified!")
 
         # Handle request to read data from stdin
