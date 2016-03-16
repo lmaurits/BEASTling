@@ -44,5 +44,4 @@ class RandomLocalClock(BaseClock):
     def add_param_logs(self, logger):
         ET.SubElement(logger,"log",{"idref":"Indicators.c:%s" % self.name})
         ET.SubElement(logger,"log",{"idref":"clockrates.c:%s" % self.name})
-        ET.SubElement(logger,"log",{"idref":"RandomRateChanges.c:%s" % self.name})
-
+        ET.SubElement(logger,"log",{"idref":"RandomRateChangesCount"})
