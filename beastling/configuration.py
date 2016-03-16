@@ -249,7 +249,7 @@ class Configuration(object):
         if p.has_section("geography"):
             self.geo_config = self.get_geo_config(p, "geography")
         else:
-            self.geo_config = None
+            self.geo_config = {}
 
     def get_clock_config(self, p, section):
         cfg = {
@@ -288,6 +288,10 @@ class Configuration(object):
             'name': 'geography',
             'model': 'geo',
         }
+        for key, value in p[section].items():
+            if key == "log_locations":
+                value = p.getboolean(section, key)
+            cfg[key] = value
         return cfg
 
     def process(self):

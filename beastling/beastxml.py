@@ -351,6 +351,11 @@ class BeastXml(object):
             self.config.tree_logging_pointless):
             tree_logger = ET.SubElement(self.run, "logger", {"mode":"tree", "fileName":self.config.basename+".nex","logEvery":str(self.config.log_every),"id":"treeWithMetaDataLogger"})
             log = ET.SubElement(tree_logger, "log", attrib={"id":"TreeLogger","spec":"beast.evolution.tree.TreeWithMetaDataLogger","tree":"@Tree.t:beastlingTree"})
+            if self.config.geo_config.get("log_locations",False):
+                ET.SubElement(log, "metadata", {
+                    "id":"location",
+                    "spec":"sphericalGeo.TraitFunction",
+                    "likelihood":"@sphericalGeographyLikelihood"}).text = "0.0"
 
     def tostring(self):
         """
