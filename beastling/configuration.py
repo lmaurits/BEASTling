@@ -550,6 +550,19 @@ class Configuration(object):
                 free_clocks[0].estimate_mean = False
                 self.messages.append("""[INFO] Clock "%s" has had it's mean fixed to 1.0.  Tree branch lengths are in units of expected substitutions for features in models using this clock.""" % free_clocks[0].name)
 
+        # Determine whether or not precision-scaling is required
+        if self.geo_config:
+            self.geo_model.scale_precision = False
+            geo_clock = self.geo_model.clock
+            for m in self.models:
+                if m.clock == geo_clock:
+                    self.messages.append("""[WARNING] Geography model is sharing a clock with one or more data models.  This may lead to a bad fit.""")
+                    self.geo_model.scale_precision = True
+                    break
+            # If geo has it's own clock, estimate the mean
+            if not self.geo_model.scale_precision:
+                self.geo_model.clock.estimate_mean = True
+
     def build_language_list(self):
         """
         Combines the language sets of each model's data set, according to the

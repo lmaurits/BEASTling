@@ -20,19 +20,33 @@ class GeoModel(object):
         self.messages = []
         self.name = model_config["name"]
         self.clock = model_config.get("clock", None)
+        self.scale_precision = False
 
     def add_misc(self, beast):
         pass
 
     def add_state(self, state):
-        pass
+        ET.SubElement(state, "parameter", {
+            "id":"sphericalPrecision",
+            "lower":"0.0",
+            "name":"stateNode"}).text = "100.0"
 
     def add_prior(self, prior):
         """
         Add prior distributions for Gamma-distributed rate heterogenetiy, if
         configured.
         """
-        pass
+        if not self.scale_precision:
+            return
+        precision_prior = ET.SubElement(prior, "prior", {
+            "id":"sphericalPrecisionPrior",
+            "x":"@sphericalPrecision",
+            "name":"distribution"})
+        ET.SubElement(precision_prior, "Uniform", {
+            "id":"sphericalPrecisionPriorUniform",
+            "name":"distr",
+            "lower":"0",
+            "upper":"1e10"})
 
     def add_likelihood(self, likelihood):
         """
@@ -56,11 +70,8 @@ class GeoModel(object):
         subst = ET.SubElement(site, "substModel", {
             "id":"sphericalDiffusionSubstModel",
             "spec":"sphericalGeo.SphericalDiffusionModel",
+            "precision":"@sphericalPrecision",
             "fast":"true"})
-        ET.SubElement(subst, "parameter", {
-            "id":"sphericalPrecision",
-            "lower":"0.0",
-            "name":"precision"}).text = "100.0"
 
     def add_data(self, distribution):
         """
@@ -101,7 +112,15 @@ class GeoModel(object):
         Add <operators> for individual feature substitution rates if rate
         variation is configured.
         """
-        pass
+        if not self.scale_precision:
+            return
+        ET.SubElement(run, "operator", {
+            "id":"sphericalPrecisionScaler",
+            "spec":"ScaleOperator",
+            "parameter":"@sphericalPrecision",
+            "weight":"5",
+            "scaleFactor":"0.7"})
+
 
     def add_param_logs(self, logger):
         """
