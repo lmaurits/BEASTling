@@ -256,6 +256,8 @@ class Configuration(object):
             'name': section[5:].strip(),
         }
         for key, value in p[section].items():
+            if key == 'estimate_mean':
+                value = p.getboolean(section, key)
             cfg[key] = value
         return cfg
 
@@ -527,18 +529,26 @@ class Configuration(object):
                 model.clock = self.clocks_by_name["default"]
             model.clock.is_used = True
 
-        # Determine which clocks to estimate a mean for.
-        # First, estimate all model (non-geo) clocks...
-        for model in self.models:
-            model.clock.estimate_mean = True
-        # ...but if the tree is arbitrary, don't estimate the first model clock
-        if self.arbitrary_tree:
-            self.models[0].clock.estimate_mean = False
-
         # Warn user about unused clock(s)
         for clock in self.clocks:
             if not clock.is_used:
                 self.messages.append("""[INFO] Clock %s is not being used.  Change its name to "default", or explicitly associate it with a model.""" % clock.name)
+
+        # Get a list of model (i.e. non-geo) clocks for which the user has not
+        # indicated a preference on whether the mean should be estimated
+        free_clocks = list(set([m.clock for m in self.models
+            if m.clock.is_used
+            and m.clock.estimate_mean == None]))
+        if free_clocks:
+            # To begin with, estimate all free clocks
+            for clock in free_clocks:
+                clock.estimate_mean = True
+            # But if the tree is arbitrary, then fix one free clock, unless the
+            # user has fixed an un-free clock
+            if self.arbitrary_tree and all(
+                [m.clock.estimate_mean for m in self.models]):
+                free_clocks[0].estimate_mean = False
+                self.messages.append("""[INFO] Clock "%s" has had it's mean fixed to 1.0.  Tree branch lengths are in units of expected substitutions for features in models using this clock.""" % free_clocks[0].name)
 
     def build_language_list(self):
         """

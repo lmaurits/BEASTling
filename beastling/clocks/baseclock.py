@@ -7,9 +7,8 @@ class BaseClock(object):
     def __init__(self, clock_config, global_config):
 
         self.config = global_config
-        self.estimate_mean = True
+        self.estimate_mean = clock_config.get("estimate_mean",None)
         self.calibrations = global_config.calibrations
-
         self.name = clock_config["name"] 
         self.is_used = False
 
