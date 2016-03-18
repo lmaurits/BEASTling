@@ -142,6 +142,7 @@ class Configuration(object):
         self.glottolog_release = '2.7'
         self.classifications = {}
         self.glotto_macroareas = {}
+        self.location_data = None
         self.locations = {}
 
         if configfile:
@@ -182,6 +183,7 @@ class Configuration(object):
                 'languages': p.get,
                 'families': p.get,
                 'macroareas': p.get,
+                'location_data': p.get,
                 'overlap': p.get,
                 'starting_tree': p.get,
                 'sample_branch_lengths': p.getboolean,
@@ -330,6 +332,7 @@ class Configuration(object):
 
         self.load_glotto_class()
         self.load_glotto_geo()
+        self.load_user_geo()
         self.build_language_filter()
         self.instantiate_clocks()
         self.instantiate_models()
@@ -380,6 +383,16 @@ class Configuration(object):
 
         self.glotto_macroareas = get_glottolog_macroareas(self.glottolog_release)
         self.locations = get_glottolog_locations(self.glottolog_release)
+
+    def load_user_geo(self):
+        if not self.location_data:
+            return
+        with io.open(self.location_data, encoding="UTF-8") as fp:
+            # Skip header
+            fp.readline()
+            for line in fp:
+                iso, lat, lon = line.split(",")
+                self.locations[iso.strip().lower()] = map(float, (lat, lon))
 
     def build_language_filter(self):
         """
