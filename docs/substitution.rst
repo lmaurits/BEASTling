@@ -14,10 +14,8 @@ Mk
 The `Lewis Mk model <http://sysbio.oxfordjournals.org/content/50/6/913.abstract>`_ is the simplest generic substitution model available in BEASTling.  It is a generalisation of the classic `JC69 <https://en.wikipedia.org/wiki/Models_of_DNA_evolution#JC69_model_.28Jukes_and_Cantor.2C_1969.29.5B1.5D>`_ model from genetics to a statespace of arbitrary size.  Transitions are possible from any state to any other state, and every transition is equally probable.  No parameters are estimated, increasing analysis speed.  This model could be used with any dataset, but the assumptions are not a good match for cognate data.
 
 .. _covarion:
-
 Binary Covarion
 ---------------
-
 
 (set ``model=covarion`` in config file)
 
