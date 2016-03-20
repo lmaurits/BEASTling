@@ -22,7 +22,7 @@ to understand or give any thought to:
 * Codemaps
 * Class names, method names or call signatures of any Objects in the BEAST source code
 
-...then BEASTling has failed in its goal.  Of course, you *should* still understand
+then BEASTling has failed in its goal.  Of course, you *should* still understand
 at least the basics of the model you are using and MCMC in general.  The idea is
 not to let you easily play with black boxes you don't understand.  The idea is
 to cut away the many, many layers of irrelevant technical detail that you would

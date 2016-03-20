@@ -59,7 +59,7 @@ The ``MCMC`` section may contain the following parameters:
 
 * ``sample_from_prior``: "True" or "False".  If True, BEAST will ignore all supplied data and the tree, all clock rates and any model parameters will all be sampled from their prior distributions.  Default is False.
 
-Languages section
+languages section
 -----------------
 
 The ``languages`` section may contain the following parameters:
@@ -67,14 +67,12 @@ The ``languages`` section may contain the following parameters:
 * ``families``: One of:
    * A comma-separated list of language families to include in the analysis, spelled exactly as they are in Glottolog.  E.g. ``Indo-European, Uralic, Dravidian``.
    * The path to a file which contains one language family per line.
-
-If no value is assigned to this parameter, all languages present in the data file will be included (unless ``languages`` (see below) is used.  ``families`` and ``languages`` cannot both be used in a single configuration.
+ If no value is assigned to this parameter, all languages present in the data file will be included (unless ``languages`` (see below) is used.  ``families`` and ``languages`` cannot both be used in a single configuration.
 
 * ``languages``: One of:
    * A comma-separated list of language names to include in the analysis, spelled exactly as they are in the data file(s).
    * The path to a file which contains one language per line.  
-
-If no value is assigned to this parameter, all languages present in the data file will be included (unless ``families`` (see above) is used.  ``languages`` and ``families`` cannot both be used in a single configuration.
+ If no value is assigned to this parameter, all languages present in the data file will be included (unless ``families`` (see above) is used.  ``languages`` and ``families`` cannot both be used in a single configuration.
 
 * ``monophyly`` (or ``monophyletic``): "True" or "False".  Controls whether or not to impose the family structure in Glottolog as monophyly constraints in the BEAST analysis.  Default is False.  If True, very fine-grained control over exactly how much constraint is opposed can be gained by using additional options, documented below.
 
@@ -97,7 +95,7 @@ If no value is assigned to this parameter, all languages present in the data fil
 * ``sample_topology``: If true, the topology of the starting tree (i.e. the details of which leaves are connected to which and how) will be sampled during the analysis to fit the data.  If false, the topology will be kept fixed.  Use this in conjunction with ``starting_tree`` when you have a tree you trust and want to fit model parameters to it.  Default is True.
 
 
-Calibration section
+calibration section
 -------------------
 
 The ``calibration`` section should contain one parameter for each distinct calibration point that you wish to include in the analysis.
@@ -116,7 +114,7 @@ You may use arbitrary units without problems, i.e. you could provide dates in mi
 
 The only time this matters is when it comes time to interpret tree heights or clock and/or mutation rates.
 
-Model sections
+model sections
 --------------
 
 A BEASTling config file *must* include at least one model section, but it can contain several.  Model sections are different from all other sections in that you must give each one a name.  A ``[model]`` section is invalid, but ``[model mymodel]`` will work.  Suppose you want to perform an analysis using both cognate data and structural data, and you want to use different model settings for the different kinds of data (say different substitution models).  You could have a ``[model cognate]`` section and a ``[model structure]`` section.  You can have as many models as you like, as long as each one gets a unique name.
