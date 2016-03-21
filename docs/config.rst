@@ -25,7 +25,9 @@ Understanding BEASTling is, mostly, a matter of understanding the configuration 
 
 i.e. they are divided into *sections*, which are indicated by names enclosed in square brackets (in the above, the section names are ``section1``, ``section2``, etc.), and each section consists of some number of *parameters* and assigned *values*.  Each line of each section corresponds to assigning one value to one parameter, the the parameter name on the left of the equals sign and the value on the right.
 
-BEASTling configuration files can range from very simple (the only section which is compulsory is one or more ``model`` sections) to relatively complicated - although in all cases they are vastly simpler than any BEAST XML file.  If you provide minimal configuration information, "sensible defaults" will be used for all settings.  *It is your responsibility to know what the defaults are and to make sure that they truly are sensible for you rapplication*.
+BEASTling configuration files can range from very simple (the only section which is compulsory is one or more ``model`` sections) to relatively complicated - although in all cases they are vastly simpler than any BEAST XML file.  If you provide minimal configuration information, "sensible defaults" will be used for all settings. 
+
+*It is your responsibility to know what the defaults are and to make sure that they truly are sensible for your application*.
 
 The recognised config file sections are as follows:
 
@@ -67,12 +69,14 @@ The ``languages`` section may contain the following parameters:
 * ``families``: One of:
    * A comma-separated list of language families to include in the analysis, spelled exactly as they are in Glottolog.  E.g. ``Indo-European, Uralic, Dravidian``.
    * The path to a file which contains one language family per line.
- If no value is assigned to this parameter, all languages present in the data file will be included (unless ``languages`` (see below) is used.  ``families`` and ``languages`` cannot both be used in a single configuration.
+
+If no value is assigned to this parameter, all languages present in the data file will be included (unless ``languages`` (see below) is used.  ``families`` and ``languages`` cannot both be used in a single configuration.
 
 * ``languages``: One of:
    * A comma-separated list of language names to include in the analysis, spelled exactly as they are in the data file(s).
    * The path to a file which contains one language per line.  
- If no value is assigned to this parameter, all languages present in the data file will be included (unless ``families`` (see above) is used.  ``languages`` and ``families`` cannot both be used in a single configuration.
+
+If no value is assigned to this parameter, all languages present in the data file will be included (unless ``families`` (see above) is used.  ``languages`` and ``families`` cannot both be used in a single configuration.
 
 * ``monophyly`` (or ``monophyletic``): "True" or "False".  Controls whether or not to impose the family structure in Glottolog as monophyly constraints in the BEAST analysis.  Default is False.  If True, very fine-grained control over exactly how much constraint is opposed can be gained by using additional options, documented below.
 
@@ -140,7 +144,7 @@ Additionally, each model section *may* contain the following parameters, i.e.  t
 
 * ``binarised`` or ``binarized``: "True" or "False".  This option is only relevant if the binary covarion model is being used (see :ref:`covarion`).  If unspecified, BEASTling will try to guess whether the supplied data has already been binarised, and will automatically translate multistate features into multiple binary features if not.  If BEASTling is guessing wrong, you can use this option to explicitly inform it whether or not your data has already been binarised.
 
-* ``clock``: Assigns the clock to use for this model.  See :ref:`clock sections` below for details.
+* ``clock``: Assigns the clock to use for this model.  See :ref:`clock_sections` below for details.
 
 * ``file_format``: Can be used to explicitly set which of the two supported .csv file formats the data for this model is supplied in, to be used if BEASTling is mistakenly trying to parse one format as the other (which should be very rare).  Should be one of:
    * "beastling"
@@ -180,4 +184,4 @@ Each clock section *must* contain the following parameters, i.e. they are mandat
    * "relaxed" (Uncorrelated relaxed clock)
    * "random" (Random local clock)
 
-   For more information on the available models, see :doc:`clocks`.
+For more information on the available models, see :doc:`clocks`.
