@@ -20,5 +20,6 @@ Contents
    config
    data
    modelling
+   clocks
    substitution
    scripting

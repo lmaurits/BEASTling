@@ -1,6 +1,6 @@
-===================
+============
 Clock models
-===================
+============
 
 The branch lengths of trees in BEAST need to be converted to some measure of evolutionary time in order to compute transition probabilities.  For example, if you have provided calibration dates, then the branch lengths of your tree are in the same units as your calibration data (typically years or kiloyears), but they need to be in units of expected substitutions in order to assess how well the tree fits the data.  This conversion is performed by a clock model.  Clock models may be very simple, such as specifying a single, unchanging expected number of substitutions per unit of branch length (e.g. substitutions per year) which is valid all over the tree, or more complex, with each branch on the tree having a different conversion rate, corresponding to changes in the rate of evolution over time and/or space.
 
