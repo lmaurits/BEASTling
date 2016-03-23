@@ -13,8 +13,7 @@ class BaseClock(object):
         self.is_used = False
 
     def add_pruned_branchrate_model(self, distribution, name, tree_id):
-        # Most clocks will not need special treatment for pruned trees
-        return self.branchrate_model_id
+        self.branchrate = ET.SubElement(distribution, "branchRateModel", {"idref": self.branchrate_model_id})
 
     def add_operators(self, run):
         self.add_unconditional_operators(run)
