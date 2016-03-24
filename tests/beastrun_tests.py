@@ -4,12 +4,13 @@ from xml.etree import ElementTree as et
 
 from nose.plugins.attrib import attr
 
-
 import beastling.configuration
 import beastling.beastxml
 from .util import WithConfigAndTempDir
 
 
+# To reuse the setup/teardown functionality of WithConfigAndTempDir, we keep a module
+# global instance of this class.
 TEST_CASE = None
 
 
@@ -56,6 +57,7 @@ def test_basic():
         ("admin", "mk", "geo"),
         ("admin", "mk", "geo_own_clock"),
     ]:
+        # To turn each config into a separate test, we
         yield _do_test, configs
 
 
