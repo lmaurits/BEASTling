@@ -32,7 +32,7 @@ class Tests(unittest.TestCase):
 
     def test_extractor(self):
         config = beastling.configuration.Configuration(
-            configfile=self.test_dir.joinpath("configs", "embed_data.conf").as_posix())
+            configfile=[self.test_dir.joinpath("configs", f+".conf").as_posix() for f in ("admin", "mk", "embed_data")])
         config.process()
         xml = beastling.beastxml.BeastXml(config)
         xmlfile = self.tmp.joinpath("beastling.xml")

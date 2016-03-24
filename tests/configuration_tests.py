@@ -9,7 +9,7 @@ import io
 from nose.tools import *
 from mock import patch, Mock
 
-from beastling.configuration import Configuration, get_glottolog_newick
+from beastling.configuration import Configuration, get_glottolog_newick, _BEAST_MAX_LENGTH
 from beastling.beastxml import BeastXml
 
 
@@ -21,9 +21,9 @@ class Tests(TestCase):
     def tearDown(self):
         rmtree(self.tmp)
 
-    def _make_cfg(self, name):
-        return Configuration(configfile=os.path.join(
-            os.path.dirname(__file__), 'configs', '%s.conf' % name))
+    def _make_cfg(self, *names):
+        return Configuration(configfile=[os.path.join(
+            os.path.dirname(__file__), 'configs', '%s.conf' % name) for name in names])
 
     def _make_bad_cfg(self, name):
         return Configuration(configfile=os.path.join(
@@ -142,7 +142,7 @@ class Tests(TestCase):
         cfg.process()
 
     def test_calibration(self):
-        config = self._make_cfg('calibration')
+        config = self._make_cfg('basic', 'calibration')
         config.process()
         self.assertIn('austronesian', config.calibrations)
         v = config.calibrations['austronesian']
@@ -159,3 +159,9 @@ class Tests(TestCase):
         xml2 = BeastXml(config).tostring().decode('utf8')
         self.assertEqual(
             len(xml1.split('CalibrationNormal.')), len(xml2.split('CalibrationNormal.')))
+
+    def test_overlong_chain(self):
+        config = self._make_cfg('basic')
+        config.chainlength = 9e999
+        config.process()
+        self.assertEqual(config.chainlength, _BEAST_MAX_LENGTH)
