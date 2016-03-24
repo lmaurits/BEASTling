@@ -1,37 +1,33 @@
 import glob
 import os
-import tempfile
+from subprocess import check_call, PIPE
+from xml.etree import ElementTree as et
 
-from nose.tools import *
+from nose.plugins.attrib import attr
+
 
 import beastling.configuration
 import beastling.beastxml
+from .util import WithConfigAndTempDir
 
-test_files = []
-temp_filename = None
 
-def setup():
-    global test_files, temp_filename
-    test_files.extend(glob.glob("tests/configs/*.conf"))
-    assert len(test_files)
-    fp = tempfile.NamedTemporaryFile(mode="w", delete=False)
-    temp_filename = fp.name
-    fp.close()
-
-def teardown():
-    os.remove(temp_filename)
-    os.remove(os.path.basename(temp_filename)+".state")
-    for ext in (".log", ".nex"):
-        if os.path.exists(os.path.basename(temp_filename)+ext):
-            os.path.remove(os.path.basename(temp_filename)+ext)
-
-def test_basic():
-    """Turn each BEASTling config file in tests/configs into a
-    BEAST.xml, and feed it to BEAST, testing for a zero return
-    value, which suggests no deeply mangled XML."""
-    for test_file in test_files:
-        config = beastling.configuration.Configuration(configfile=test_file)
-        xml = beastling.beastxml.BeastXml(config)
-        xml.write_file(temp_filename)
-        ret = os.system("beast -overwrite %s" % temp_filename)
-        assert ret == 0
+@attr('with_beast')
+class Tests(WithConfigAndTempDir):
+    def test_basic(self):
+        """Turn each BEASTling config file in tests/configs into a
+        BEAST.xml, and feed it to BEAST, testing for a zero return
+        value, which suggests no deeply mangled XML."""
+        temp_filename = self.tmp_path('test').as_posix()
+        test_files = glob.glob("tests/configs/*.conf")
+        assert test_files
+        for test_file in test_files:
+            xml = beastling.beastxml.BeastXml(self.make_cfg(test_file))
+            xml.write_file(temp_filename)
+            if os.environ.get('TRAVIS'):
+                et.parse(temp_filename)
+            else:
+                check_call(
+                    ['beast', '-overwrite', temp_filename],
+                    cwd=self.tmp.as_posix(),
+                    stdout=PIPE,
+                    stderr=PIPE)

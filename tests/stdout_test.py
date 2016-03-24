@@ -1,10 +1,24 @@
-from nose.tools import *
+import sys
+from contextlib import contextmanager
+
+from six import StringIO
 
 import beastling.beastxml
 import beastling.configuration
+from .util import WithConfigAndTempDir
 
-def test_extractor():
-    config = beastling.configuration.Configuration(configfile="tests/configs/basic.conf")
-    config.process()
-    xml = beastling.beastxml.BeastXml(config)
-    xml.write_file("stdout")
+
+@contextmanager
+def capture(func, *args, **kw):
+    out, sys.stdout = sys.stdout, StringIO()
+    func(*args, **kw)
+    sys.stdout.seek(0)
+    yield sys.stdout.read()
+    sys.stdout = out
+
+
+class Tests(WithConfigAndTempDir):
+    def test_stdout(self):
+        xml = beastling.beastxml.BeastXml(self.make_cfg("tests/configs/basic.conf"))
+        with capture(xml.write_file, 'stdout') as output:
+            self.assertIn('<?xml version=', output)
