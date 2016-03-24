@@ -25,6 +25,7 @@ import beastling.models.covarion as covarion
 import beastling.models.mk as mk
 
 
+_BEAST_MAX_LENGTH = 2147483647
 GLOTTOLOG_NODE_LABEL = re.compile(
     "'(?P<name>[^\[]+)\[(?P<glottocode>[a-z0-9]{8})\](\[(?P<isocode>[a-z]{3})\])?'")
 
@@ -278,7 +279,7 @@ class Configuration(object):
                 key = 'binarised'
             if key == "features":
                 value = self.handle_file_or_list(value)
-            if key in ['rate_variation', 'remove_constant_features']:
+            if key in ['pruned','rate_variation', 'remove_constant_features']:
                 value = p.getboolean(section, key)
 
             if key in ['minimum_data']:
@@ -317,7 +318,6 @@ class Configuration(object):
             self.messages.append("[DEPENDENCY] ConstrainedRandomTree is implemented in the BEAST package BEASTLabs.")
 
         # BEAST can't handle really long chains
-        _BEAST_MAX_LENGTH = 2147483647
         if self.chainlength > _BEAST_MAX_LENGTH:
             self.chainlength = _BEAST_MAX_LENGTH
             self.messages.append("[INFO] Chain length truncated to %d, as BEAST cannot handle longer chains." % self.chainlength)
