@@ -127,6 +127,7 @@ class Configuration(object):
         self.sample_branch_lengths = True
         self.sample_topology = True
         self.model_configs = []
+        self.geo_config = {}
         self.monophyly = False
         self.monophyly_start_depth = 0
         self.monophyly_end_depth = None
