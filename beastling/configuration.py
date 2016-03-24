@@ -507,9 +507,9 @@ class Configuration(object):
                     module_path, class_name = config["model"].rsplit(".",1)
                     module = importlib.import_module(module_path)
                     UserClass = getattr(module, class_name)
-                    model = UserClass(config, self)
                 except:
                     raise ValueError("Unknown model type '%s' for model section '%s', and failed to import a third-party model." % (config["model"], config["name"]))
+                model = UserClass(config, self)
 
             if config["model"].lower() != "covarion":
                 self.messages.append("""[DEPENDENCY] Model %s: AlignmentFromTrait is implemented in the BEAST package "BEAST_CLASSIC".""" % config["name"])
