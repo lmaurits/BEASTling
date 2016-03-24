@@ -9,8 +9,10 @@ from .util import WithConfigAndTempDir
 class Tests(WithConfigAndTempDir):
 
     def _make_tree_cfg(self, tree_file):
-        cfg = self.make_cfg(
-            os.path.join(os.path.dirname(__file__), 'configs/starting_tree.conf'))
+        config_files = [
+            os.path.join(os.path.dirname(__file__), 'configs', '%s.conf' % cf)
+            for cf in ["admin", "mk", tree_file]]
+        cfg = self.make_cfg(config_files)
         cfg.starting_tree = "tests/trees/%s.nex" % tree_file
         return cfg
 

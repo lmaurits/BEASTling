@@ -37,9 +37,9 @@ class RandomLocalClock(BaseClock):
 
         # Poisson prior over number of non-zero operators
         sub_prior = ET.SubElement(prior, "prior", {"id":"RandomRateChangesPrior.c:%s" % self.name, "name":"distribution"})
-        ET.SubElement(sub_prior, "x", {"id":"RandomRateChangesCount","spec":"util.Sum","arg":"@Indicators.c:%s" % self.name})
+        ET.SubElement(sub_prior, "x", {"id":"RandomRateChangesCount:%s" % self.name,"spec":"util.Sum","arg":"@Indicators.c:%s" % self.name})
         poisson = ET.SubElement(sub_prior, "distr", {"id":"RandomRatechangesPoisson.c:%s" % self.name, "spec":"beast.math.distributions.Poisson"})
-        ET.SubElement(poisson, "parameter", {"id":"RandomRateChangesPoissonLambda","estimate":"false","name":"lambda"}).text = "0.6931471805599453"
+        ET.SubElement(poisson, "parameter", {"id":"RandomRateChangesPoissonLambda:%s" % self.name,"estimate":"false","name":"lambda"}).text = "0.6931471805599453"
 
         # Exponential prior over Gamma shape parameter
         if self.estimate_variance:
@@ -69,6 +69,6 @@ class RandomLocalClock(BaseClock):
     def add_param_logs(self, logger):
         ET.SubElement(logger,"log",{"idref":"Indicators.c:%s" % self.name})
         ET.SubElement(logger,"log",{"idref":"clockrates.c:%s" % self.name})
-        ET.SubElement(logger,"log",{"idref":"RandomRateChangesCount"})
+        ET.SubElement(logger,"log",{"idref":"RandomRateChangesCount:%s" % self.name})
         if self.estimate_mean:
             ET.SubElement(logger,"log",{"idref":self.shape_id})

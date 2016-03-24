@@ -41,8 +41,9 @@ class Tests(WithConfigAndTempDir):
         return res
 
     def test_extractor(self):
-        config = self.make_cfg(
-            TESTS_DIR.joinpath("configs", "embed_data.conf").as_posix())
+        config = self.make_cfg([
+            TESTS_DIR.joinpath("configs", f + ".conf").as_posix()
+            for f in ("admin", "mk", "embed_data")])
         xml = beastling.beastxml.BeastXml(config)
         xmlfile = self.tmp.joinpath("beastling.xml")
         xml.write_file(xmlfile.as_posix())

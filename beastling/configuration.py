@@ -25,6 +25,7 @@ import beastling.models.covarion as covarion
 import beastling.models.mk as mk
 
 
+_BEAST_MAX_LENGTH = 2147483647
 GLOTTOLOG_NODE_LABEL = re.compile(
     "'(?P<name>[^\[]+)\[(?P<glottocode>[a-z0-9]{8})\](\[(?P<isocode>[a-z]{3})\])?'")
 
@@ -126,6 +127,7 @@ class Configuration(object):
         self.sample_branch_lengths = True
         self.sample_topology = True
         self.model_configs = []
+        self.geo_config = {}
         self.monophyly = False
         self.monophyly_start_depth = 0
         self.monophyly_end_depth = None
@@ -278,7 +280,7 @@ class Configuration(object):
                 key = 'binarised'
             if key == "features":
                 value = self.handle_file_or_list(value)
-            if key in ['rate_variation', 'remove_constant_features']:
+            if key in ['pruned','rate_variation', 'remove_constant_features']:
                 value = p.getboolean(section, key)
 
             if key in ['minimum_data']:
@@ -317,7 +319,6 @@ class Configuration(object):
             self.messages.append("[DEPENDENCY] ConstrainedRandomTree is implemented in the BEAST package BEASTLabs.")
 
         # BEAST can't handle really long chains
-        _BEAST_MAX_LENGTH = 2147483647
         if self.chainlength > _BEAST_MAX_LENGTH:
             self.chainlength = _BEAST_MAX_LENGTH
             self.messages.append("[INFO] Chain length truncated to %d, as BEAST cannot handle longer chains." % self.chainlength)
@@ -512,9 +513,9 @@ class Configuration(object):
                     module_path, class_name = config["model"].rsplit(".",1)
                     module = importlib.import_module(module_path)
                     UserClass = getattr(module, class_name)
-                    model = UserClass(config, self)
                 except:
                     raise ValueError("Unknown model type '%s' for model section '%s', and failed to import a third-party model." % (config["model"], config["name"]))
+                model = UserClass(config, self)
 
             if config["model"].lower() != "covarion":
                 self.messages.append("""[DEPENDENCY] Model %s: AlignmentFromTrait is implemented in the BEAST package "BEAST_CLASSIC".""" % config["name"])
