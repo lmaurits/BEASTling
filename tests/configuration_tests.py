@@ -1,9 +1,6 @@
 # coding: utf8
 from __future__ import unicode_literals
-from unittest import TestCase
 import os
-from tempfile import mktemp
-from shutil import rmtree
 import io
 
 from nose.tools import *
@@ -11,38 +8,31 @@ from mock import patch, Mock
 
 from beastling.configuration import Configuration, get_glottolog_newick, _BEAST_MAX_LENGTH
 from beastling.beastxml import BeastXml
+from .util import WithConfigAndTempDir
 
 
-class Tests(TestCase):
-    def setUp(self):
-        self.tmp = mktemp()
-        os.mkdir(self.tmp)
-
-    def tearDown(self):
-        rmtree(self.tmp)
-
+class Tests(WithConfigAndTempDir):
     def _make_cfg(self, *names):
-        return Configuration(configfile=[os.path.join(
-            os.path.dirname(__file__), 'configs', '%s.conf' % name) for name in names])
+        return self.make_cfg([
+            os.path.join(os.path.dirname(__file__), 'configs', '%s.conf' % name)
+            for name in names])
 
     def _make_bad_cfg(self, name):
-        return Configuration(configfile=os.path.join(
-            os.path.dirname(__file__), 'configs/bad_configs/',
-            '%s.conf' % name))
+        return self.make_cfg(os.path.join(
+            os.path.dirname(__file__), 'configs', 'bad_configs', '%s.conf' % name))
 
     def test_get_glottolog_newick(self):
-        with io.open(
-            os.path.join(self.tmp, 'glottolog-2.5.newick'), 'w', encoding='utf8'
-        ) as fp:
+        with self.tmp.joinpath('glottolog-2.5.newick').open('w', encoding='utf8') as fp:
             fp.write('(B [abcd1234],C [abcd1234])A [abcd1234];')
 
         with patch(
-                'beastling.configuration.user_data_dir', new=Mock(return_value=self.tmp)):
+                'beastling.configuration.user_data_dir',
+                new=Mock(return_value=self.tmp.as_posix())):
             trees = get_glottolog_newick('2.5')
             self.assertEqual(trees[0].name, 'A [abcd1234]')
 
     def test_get_glottolog_newick_download(self):
-        data_dir = os.path.join(self.tmp, 'data')
+        data_dir = os.path.join(self.tmp.as_posix(), 'data')
 
         class URLopener(object):
             def retrieve(self, url, fname):

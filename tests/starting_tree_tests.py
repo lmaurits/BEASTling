@@ -1,19 +1,18 @@
 # coding: utf8
-from unittest import TestCase
 import os
 
 from nose.tools import *
 
-from beastling.configuration import Configuration
+from .util import WithConfigAndTempDir
 
 
-class Tests(TestCase):
+class Tests(WithConfigAndTempDir):
 
     def _make_tree_cfg(self, tree_file):
-        config_files = ["admin","mk",tree_file]
-        config_files = [os.path.join(
-            os.path.dirname(__file__), 'configs', '%s.conf' % cf) for cf in config_files]
-        cfg = Configuration(configfile=config_files)
+        config_files = [
+            os.path.join(os.path.dirname(__file__), 'configs', '%s.conf' % cf)
+            for cf in ["admin", "mk", tree_file]]
+        cfg = self.make_cfg(config_files)
         cfg.starting_tree = "tests/trees/%s.nex" % tree_file
         return cfg
 

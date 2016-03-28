@@ -1,62 +1,77 @@
-import glob
 import os
-import tempfile
+from subprocess import check_call, PIPE
+from xml.etree import ElementTree as et
 
-from nose.tools import *
+from nose.plugins.attrib import attr
 
 import beastling.configuration
 import beastling.beastxml
+from .util import WithConfigAndTempDir
 
-test_files = []
-temp_filename = None
+
+# To reuse the setup/teardown functionality of WithConfigAndTempDir, we keep a module
+# global instance of this class.
+TEST_CASE = None
+
 
 def setup():
-    global test_files, temp_filename
-    test_files.extend(glob.glob("tests/configs/*.conf"))
-    assert len(test_files)
-    fp = tempfile.NamedTemporaryFile(mode="w", delete=False)
-    temp_filename = fp.name
-    fp.close()
+    global TEST_CASE
+    if TEST_CASE is None:
+        TEST_CASE = WithConfigAndTempDir('setUp')
+    TEST_CASE.setUp()
+
 
 def teardown():
-    for ext in (".log", ".nex", ".state"):
-        if os.path.exists(os.path.basename(temp_filename)+ext):
-            os.unlink(os.path.basename(temp_filename)+ext)
+    TEST_CASE.tearDown()
 
-def _do_test(*config_files):
-    config_files = [os.path.join("tests/configs/",cf+".conf") for cf in config_files]
-    config = beastling.configuration.Configuration(configfile=config_files)
-    xml = beastling.beastxml.BeastXml(config)
-    xml.write_file(temp_filename)
-    ret = os.system("beast -java -overwrite %s" % temp_filename)
-    assert ret == 0
 
-def test_beastrun():
+@attr('with_beast')
+def test_basic():
     """Turn each BEASTling config file in tests/configs into a
     BEAST.xml, and feed it to BEAST, testing for a zero return
     value, which suggests no deeply mangled XML."""
-    _do_test("admin", "mk")
-    _do_test("admin", "mk", "embed_data")
-    _do_test("admin", "cldf_data")
-    _do_test("admin", "bsvs")
-    _do_test("admin", "covarion")
-    _do_test("admin", "mk", "families")
-    _do_test("admin", "mk", "features")
-    _do_test("admin", "mk", "monophyletic")
-    _do_test("admin", "mk", "monophyletic-bottom-up")
-    _do_test("admin", "mk", "monophyletic-partial")
-    _do_test("admin", "mk", "no_screen_logging")
-    _do_test("admin", "mk", "no_file_logging")
-    _do_test("admin", "mk", "starting_tree")
-    _do_test("admin", "mk", "sample_prior")
-    _do_test("admin", "mk", "union")
-    _do_test("admin", "mk", "intersection")
-    _do_test("admin", "mk", "relaxed")
-    _do_test("admin", "mk", "random")
-    _do_test("admin", "mk", "calibration")
-    _do_test("admin", "mk", "calibration", "relaxed")
-    _do_test("admin", "mk", "calibration", "random")
-    _do_test("admin", "mk", "pruned")
-    _do_test("admin", "mk", "pruned", "relaxed")
-    _do_test("admin", "mk", "geo")
-    _do_test("admin", "mk", "geo_own_clock")
+    for configs in [
+        ("admin", "mk"),
+        ("admin", "mk", "embed_data"),
+        ("admin", "cldf_data"),
+        ("admin", "bsvs"),
+        ("admin", "covarion"),
+        ("admin", "mk", "families"),
+        ("admin", "mk", "features"),
+        ("admin", "mk", "monophyletic"),
+        ("admin", "mk", "monophyletic-bottom-up"),
+        ("admin", "mk", "monophyletic-partial"),
+        ("admin", "mk", "no_screen_logging"),
+        ("admin", "mk", "no_file_logging"),
+        ("admin", "mk", "starting_tree"),
+        ("admin", "mk", "sample_prior"),
+        ("admin", "mk", "union"),
+        ("admin", "mk", "intersection"),
+        ("admin", "mk", "relaxed"),
+        ("admin", "mk", "random"),
+        ("admin", "mk", "calibration"),
+        ("admin", "mk", "calibration", "relaxed"),
+        ("admin", "mk", "calibration", "random"),
+        ("admin", "mk", "pruned"),
+        ("admin", "mk", "pruned", "relaxed"),
+        ("admin", "mk", "geo"),
+        ("admin", "mk", "geo_own_clock"),
+    ]:
+        # To turn each config into a separate test, we
+        yield _do_test, configs
+
+
+def _do_test(config_files):
+    config_files = [os.path.join("tests/configs/", cf + ".conf") for cf in config_files]
+    config = TEST_CASE.make_cfg(config_files)
+    xml = beastling.beastxml.BeastXml(config)
+    temp_filename = TEST_CASE.tmp_path('test').as_posix()
+    xml.write_file(temp_filename)
+    if os.environ.get('TRAVIS'):
+        et.parse(temp_filename)
+    else:
+        check_call(
+            ['beast', '-overwrite', temp_filename],
+            cwd=TEST_CASE.tmp.as_posix(),
+            stdout=PIPE,
+            stderr=PIPE)

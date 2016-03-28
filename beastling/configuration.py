@@ -348,6 +348,8 @@ class Configuration(object):
         newick file, parses it and stores the required datastructure in
         self.classification.
         """
+        if self.classifications:
+            return
         label2name = {}
 
         def parse_label(label):
@@ -381,7 +383,8 @@ class Configuration(object):
         file, parses it and stores the required datastructures in
         self.glotto_macroareas and self.locations.
         """
-
+        if self.glotto_macroareas:
+            return
         self.glotto_macroareas = get_glottolog_macroareas(self.glottolog_release)
         self.locations = get_glottolog_locations(self.glottolog_release)
 
@@ -434,12 +437,15 @@ class Configuration(object):
             self.lang_filter = self.lang_filter & self.geo_filter
 
     def handle_file_or_list(self, value):
-        if os.path.exists(value):
-            with io.open(value, encoding="UTF-8") as fp:
-                result = [x.strip() for x in fp.readlines()]
-            self.files_to_embed.append(value)
+        if not isinstance(value, list):
+            if os.path.exists(value):
+                with io.open(value, encoding="UTF-8") as fp:
+                    result = [x.strip() for x in fp.readlines()]
+                self.files_to_embed.append(value)
+            else:
+                result = [x.strip() for x in value.split(",")]
         else:
-            result = [x.strip() for x in value.split(",")]
+            result = value
         return result
 
     def instantiate_clocks(self):

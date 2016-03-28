@@ -1,25 +1,22 @@
 # coding: utf8
 from __future__ import unicode_literals
-import unittest
-from tempfile import mktemp
+import re
+import os
 
-from clldutils.path import Path, rmtree, remove
+from clldutils.path import Path, remove
 from clldutils.inifile import INI
 
 import beastling.beastxml
 import beastling.configuration
 import beastling.extractor
+from .util import WithConfigAndTempDir
 
 
-class Tests(unittest.TestCase):
-    def setUp(self):
-        self.tmp = Path(mktemp('testing_tmp_dir'))
-        self.tmp.mkdir()
-        self.test_dir = Path(__file__).parent
+TESTS_DIR = Path(__file__).parent
+PATH_PATTERN = re.compile(' file (?P<path>[^\s]+)$')
 
-    def tearDown(self):
-        rmtree(self.tmp)
 
+class Tests(WithConfigAndTempDir):
     def test_read_comments(self):
         fname = self.tmp.joinpath('test.xml')
         with fname.open('w', encoding='utf8') as fp:
@@ -30,23 +27,33 @@ class Tests(unittest.TestCase):
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0].text.strip(), 'cümment')
 
+    def _extract(self, xmlfile):
+        res = beastling.extractor.extract(xmlfile)
+        for line in res:
+            match = PATH_PATTERN.search(line)
+            if match:
+                path = match.group('path').strip()[:-1]
+                try:
+                    self.assertTrue(os.path.exists(path))
+                except:
+                    raise ValueError(path)
+                os.remove(path)
+        return res
+
     def test_extractor(self):
-        config = beastling.configuration.Configuration(
-            configfile=[self.test_dir.joinpath("configs", f+".conf").as_posix() for f in ("admin", "mk", "embed_data")])
-        config.process()
+        config = self.make_cfg([
+            TESTS_DIR.joinpath("configs", f + ".conf").as_posix()
+            for f in ("admin", "mk", "embed_data")])
         xml = beastling.beastxml.BeastXml(config)
         xmlfile = self.tmp.joinpath("beastling.xml")
         xml.write_file(xmlfile.as_posix())
-        res = beastling.extractor.extract(xmlfile)
-        self.assertTrue(bool(res))
+        self.assertTrue(bool(self._extract(xmlfile)))
 
-        config = beastling.configuration.Configuration(
-            configfile={
-                'admin': {'basename': 'abcdefg'},
-                'model': {
-                    'model': 'mk',
-                    'data': self.test_dir.joinpath('data', 'basic.csv').as_posix()}})
-        config.process()
+        config = self.make_cfg({
+            'admin': {'basename': 'abcdefg'},
+            'model': {
+                'model': 'mk',
+                'data': TESTS_DIR.joinpath('data', 'basic.csv').as_posix()}})
         xml = beastling.beastxml.BeastXml(config)
         xmlfile = self.tmp.joinpath("beastling.xml")
         xml.write_file(xmlfile.as_posix())
@@ -76,5 +83,5 @@ class Tests(unittest.TestCase):
        beastling.extractor._config_file_str,
        beastling.extractor._data_file_str,
        datafile.as_posix()))
-        beastling.extractor.extract(fname)
-        self.assertTrue(datafile.exists())
+        res = self._extract(fname)
+        self.assertIn(datafile.name, ''.join(res))

@@ -1,7 +1,8 @@
 import datetime
-import os
 import sys
 import xml.etree.ElementTree as ET
+
+from six import BytesIO, PY3
 
 from beastling import __version__
 import beastling.beast_maps as beast_maps
@@ -361,21 +362,26 @@ class BeastXml(object):
         """
         Return a string representation of the entire XML document.
         """
+        out = BytesIO()
+        self.write(out)
+        out.seek(0)
+        return out.read()
+
+    def write(self, stream):
         indent(self.beast)
-        return ET.tostring(self.beast, encoding="UTF-8")
+        tree = ET.ElementTree(self.beast)
+        tree.write(stream, encoding='UTF-8', xml_declaration=True)
 
     def write_file(self, filename=None):
         """
         Write the XML document to a file.
         """
-        xml_string = self.tostring()
-        if not filename:
-            filename = self.config.basename+".xml"
         if filename in ("stdout", "-"):
-            sys.stdout.write(xml_string.decode('utf8'))
+            # See https://docs.python.org/3/library/sys.html#sys.stdout
+            self.write(getattr(sys.stdout, 'buffer', sys.stdout) if PY3 else sys.stdout)
         else:
-            with open(filename, "wb") as fp:
-                fp.write(xml_string)
+            with open(filename or self.config.basename + ".xml", "wb") as stream:
+                self.write(stream)
 
     def make_monophyly_newick(self, langs):
         """
