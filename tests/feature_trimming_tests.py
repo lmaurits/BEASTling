@@ -1,4 +1,4 @@
-from .util import WithConfigAndTempDir
+from .util import WithConfigAndTempDir, config_path
 
 
 class Tests(WithConfigAndTempDir):
@@ -7,10 +7,10 @@ class Tests(WithConfigAndTempDir):
         in the instantiated model.  Then reload the same file, but
         modify it to turn off the "remove_constant_features" model.
         Reinstantiate and make sure that more features survive."""
-        config = self.make_cfg("tests/configs/basic.conf")
+        config = self.make_cfg(config_path('basic').as_posix())
         config.process()
         a = len(config.models[0].features)
-        config = self.make_cfg("tests/configs/basic.conf")
+        config = self.make_cfg(config_path('basic').as_posix())
         config.model_configs[0]["remove_constant_features"] = False
         config.process()
         b = len(config.models[0].features)

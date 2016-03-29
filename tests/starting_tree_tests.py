@@ -1,19 +1,15 @@
 # coding: utf8
-import os
-
 from nose.tools import *
 
-from .util import WithConfigAndTempDir
+from .util import WithConfigAndTempDir, config_path, tests_path
 
 
 class Tests(WithConfigAndTempDir):
 
     def _make_tree_cfg(self, tree_file):
-        config_files = [
-            os.path.join(os.path.dirname(__file__), 'configs', '%s.conf' % cf)
-            for cf in ["admin", "mk", tree_file]]
+        config_files = [config_path(cf).as_posix() for cf in ["admin", "mk", tree_file]]
         cfg = self.make_cfg(config_files)
-        cfg.starting_tree = "tests/trees/%s.nex" % tree_file
+        cfg.starting_tree = tests_path('trees', "%s.nex" % tree_file).as_posix()
         return cfg
 
     def test_basic_starting_tree(self):

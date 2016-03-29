@@ -9,10 +9,9 @@ from clldutils.inifile import INI
 import beastling.beastxml
 import beastling.configuration
 import beastling.extractor
-from .util import WithConfigAndTempDir
+from .util import WithConfigAndTempDir, config_path, data_path
 
 
-TESTS_DIR = Path(__file__).parent
 PATH_PATTERN = re.compile(' file (?P<path>[^\s]+)$')
 
 
@@ -41,9 +40,8 @@ class Tests(WithConfigAndTempDir):
         return res
 
     def test_extractor(self):
-        config = self.make_cfg([
-            TESTS_DIR.joinpath("configs", f + ".conf").as_posix()
-            for f in ("admin", "mk", "embed_data")])
+        config = self.make_cfg(
+            [config_path(f).as_posix() for f in ("admin", "mk", "embed_data")])
         xml = beastling.beastxml.BeastXml(config)
         xmlfile = self.tmp.joinpath("beastling.xml")
         xml.write_file(xmlfile.as_posix())
@@ -53,7 +51,7 @@ class Tests(WithConfigAndTempDir):
             'admin': {'basename': 'abcdefg'},
             'model': {
                 'model': 'mk',
-                'data': TESTS_DIR.joinpath('data', 'basic.csv').as_posix()}})
+                'data': data_path('basic.csv').as_posix()}})
         xml = beastling.beastxml.BeastXml(config)
         xmlfile = self.tmp.joinpath("beastling.xml")
         xml.write_file(xmlfile.as_posix())
