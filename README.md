@@ -3,7 +3,11 @@
 A linguistics-focussed command line tool for generating
 [BEAST](http://beast2.org) XML files.  Only BEAST 2.x is supported.
 
-For full documentation, see [Read the Docs](https://beastling.readthedocs.org).
+[![Documentation Status](https://readthedocs.org/projects/beastling/badge/?version=latest)](http://beastling.readthedocs.org/en/latest/?badge=latest)
+[![Build Status](https://travis-ci.org/lmaurits/BEASTling.svg?branch=develop)](https://travis-ci.org/lmaurits/BEASTling)
+[![codecov.io](http://codecov.io/github/lmaurits/BEASTling/coverage.svg?branch=develop)](http://codecov.io/github/lmaurits/BEASTling?branch=develop)
+[![PyPI](https://img.shields.io/pypi/v/beastling.svg)](https://pypi.python.org/pypi/beastling)
+[![PyPI](https://img.shields.io/pypi/pyversions/beastling.svg)](https://pypi.python.org/pypi/beastling)
 
 BEASTling is written in [Python](http://python.org).  Python versions 2.7 and
 3.4+ are supported.  It is available from the Python Package Index, aka "the
