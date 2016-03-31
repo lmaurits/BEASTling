@@ -6,7 +6,7 @@ from nose.plugins.attrib import attr
 
 import beastling.configuration
 import beastling.beastxml
-from .util import WithConfigAndTempDir
+from .util import WithConfigAndTempDir, config_path
 
 
 # To reuse the setup/teardown functionality of WithConfigAndTempDir, we keep a module
@@ -62,8 +62,7 @@ def test_basic():
 
 
 def _do_test(config_files):
-    config_files = [os.path.join("tests/configs/", cf + ".conf") for cf in config_files]
-    config = TEST_CASE.make_cfg(config_files)
+    config = TEST_CASE.make_cfg([config_path(cf).as_posix() for cf in config_files])
     xml = beastling.beastxml.BeastXml(config)
     temp_filename = TEST_CASE.tmp_path('test').as_posix()
     xml.write_file(temp_filename)
