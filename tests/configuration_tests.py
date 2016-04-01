@@ -5,8 +5,12 @@ import io
 
 from nose.tools import *
 from mock import patch, Mock
+import newick
+from clldutils.path import Path
 
-from beastling.configuration import Configuration, get_glottolog_newick, _BEAST_MAX_LENGTH
+from beastling.configuration import (
+    Configuration, get_glottolog_data, _BEAST_MAX_LENGTH, UniversalSet,
+)
 from beastling.beastxml import BeastXml
 from .util import WithConfigAndTempDir, config_path
 
@@ -18,6 +22,21 @@ class Tests(WithConfigAndTempDir):
     def _make_bad_cfg(self, name):
         return self.make_cfg(config_path(name, bad=True).as_posix())
 
+    def test_UniversalSet(self):
+        s = {1, 2, 3}
+        self.assertEqual(s & UniversalSet(), s)
+        self.assertEqual(UniversalSet() & s, s)
+
+    def test_get_glottolog_geo(self):
+        geodata = self.tmp.joinpath('glottolog-2.5-geo.csv')
+        with geodata.open('w', encoding='utf8') as fp:
+            fp.write('x')
+
+        with patch(
+                'beastling.configuration.user_data_dir',
+                new=Mock(return_value=self.tmp.as_posix())):
+            self.assertEqual(Path(get_glottolog_data('geo', '2.5')), geodata)
+
     def test_get_glottolog_newick(self):
         with self.tmp.joinpath('glottolog-2.5.newick').open('w', encoding='utf8') as fp:
             fp.write('(B [abcd1234],C [abcd1234])A [abcd1234];')
@@ -25,10 +44,10 @@ class Tests(WithConfigAndTempDir):
         with patch(
                 'beastling.configuration.user_data_dir',
                 new=Mock(return_value=self.tmp.as_posix())):
-            trees = get_glottolog_newick('2.5')
+            trees = newick.read(get_glottolog_data('newick', '2.5'))
             self.assertEqual(trees[0].name, 'A [abcd1234]')
 
-    def test_get_glottolog_newick_download(self):
+    def test_get_glottolog_data_download(self):
         data_dir = os.path.join(self.tmp.as_posix(), 'data')
 
         class URLopener(object):
@@ -46,15 +65,14 @@ class Tests(WithConfigAndTempDir):
             URLopener=URLopenerError,
         ):
             with self.assertRaises(ValueError):
-                get_glottolog_newick('2.5')
+                get_glottolog_data('newick', '2.5')
 
         with patch.multiple(
             'beastling.configuration',
             user_data_dir=Mock(return_value=data_dir),
             URLopener=URLopener,
         ):
-            trees = get_glottolog_newick('2.5')
-            self.assertEqual(trees[0].name, 'A [abcd1234]')
+            assert get_glottolog_data('newick', '2.5')
 
     def test_families(self):
         cfg1 = self._make_cfg('glottolog_families')

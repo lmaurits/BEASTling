@@ -1,19 +1,16 @@
 from __future__ import division, unicode_literals
-import collections
 import importlib
-import itertools
 import io
 import os
 import re
 import six
 import sys
-from random import uniform as uniformrand
-from random import sample as randsample
 
 import newick
 from appdirs import user_data_dir
 from six.moves.urllib.request import FancyURLopener
 from clldutils.inifile import INI
+from clldutils.dsv import reader
 
 import beastling.clocks.strict as strict
 import beastling.clocks.relaxed as relaxed
@@ -32,7 +29,7 @@ GLOTTOLOG_NODE_LABEL = re.compile(
 
 class URLopener(FancyURLopener):
     def http_error_default(self, url, fp, errcode, errmsg, headers):
-        raise ValueError()
+        raise ValueError()  # pragma: no cover
 
 
 class UniversalSet(set):
@@ -45,8 +42,20 @@ class UniversalSet(set):
         return other
 
 
-def get_glottolog_newick(release):
-    fname = 'glottolog-%s.newick' % release
+def get_glottolog_data(datatype, release):
+    """
+    Lookup or download data from Glottolog.
+
+    :param datatype: 'newick'|'geo'
+    :param release: Glottolog release number >= '2.4'
+    :return: the path of the data file
+    """
+    path_spec = {
+        'newick': ('glottolog-{0}.newick', 'tree-glottolog-newick.txt'),
+        'geo': ('glottolog-{0}-geo.csv', 'languages-and-dialects-geo.csv'),
+    }
+    fname_pattern, fname_source = path_spec[datatype]
+    fname = fname_pattern.format(release)
     path = os.path.join(os.path.dirname(__file__), 'data', fname)
     if not os.path.exists(path):
         data_dir = user_data_dir('beastling')
@@ -56,36 +65,14 @@ def get_glottolog_newick(release):
         if not os.path.exists(path):
             try:
                 URLopener().retrieve(
-                    'http://glottolog.org/static/download/%s/tree-glottolog-newick.txt'
-                    % release,
+                    'http://glottolog.org/static/download/{0}/{1}'.format(
+                        release, fname_source),
                     path)
             except (IOError, ValueError):
                 raise ValueError(
-                    'Could not retrieve classification for Glottolog %s' % release)
-    return newick.read(path)
+                    'Could not retrieve %s data for Glottolog %s' % (datatype, release))
+    return path
 
-def get_glottolog_macroareas(glottolog_release):
-        """MOCK"""
-
-        def parse_label(label):
-            match = GLOTTOLOG_NODE_LABEL.match(label)
-            return (
-                match.group('name').strip(),
-                match.group('glottocode'),
-                match.group('isocode'))
-
-        macro = {}
-        trees = get_glottolog_newick(glottolog_release)
-        for t in trees:
-            for lang in t.get_leaf_names():
-                name, glotto, iso = parse_label(lang)
-                macro[glotto] = randsample(["Africa","Australia", "Eurasia","North America", "South America", "Papunesia"],1)[0]
-                macro[iso] = macro[glotto]
-        return macro
-
-def get_glottolog_locations(glottolog_release):
-        """MOCK"""
-        return collections.defaultdict(lambda: (uniformrand(-90,90), uniformrand(-180,180)))
 
 class Configuration(object):
     """
@@ -368,7 +355,7 @@ class Configuration(object):
                 ancestor = ancestor.ancestor
             return list(reversed(res))
 
-        glottolog_trees = get_glottolog_newick(self.glottolog_release)
+        glottolog_trees = newick.read(get_glottolog_data('newick', self.glottolog_release))
         for tree in glottolog_trees:
             for node in tree.walk():
                 name, glottocode, isocode = parse_label(node.name)
@@ -385,8 +372,18 @@ class Configuration(object):
         """
         if self.glotto_macroareas:
             return
-        self.glotto_macroareas = get_glottolog_macroareas(self.glottolog_release)
-        self.locations = get_glottolog_locations(self.glottolog_release)
+
+        for t in reader(
+                get_glottolog_data('geo', self.glottolog_release), namedtuples=True):
+            if t.macroarea:
+                self.glotto_macroareas[t.glottocode] = t.macroarea
+                for isocode in t.isocodes.split():
+                    self.glotto_macroareas[isocode] = t.macroarea
+            if t.latitude and t.longitude:
+                latlon = (float(t.latitude), float(t.longitude))
+                self.locations[t.glottocode] = latlon
+                for isocode in t.isocodes.split():
+                    self.locations[isocode] = latlon
 
     def load_user_geo(self):
         if not self.location_data:
