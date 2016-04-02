@@ -74,7 +74,7 @@ class BeastXml(object):
         if not self.config.embed_data:
             return
         for filename in self.config.files_to_embed:
-            self.beast.append(self.format_data_file(model.data_filename))
+            self.beast.append(self.format_data_file(filename))
         for model in self.config.models:
             self.beast.append(self.format_data_file(model.data_filename))
 

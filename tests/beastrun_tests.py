@@ -32,7 +32,6 @@ def test_basic():
     value, which suggests no deeply mangled XML."""
     for configs in [
         ("admin", "mk"),
-        ("admin", "mk", "embed_data"),
         ("admin", "cldf_data"),
         ("admin", "bsvs"),
         ("admin", "covarion"),

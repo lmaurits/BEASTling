@@ -170,3 +170,12 @@ class Tests(WithConfigAndTempDir):
         config.chainlength = 9e999
         config.process()
         self.assertEqual(config.chainlength, _BEAST_MAX_LENGTH)
+
+    def test_file_embedding(self):
+        config = self._make_cfg('glottolog_families_from_file','embed_data')
+        xml = BeastXml(config).tostring().decode('utf8')
+        # Check for evidence of data
+        self.assertTrue("aari1239,1,1,1,1,1,1,?,1,?,1" in xml)
+        # Check for evidence of families
+        self.assertTrue("Malayo-Polynesian" in xml)
+
