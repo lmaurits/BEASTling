@@ -53,3 +53,10 @@ Such a ``Configuration`` object will be created with all options set to their de
     config["name"] = "my_model"
     config["model"] = "mk" # or "covarion", "bsvs", etc.
     config["data"] = "my_data.csv"
+
+If you want to include non-default clock models, you should similarly populate the ``clock_configs`` attribute, which by default is an empty list and should end up full of dictionaries which mirror the structure of a ``[clock]`` section.
+
+Other details of the configuration can be specified by overwriting the following instance attributes:
+
+.. autoclass:: beastling.configuration.Configuration
+    :members: basename, calibrations, clock_configs, embed_data, families, glottolog_release, languages, log_all, log_every, log_params, log_probabilities, log_trees, macroareas, monophyly, monophyly_direction, monophyly_end_depth, monophyly_levels, monophyly_start_depth, overlap, sample_branch_lengths, sample_topology, screenlog, self.location_data, starting_tree

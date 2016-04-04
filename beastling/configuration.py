@@ -87,52 +87,80 @@ class Configuration(object):
         file has been provided, override the default values for those options
         set in the file.
         """
-        self.processed = False
-        self.messages = []
-        self.message_flags = []
 
-        # Set up default options
+        # Options set by the user, with default values
         self.basename = basename+"_prior" if prior else basename
-        self.clock_configs = []
-        self.configfile = None
-        self.configfile_text = None
-        self.chainlength = 10000000
-        self.embed_data = False
-        self.files_to_embed = []
-        # We need two different attributes, because specifying prior
-        # sampling in the config file does not affect names, whereas
-        # it does on the command line to avoid overwriting generated
-        # beast output. Also, the command line switch has precendent
-        # over the config file setting.
-        self.prior = prior
-        self.sample_from_prior = False
-        self.families = "*"
-        self.languages = "*"
-        self.macroareas = "*"
-        self.overlap = "union"
-        self.starting_tree = ""
-        self.sample_branch_lengths = True
-        self.sample_topology = True
-        self.model_configs = []
-        self.geo_config = {}
-        self.monophyly = False
-        self.monophyly_start_depth = 0
-        self.monophyly_end_depth = None
-        self.monophyly_levels = sys.maxsize
-        self.monophyly_direction = "top_down"
-        self.screenlog = True
-        self.log_all = False
-        self.log_every = 0
-        self.log_params = False
-        self.log_probabilities = True
-        self.log_trees = True
-        self.stdin_data = stdin_data
+        """This will be used as a common prefix for output filenames (e.g. the log will be called basename.log)."""
         self.calibrations = {}
+        """A dictionary whose keys are glottocodes or lowercase Glottolog clade names, and whose values are length-2 tuples of flatoing point dates (lower and upper bounds of 95% credible interval)."""
+        self.chainlength = 10000000
+        """Number of iterations to run the Markov chain for."""
+        self.clock_configs = []
+        """A list of dictionaries, each of which specifies the configuration for a single clock model."""
+        self.embed_data = False
+        """A boolean value, controlling whether or not to embed data files in the XML."""
+        self.families = "*"
+        """List of families to filter down to, or name of a file containing such a list."""
+        self.geo_config = {}
+        """A dictionary with keys and values corresponding to a [geography] section in a configuration file."""
         self.glottolog_release = '2.7'
+        """A string representing a Glottolog release number."""
+        self.languages = "*"
+        """List of languages to filter down to, or name of a file containing such a list."""
+        self.location_data = None
+        """Name of a file containing latitude/longitude data."""
+        self.log_all = False
+        """A boolean value, setting this True is a shortcut for setting log_params, log_probabilities and log_trees True."""
+        self.log_every = 0
+        """An integer indicating how many MCMC iterations should occurr between consecutive log entries."""
+        self.log_params = False
+        """A boolean value, controlling whether or not to log model parameters."""
+        self.log_probabilities = True
+        """A boolean value, controlling whether or not to log the prior, likelihood and posterior of the analysis."""
+        self.log_trees = True
+        """A boolean value, controlling whether or not to log the sampled trees."""
+        self.macroareas = "*"
+        """List of Glottolog macro-areas to filter down to, or name of a file containing such a list."""
+        self.model_configs = []
+        """A list of dictionaries, each of which specifies the configuration for a single clock model."""
+        self.monophyly = False
+        """A boolean parameter, controlling whether or not to enforce monophyly constraints derived from Glottolog's classification."""
+        self.monophyly_start_depth = 0
+        """Integer; Starting depth in the Glottlog classification hierarchy for monophyly constraints"""
+        self.monophyly_end_depth = None
+        """Integer; Ending depth in the Glottlog classification hierarchy for monophyly constraints"""
+        self.monophyly_levels = sys.maxsize
+        """Integer; Number of levels of the Glottolog classification to include in monophyly constraints."""
+        self.monophyly_direction = "top_down"
+        """Either the string 'top_down' or 'bottom_up', controlling whether 'monophyly_levels' counts from roots (families) or leaves (languages) of the Glottolog classification."""
+        self.overlap = "union"
+        """Either the string 'union' or the string 'intersection', controlling how to handle multiple datasets with non-equal language sets."""
+        self.sample_branch_lengths = True
+        """A boolean value, controlling whether or not to estimate tree branch lengths."""
+        self.sample_from_prior = False
+        """Boolean parameter; if True, data is ignored and the MCMC chain will sample from the prior."""
+        self.sample_topology = True
+        """A boolean value, controlling whether or not to estimate tree topology."""
+        self.screenlog = True
+        """A boolean parameter, controlling whether or not to log some basic output to stdout."""
+        self.starting_tree = ""
+        """A starting tree in Newick format, or the name of a file containing the same."""
+        self.stdin_data = stdin_data
+
+        # Glottolog data
         self.classifications = {}
         self.glotto_macroareas = {}
-        self.location_data = None
         self.locations = {}
+
+        # Options set from the command line interface
+        self.prior = prior
+
+        # Stuff we compute ourselves
+        self.processed = False
+        self.configfile = None
+        self.files_to_embed = []
+        self.messages = []
+        self.message_flags = []
 
         if configfile:
             self.read_from_file(configfile)
