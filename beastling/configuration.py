@@ -546,9 +546,9 @@ class Configuration(object):
                 model.clock = self.clocks_by_name["default"]
             model.clock.is_used = True
 
-        # Warn user about unused clock(s)
+        # Warn user about unused clock(s) (but not the default clock)
         for clock in self.clocks:
-            if not clock.is_used:
+            if clock.name != "default" and not clock.is_used:
                 self.messages.append("""[INFO] Clock %s is not being used.  Change its name to "default", or explicitly associate it with a model.""" % clock.name)
 
         # Get a list of model (i.e. non-geo) clocks for which the user has not
