@@ -117,6 +117,8 @@ class Configuration(object):
         """A boolean value, controlling whether or not to log model parameters."""
         self.log_probabilities = True
         """A boolean value, controlling whether or not to log the prior, likelihood and posterior of the analysis."""
+        self.log_fine_probs = True
+        """A boolean value, controlling whether or not to log individuaal components of the prior and likelihood,."""
         self.log_trees = True
         """A boolean value, controlling whether or not to log the sampled trees."""
         self.macroareas = "*"
@@ -188,6 +190,7 @@ class Configuration(object):
                 'log_every': p.getint,
                 'log_all': p.getboolean,
                 'log_probabilities': p.getboolean,
+                'log_fine_probs': p.getboolean,
                 'log_params': p.getboolean,
                 'log_trees': p.getboolean,
                 'glottolog_release': p.get,

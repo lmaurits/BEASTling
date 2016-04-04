@@ -239,7 +239,7 @@ class BaseModel(object):
         """
         for n, f in enumerate(self.features):
             fname = "%s:%s" % (self.name, f)
-            attribs = {"id":"traitedtreeLikelihood.%s" % fname,"spec":"TreeLikelihood","useAmbiguities":"true"}
+            attribs = {"id":"traitedtreeLikelihood:%s" % fname,"spec":"TreeLikelihood","useAmbiguities":"true"}
             if self.pruned:
                 distribution = ET.SubElement(likelihood, "distribution",attribs)
                 # Create pruned tree
@@ -305,6 +305,11 @@ class BaseModel(object):
         Add entires to the logfile corresponding to individual feature
         substition rates if rate variation is configured.
         """
+        if self.config.log_fine_probs:
+            for n, f in enumerate(self.features):
+                fname = "%s:%s" % (self.name, f)
+                ET.SubElement(logger,"log",{"idref":"traitedtreeLikelihood:%s" % fname})
+
         if self.rate_variation:
             for f in self.features:
                 fname = "%s:%s" % (self.name, f)

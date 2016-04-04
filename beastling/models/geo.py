@@ -129,4 +129,5 @@ class GeoModel(object):
         Add entires to the logfile corresponding to individual feature
         substition rates if rate variation is configured.
         """
-        pass
+        if self.config.log_fine_probs:
+            ET.SubElement(logger,"log",{"idref":"sphericalGeographyLikelihood"})
