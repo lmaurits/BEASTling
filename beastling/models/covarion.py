@@ -23,7 +23,10 @@ class CovarionModel(BaseModel):
             self.ascertained = False
             self.messages.append("""[INFO] Model "%s": Constant features in data have been retained, so ascertainment correction will be disabled.""" % (self.name))
         else:
-            self.ascertained = True
+            self.ascertained = model_config.get("ascertained", True)
+            if str(self.ascertained).lower() == "false":
+                self.ascertained = False
+
         self.freq_str = self.build_freq_str()
 
     def build_freq_str(self):
