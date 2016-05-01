@@ -262,8 +262,6 @@ class Configuration(object):
 
         ## Models
         model_sections = [s for s in p.sections() if s.lower().startswith("model")]
-        if not model_sections:
-            raise ValueError("Config file contains no model sections.")
         for section in model_sections:
             self.model_configs.append(self.get_model_config(p, section))
         
@@ -272,6 +270,10 @@ class Configuration(object):
             self.geo_config = self.get_geo_config(p, "geography")
         else:
             self.geo_config = {}
+
+        # Make sure analysis is non-empty
+        if not model_sections and not self.geo_config:
+            raise ValueError("Config file contains no model sections and no geography section.")
 
     def get_clock_config(self, p, section):
         cfg = {
@@ -617,7 +619,10 @@ class Configuration(object):
         value of self.overlap, to construct a final list of all the languages
         in the analysis.
         """
-        self.languages = set(self.models[0].data.keys())
+        if self.models:
+            self.languages = set(self.models[0].data.keys())
+        else:
+            self.languages = self.lang_filter
         self.overlap_warning = False
         for model in self.models:
             addition = set(model.data.keys())
