@@ -98,6 +98,8 @@ class Configuration(object):
         self.clock_configs = []
         """A list of dictionaries, each of which specifies the configuration for a single clock model."""
         self.embed_data = False
+        """A list of languages to exclude from the analysis, or a name of a file containing such a list."""
+        self.exclusions = []
         """A boolean value, controlling whether or not to embed data files in the XML."""
         self.families = "*"
         """List of families to filter down to, or name of a file containing such a list."""
@@ -200,6 +202,7 @@ class Configuration(object):
                 'sample_from_prior': p.getboolean,
             },
             'languages': {
+                'exclusions': p.get,
                 'languages': p.get,
                 'families': p.get,
                 'macroareas': p.get,
@@ -442,6 +445,7 @@ class Configuration(object):
         # Load requirements
         self.languages = self.handle_file_or_list(self.languages)
         self.families = self.handle_file_or_list(self.families)
+        self.exclusions = self.handle_file_or_list(self.exclusions)
         self.macroareas = self.handle_file_or_list(self.macroareas)
 
         # Build language filter based on languages or families
@@ -465,6 +469,9 @@ class Configuration(object):
             self.geo_filter = {
                     l for l in self.glotto_macroareas if self.glotto_macroareas[l] in self.macroareas}
             self.lang_filter = self.lang_filter & self.geo_filter
+
+        # Remove exclusions
+        self.lang_filter = self.lang_filter.difference(set(self.exclusions))
 
     def handle_file_or_list(self, value):
         if not isinstance(value, list):
