@@ -33,8 +33,12 @@ class CovarionModel(BaseModel):
         if self.binarised:
             all_data = []
             for f in self.features:
+                frange = sorted(list(set(self.data[lang][f] for lang in self.data)))
                 for lang in self.data:
-                    all_data.extend(self.data[lang][f])
+                    if self.data[lang][f] == "?":
+                        continue
+                    dpoint, index = self.data[lang][f], frange.index(self.data[lang][f])
+                    all_data.append(index)
         else:
             all_data = []
             for f in self.features:
@@ -48,8 +52,9 @@ class CovarionModel(BaseModel):
                         all_data.extend(valuestring)
 
         all_data = [d for d in all_data if d !="?"]
-        zerf = 1.0*all_data.count("0") / len(all_data)
-        onef = 1.0*all_data.count("1") / len(all_data)
+        assert set([int(x) for x in all_data]) == set([0,1])
+        zerf = 1.0*all_data.count(0) / len(all_data)
+        onef = 1.0*all_data.count(1) / len(all_data)
         return "%.2f %.2f" % (zerf, onef)
 
     def add_state(self, state):
