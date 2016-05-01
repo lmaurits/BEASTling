@@ -138,3 +138,6 @@ class CovarionModel(BaseModel):
         BaseModel.add_param_logs(self, logger)
         ET.SubElement(logger,"log",{"idref":"%s:covarion_alpha.s" % self.name})
         ET.SubElement(logger,"log",{"idref":"%s:covarion_s.s" % self.name})
+        if self.config.log_fine_probs:
+            ET.SubElement(logger,"log",{"idref":"%s:covarion_alpha_prior.s" % self.name})
+            ET.SubElement(logger,"log",{"idref":"%s:covarion_s_prior.s" % self.name})
