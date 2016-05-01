@@ -309,6 +309,9 @@ class BaseModel(object):
             for n, f in enumerate(self.features):
                 fname = "%s:%s" % (self.name, f)
                 ET.SubElement(logger,"log",{"idref":"traitedtreeLikelihood:%s" % fname})
+            if self.rate_variation:
+                ET.SubElement(logger,"log",{"idref":"featureClockRatePrior.s:%s" % self.name})
+                ET.SubElement(logger,"log",{"idref":"featureClockRateGammaShapePrior.s:%s" % self.name})
 
         if self.rate_variation:
             for f in self.features:
