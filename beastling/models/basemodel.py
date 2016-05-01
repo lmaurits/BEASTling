@@ -31,6 +31,7 @@ class BaseModel(object):
         self.remove_constant_features = model_config.get("remove_constant_features", True)
         self.minimum_data = float(model_config.get("minimum_data", 0))
         self.lang_column = model_config.get("language_column", None)
+        self.substitution_name = self.__class__.__name__
 
 
         self.data = load_data(self.data_filename, file_format=model_config.get("file_format",None), lang_column=model_config.get("language_column",None))

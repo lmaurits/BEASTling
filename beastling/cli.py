@@ -6,6 +6,8 @@ import sys
 import traceback
 
 from beastling.beastxml import BeastXml
+from beastling.report import BeastlingReport
+from beastling.report import BeastlingGeoJSON
 import beastling.configuration
 from beastling.extractor import extract
 
@@ -28,6 +30,11 @@ def main(*args):
         default=False,
         action="store_true",
         help="Extract configuration file (and possibly data files) from a BEASTling-generated XML file.")
+    parser.add_argument(
+        "--report",
+        default=False,
+        action="store_true",
+        help="Save a high-level report on the analysis as a Markdown file.")
     parser.add_argument(
         "-o", "--output",
         help="Output filename, no extension",
@@ -114,3 +121,10 @@ def do_generate(args):
         errmsg("File %s already exists!  Run beastling with the --overwrite option if you wish to overwrite it.\n" % filename)
         sys.exit(4)
     xml.write_file(filename)
+
+    # Build and write report
+    if args.report:
+        report = BeastlingReport(config)
+        report.write_file(config.basename+".md")
+        geojson = BeastlingGeoJSON(config)
+        geojson.write_file(config.basename+".geojson")
