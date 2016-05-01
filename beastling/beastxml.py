@@ -346,6 +346,7 @@ class BeastXml(object):
 
         # Fine-grained logging
         if self.config.log_fine_probs:
+            ET.SubElement(tracer_logger,"log",{"idref":"YuleModel.t:beastlingTree"})
             ET.SubElement(tracer_logger,"log",{"idref":"YuleBirthRatePrior.t:beastlingTree"})
 
     def add_tree_logger(self):
