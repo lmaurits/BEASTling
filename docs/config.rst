@@ -66,6 +66,12 @@ languages section
 
 The ``languages`` section may contain the following parameters:
 
+* ``exclusions``: One of:
+   * A comma-separated list of language names or codes to exclude from the analysis, spelled exactly as they are in the data file(s).
+   * The path to a file which contains one language per line.
+
+This can be used by itself to remove a few problematic languages from a data file, or in conjunction with ``families`` or ``macroareas`` to better control which languages are included, e.g. you may set ``macroareas = Africa``, but use ``excludes`` to remove some outliers like Austronesian languages on Madagascar or Indo-European languages in South Africa.
+
 * ``families``: One of:
    * A comma-separated list of language families to include in the analysis, spelled exactly as they are in Glottolog.  E.g. ``Indo-European, Uralic, Dravidian``.
    * The path to a file which contains one language family per line.
@@ -73,10 +79,16 @@ The ``languages`` section may contain the following parameters:
 If no value is assigned to this parameter, all languages present in the data file will be included (unless ``languages`` (see below) is used.  ``families`` and ``languages`` cannot both be used in a single configuration.
 
 * ``languages``: One of:
-   * A comma-separated list of language names to include in the analysis, spelled exactly as they are in the data file(s).
+   * A comma-separated list of language names or codes to include in the analysis, spelled exactly as they are in the data file(s).
    * The path to a file which contains one language per line.  
 
 If no value is assigned to this parameter, all languages present in the data file will be included (unless ``families`` (see above) is used.  ``languages`` and ``families`` cannot both be used in a single configuration.
+
+* ``macroareas``: One of:
+   * A comma-separated list of Glottolog macroareas to include in the analysis
+   * The path to a file which contains one macroarea per line.  
+
+Valid macroareas are: ``Africa``, ``Australia``, ``Eurasia``, ``North America``, ``Papunesia``, ``South America``.  This can be used in conjunction with ``languages`` or ``families``, in which case a language must meet both criteria to be included.  E.g. if you set ``families = Afro-Asiatic`` and ``macroareas = Africa``, you will get only the Afro-Asiatic languages located in Africa, and those located in Eurasia will be excluded.
 
 * ``monophyly`` (or ``monophyletic``): "True" or "False".  Controls whether or not to impose the family structure in Glottolog as monophyly constraints in the BEAST analysis.  Default is False.  If True, very fine-grained control over exactly how much constraint is opposed can be gained by using additional options, documented below.
 
