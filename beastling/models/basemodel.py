@@ -209,7 +209,7 @@ class BaseModel(object):
                 attribs["name"] = "stateNode"
                 parameter = ET.SubElement(state, "parameter", attribs)
                 parameter.text="1.0"
-            parameter = ET.SubElement(state, "parameter", {"id":"featureClockRateGammaShape:%s" % self.name, "name":"stateNode"})
+            parameter = ET.SubElement(state, "parameter", {"id":"featureClockRateGammaShape:%s" % self.name, "lower":"0.0","upper":"100.0","name":"stateNode"})
             parameter.text="2.0"
             parameter = ET.SubElement(state, "parameter", {"id":"featureClockRateGammaScale:%s" % self.name, "name":"stateNode"})
             parameter.text="0.5"
@@ -296,7 +296,7 @@ class BaseModel(object):
                 fname = "%s:%s" % (self.name, f)
                 param = ET.SubElement(delta, "parameter", {"idref":"featureClockRate:%s" % fname})
             
-            updown = ET.SubElement(run, "operator", {"id":"featureClockRateGammaUpDown:%s" % self.name, "spec":"UpDownOperator", "scaleFactor":"0.5","weight":"1.0"})
+            updown = ET.SubElement(run, "operator", {"id":"featureClockRateGammaUpDown:%s" % self.name, "spec":"UpDownOperator", "scaleFactor":"0.5","weight":"0.3"})
             ET.SubElement(updown, "parameter", {"idref":"featureClockRateGammaShape:%s" % self.name, "name":"up"})
             ET.SubElement(updown, "parameter", {"idref":"featureClockRateGammaScale:%s" % self.name, "name":"down"})
 
