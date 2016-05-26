@@ -61,12 +61,13 @@ class LogNormalRelaxedClock(RelaxedClock):
 
         RelaxedClock.add_state(self, state)
         ET.SubElement(state, "parameter", {"id":"ucldMean.c:%s" % self.name, "lower":"0.0","name":"stateNode"}).text = "1.0"
-        ET.SubElement(state, "parameter", {"id":"ucldSdev.c:%s" % self.name, "lower":"0.0", "upper":"0.0","name":"stateNode"}).text = "0.1"
+        ET.SubElement(state, "parameter", {"id":"ucldSdev.c:%s" % self.name, "lower":"0.0", "upper":"10.0","name":"stateNode"}).text = "0.1"
 
     def add_prior(self, prior):
 
+        RelaxedClock.add_prior(self, prior)
         if not self.config.sample_branch_lengths or self.calibrations:
-            sub_prior = ET.SubElement(prior, "prior", {"id":"ucldSdev:%s" % self.name, "name":"distribution","x":"@ucldMean.c:%s" % self.name})
+            sub_prior = ET.SubElement(prior, "prior", {"id":"ucldSdev:%s" % self.name, "name":"distribution","x":"@ucldSdev.c:%s" % self.name})
             gamma = ET.SubElement(sub_prior, "Gamma", {"id":"uclSdevPrior:%s" % self.name, "name":"distr"})
             ET.SubElement(gamma, "parameter", {"id":"uclSdevPriorAlpha:%s" % self.name, "estimate":"false", "name":"alpha"}).text = "0.5396"
             ET.SubElement(gamma, "parameter", {"id":"uclSdevPriorBeta:%s" % self.name, "estimate":"false", "name":"beta"}).text = "0.3819"
@@ -84,6 +85,7 @@ class LogNormalRelaxedClock(RelaxedClock):
 
     def add_param_logs(self, logger):
         RelaxedClock.add_param_logs(self, logger)
+        ET.SubElement(logger,"log",{"idref":"ucldMean.c:%s" % self.name})
         ET.SubElement(logger,"log",{"idref":"ucldSdev.c:%s" % self.name})
 
 class ExponentialRelaxedClock(RelaxedClock):
