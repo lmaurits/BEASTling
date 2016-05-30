@@ -181,7 +181,6 @@ class Tests(WithConfigAndTempDir):
                 config = self._make_cfg('basic', 'calibration_%s_%s' % (dist, style))
                 config.process()
             self.assertEqual(list(config.calibrations.values())[0].dist, dist)
-            self.assertEqual(config.calibrations[config.calibrations.keys()[0]].dist, dist)
 
 
     def test_overlong_chain(self):
