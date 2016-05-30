@@ -77,7 +77,7 @@ class BaseModel(object):
         configured language filter.
         """
         languages_in_data = set(self.data.keys())
-        languages_to_keep = languages_in_data & self.config.lang_filter
+        languages_to_keep = (languages_in_data & self.config.lang_filter) - self.config.exclusions
         languages_to_remove = languages_in_data - languages_to_keep
         for lang in languages_to_remove:
             self.data.pop(lang)

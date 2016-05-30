@@ -101,7 +101,7 @@ class Configuration(object):
         """A list of dictionaries, each of which specifies the configuration for a single clock model."""
         self.embed_data = False
         """A list of languages to exclude from the analysis, or a name of a file containing such a list."""
-        self.exclusions = []
+        self.exclusions = ""
         """A boolean value, controlling whether or not to embed data files in the XML."""
         self.families = "*"
         """List of families to filter down to, or name of a file containing such a list."""
@@ -443,9 +443,8 @@ class Configuration(object):
         # Load requirements
         self.languages = self.handle_file_or_list(self.languages)
         self.families = self.handle_file_or_list(self.families)
-        self.exclusions = self.handle_file_or_list(self.exclusions)
+        self.exclusions = set(self.handle_file_or_list(self.exclusions))
         self.macroareas = self.handle_file_or_list(self.macroareas)
-
         # Build language filter based on languages or families
         if self.languages != ["*"] and self.families != ["*"]:
             # Can't filter by languages and families at same time!
@@ -461,18 +460,13 @@ class Configuration(object):
                         for family in self.families])}
         else:
             self.lang_filter = UniversalSet()
-        
         # Impose macro-area requirements
         if self.macroareas != ["*"]:
             self.geo_filter = {
                     l for l in self.glotto_macroareas if self.glotto_macroareas[l] in self.macroareas}
             self.lang_filter = self.lang_filter & self.geo_filter
-
-        # Remove exclusions
-        self.lang_filter = self.lang_filter.difference(set(self.exclusions))
-
     def handle_file_or_list(self, value):
-        if not isinstance(value, list):
+        if not (isinstance(value, list) or isinstance(value, set)):
             if os.path.exists(value):
                 with io.open(value, encoding="UTF-8") as fp:
                     result = [x.strip() for x in fp.readlines()]
