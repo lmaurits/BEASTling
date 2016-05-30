@@ -116,7 +116,9 @@ calibration section
 
 The ``calibration`` section should contain one parameter for each distinct calibration point that you wish to include in the analysis.
 
-The name of each parameter should be a comma-separated list of family names, and the corresponding values should be two ages, expressed in units of time before present (BP), corresponding to a 95% confidence interval for the age of the most recent common ancestor (MRCA) of those families.  Note that the parameter name may just be a single family.  E.g. if you want to tell your analysis that you are 95% sure that Austronesian is between 4,750 and 5,800 years old, include the following line in your calibration section:
+The name of each parameter should be a comma-separated list of family names or Glottocodes.  The corresponding values can be strings in one of several supported formats.  The two simplest formats are to specify a range of ages, or a single upper or lower bounding age.
+
+Ranges can be specified as follows:
 
 ::
 
@@ -128,7 +130,37 @@ You may use arbitrary units without problems, i.e. you could provide dates in mi
 
 	Austronesian = 4.75 - 5.8
 
-The only time this matters is when it comes time to interpret tree heights or clock and/or mutation rates.
+The only time this matters is when it comes time to interpret tree heights or clock and/or mutation rates.  With this kind of calibration, BEASTling will set a normal distribution prior on the age of the family indicated.  The mean of the distribution will be equal to the midpoint of the provided range (5275 in the above case).  The standard deviation will be set such that 95\% of the probability mass will lie within the range provided.  In other words, the range you provide is treated as a 95\% credibility interval.
+
+Bounds can be specified as follows:
+
+::
+
+	Austronesian = > 4750
+       
+or
+
+::
+
+        Austronesian = < 5800
+
+With this kind of calibration, BEASTling will set a uniform distribution prior on the age of the family indicated.  The upper or lower bound will be set to the provided age, and the other bound will be set to zero or infinity as appropriate.
+
+If you require more control over your priors, you can explicitly provide the type of distribution (either normal, lognormal or uniform) and the parameters as follows:
+
+::
+
+	Austronesian = normal(5275, 535.71)           # First param is mean, second is standard deviation
+	Austronesian = lognormal(8.57, 0.05)          # First param is mean, second is standard deviation, both are in logspace
+	Austronesian = uniform(4.75, 5.80)            # First param is lower bound, second is upper bound
+
+Finally, it is possible to specify an age range and ask for a lognormal distribution to be fitted to it, as follows:
+
+::
+
+	Austronesian = lognormal(4750 - 5800)
+
+With this kind of calibration, BEASTling will set a lognormal distribution prior on the age of the family indicated.  The mean of the distribution will be set so that the median of the lognormal distribution equals the midpoint of the range provided.  The standard deviation will be set to the mean of two values: one with the property that the provided lower bound is at the 5th percentile of the lognormal distribution, and one with the property that the provided upper bound is at the 95th percentile.  The provided interval does not quite end up being a 95% credible interval, but it is roughly so.  Explicitly set the lognormal parameters as shown above if you need more control over the matching than this.
 
 model sections
 --------------

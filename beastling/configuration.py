@@ -1,6 +1,8 @@
 from __future__ import division, unicode_literals
+import collections
 import importlib
 import io
+import math
 import os
 import re
 import six
@@ -26,7 +28,7 @@ _BEAST_MAX_LENGTH = 2147483647
 GLOTTOLOG_NODE_LABEL = re.compile(
     "'(?P<name>[^\[]+)\[(?P<glottocode>[a-z0-9]{8})\](\[(?P<isocode>[a-z]{3})\])?'")
 
-
+Calibration = collections.namedtuple("Calibration", ["langs", "dist", "param1", "param2"])
 class URLopener(FancyURLopener):
     def http_error_default(self, url, fp, errcode, errmsg, headers):
         raise ValueError()  # pragma: no cover
@@ -91,7 +93,7 @@ class Configuration(object):
         # Options set by the user, with default values
         self.basename = basename+"_prior" if prior else basename
         """This will be used as a common prefix for output filenames (e.g. the log will be called basename.log)."""
-        self.calibrations = {}
+        self.calibration_configs = {}
         """A dictionary whose keys are glottocodes or lowercase Glottolog clade names, and whose values are length-2 tuples of flatoing point dates (lower and upper bounds of 95% credible interval)."""
         self.chainlength = 10000000
         """Number of iterations to run the Markov chain for."""
@@ -247,16 +249,8 @@ class Configuration(object):
 
         ## Calibration
         if p.has_section("calibration"):
-            for clades, dates in p.items("calibration"):
-                for clade in clades.split(','):
-                    clade = clade.strip()
-                    if clade:
-                        self.calibrations[clade.lower()] = [
-                            float(x.strip()) for x in dates.split("-", 1)]
-
-        # At this point, we can tell whether or not the tree's length units
-        # can be treated as arbitrary
-        self.arbitrary_tree = self.sample_branch_lengths and not self.calibrations
+            for clade, calibration in p.items("calibration"):
+                self.calibration_configs[clade] = calibration
 
         ## Clocks
         clock_sections = [s for s in p.sections() if s.lower().startswith("clock")]
@@ -358,10 +352,14 @@ class Configuration(object):
         self.load_glotto_geo()
         self.load_user_geo()
         self.build_language_filter()
-        self.instantiate_clocks()
         self.instantiate_models()
-        self.link_clocks_to_models()
         self.build_language_list()
+        self.instantiate_calibrations()
+        # At this point, we can tell whether or not the tree's length units
+        # can be treated as arbitrary
+        self.arbitrary_tree = self.sample_branch_lengths and not self.calibrations
+        self.instantiate_clocks()
+        self.link_clocks_to_models()
         self.handle_starting_tree()
         self.processed = True
 
@@ -650,6 +648,67 @@ class Configuration(object):
         ## Convert back into a sorted list
         self.languages = sorted(self.languages)
         self.messages.append("[INFO] %d languages included in analysis." % len(self.languages))
+
+    def instantiate_calibrations(self):
+        self.calibrations = {}
+        for clade, cs in self.calibration_configs.items():
+            # First parse the clade identifier
+            # Might be "root", or else a Glottolog identifier
+            if clade.lower() == "root":
+                langs = self.languages
+            else:
+                langs = []
+                for l in self.languages:
+                    for name, glottocode in self.classifications.get(l.lower(),""):
+                        if clade.lower() == name.lower() or clade.lower() == glottocode:
+                            langs.append(l)
+                            break
+
+            if len(langs) < 2:
+                self.messages.append("[INFO] Calibration on clade %s ignored as no matching languages in analysis." % clade)
+                continue
+            
+            # Next parse the calibration string
+            if cs.count("(") == 1 and cs.count(")") == 1:
+                dist_type, cs = cs.split("(", 1)
+                dist_type = dist_type.lower()
+                cs = cs[0:-1]
+            else:
+                # Default to normal
+                dist_type = "normal"
+
+            if cs.count(",") == 1 and not any([x in cs for x in ("-", "<", ">")]):
+                # We've got explicit params
+                p1, p2 = map(float,cs.split(","))
+            elif cs.count("-") == 1 and not any([x in cs for x in (",", "<", ">")]):
+                # We've got a 95% HPD range
+                lower, upper = map(float, cs.split("-"))
+                mid = (lower+upper) / 2.0
+                if dist_type == "normal":
+                    p1 = (upper + lower) / 2.0
+                    p2 = (upper - mid) / 1.96
+                elif dist_type == "lognormal":
+                    p1 = math.log(mid)
+                    p2a = (p1 - math.log(lower)) / 1.96
+                    p2b = (math.log(upper) - p1) / 1.96
+                    p2 = (p2a+p2b)/2.0
+                elif dist_type == "uniform":
+                    p1 = upper
+                    p2 = lower
+            elif (cs.count("<") == 1 or cs.count(">") == 1) and not any([x in cs for x in (",", "-")]):
+                # We've got a single bound
+                dist_type = "uniform"
+                sign, bound = cs.split()
+                if sign.strip() == "<":
+                    p1 = 0.0
+                    p2 = float(bound.strip())
+                else:
+                    p1 = float(bound.strip())
+                    p2 = "Infinity"
+            else:
+                raise ValueError("Could not parse calibration \"%s\" for clade %s" % (calibration, clade))
+            
+            self.calibrations[clade] = Calibration(langs, dist_type, p1, p2)
 
     def handle_starting_tree(self):
         """

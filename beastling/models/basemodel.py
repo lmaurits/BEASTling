@@ -18,7 +18,6 @@ class BaseModel(object):
         """
         self.messages = []
         self.config = global_config
-        self.calibrations = global_config.calibrations
 
         self.name = model_config["name"] 
         self.data_filename = model_config["data"] 

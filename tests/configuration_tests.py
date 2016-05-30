@@ -105,10 +105,8 @@ class Tests(WithConfigAndTempDir):
             },
         })
         self.assertTrue(cfg.tree_logging_pointless)
-        self.assertAlmostEqual(cfg.calibrations['abcd1234'][1], 20)
-        #self.assertAlmostEqual(cfg.model_configs[0]['minimum_data'], 4.5)
+        self.assertAlmostEqual(cfg.calibration_configs['abcd1234, efgh5678'], "10-20")
         self.assertTrue(cfg.model_configs[1]['binarised'])
-        self.assertEqual(len(cfg.calibrations), 2)
 
         with self.assertRaisesRegexp(ValueError, 'Value for overlap') as e:
             Configuration(configfile={'languages': {'overlap': 'invalid'}, 'models': {}})
@@ -157,13 +155,33 @@ class Tests(WithConfigAndTempDir):
         del config.calibrations['austronesian']
         xml2 = BeastXml(config).tostring().decode('utf8')
         self.assertNotEqual(
-            len(xml1.split('CalibrationNormal.')), len(xml2.split('CalibrationNormal.')))
+            len(xml1.split('CalibrationDistribution.')), len(xml2.split('CalibrationDistribution.')))
 
         # ... and add it back in with using the glottocode:
         config.calibrations['aust1307'] = v
         xml2 = BeastXml(config).tostring().decode('utf8')
         self.assertEqual(
-            len(xml1.split('CalibrationNormal.')), len(xml2.split('CalibrationNormal.')))
+            len(xml1.split('CalibrationDistribution.')), len(xml2.split('CalibrationDistribution.')))
+
+    def test_calibration_string_formats(self):
+        # Test lower bound format
+        config = self._make_cfg('basic', 'calibration_lower_bound')
+        config.process()
+        self.assertEqual(config.calibrations[config.calibrations.keys()[0]].dist, "uniform")
+        self.assertEqual(config.calibrations[config.calibrations.keys()[0]].param2, "Infinity")
+        # Test upper bound format
+        config = self._make_cfg('basic', 'calibration_upper_bound')
+        config.process()
+        self.assertEqual(config.calibrations[config.calibrations.keys()[0]].dist, "uniform")
+        self.assertEqual(config.calibrations[config.calibrations.keys()[0]].param1, 0.0)
+
+        # Test range and param formats for all three distributions
+        for dist in ('normal', 'lognormal', 'uniform'):
+            for style in ('range', 'params'):
+                config = self._make_cfg('basic', 'calibration_%s_%s' % (dist, style))
+                config.process()
+            self.assertEqual(config.calibrations[config.calibrations.keys()[0]].dist, dist)
+
 
     def test_overlong_chain(self):
         config = self._make_cfg('basic')

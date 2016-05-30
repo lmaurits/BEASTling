@@ -1,4 +1,5 @@
 import datetime
+from math import log
 import sys
 import xml.etree.ElementTree as ET
 
@@ -193,23 +194,11 @@ class BeastXml(object):
         """
         Add timing calibrations to prior distribution.
         """
-        if not self.config.calibrations:
-            return
-        for n, clade in enumerate(self.config.calibrations):
-            if clade == "root":
-                langs = self.config.languages
-            else:
-                langs = []
-                for l in self.config.languages:
-                    for name, glottocode in self.config.classifications.get(l.lower(),""):
-                        if clade == name.lower() or clade == glottocode:
-                            langs.append(l)
-                            break
-            if not langs:
-                continue
-            lower, upper = self.config.calibrations[clade]
-            mean = (upper + lower) / 2.0
-            stddev = (upper - mean) / 2.0
+        p1_names = {"Normal":"mean", "LogNormal":"M","Uniform":"lower"}
+        p2_names = {"Normal":"sigma", "LogNormal":"S","Uniform":"upper"}
+        for clade, cal in self.config.calibrations.items():
+
+            # Create MRCAPrior node
             attribs = {}
             attribs["id"] = clade + "MRCA"
             attribs["monophyletic"] = "true"
@@ -217,12 +206,21 @@ class BeastXml(object):
             attribs["tree"] = "@Tree.t:beastlingTree"
             cal_prior = ET.SubElement(self.prior, "distribution", attribs)
 
+            # Create "taxonset" param for MRCAPrior
             taxonset = ET.SubElement(cal_prior, "taxonset", {"id" : clade, "spec":"TaxonSet"})
-            for lang in langs:
+            for lang in cal.langs:
                 ET.SubElement(taxonset, "taxon", {"idref":lang})
-            normal = ET.SubElement(cal_prior, "Normal", {"id":"CalibrationNormal.%d" % n, "name":"distr", "offset":str(mean)})
-            ET.SubElement(normal, "parameter", {"id":"parameter.hyperNormal-mean-%s.prior" % clade, "name":"mean", "estimate":"false"}).text = "0.0"
-            ET.SubElement(normal, "parameter", {"id":"parameter.hyperNormal-sigma-%s.prior" % clade, "name":"sigma", "estimate":"false"}).text = str(stddev)
+
+            # Create "distr" param for MRCAPrior
+            dist_type = {"normal":"Normal","lognormal":"LogNormal","uniform":"Uniform"}[cal.dist]
+            attribs = {"id":"CalibrationDistribution.%s" % clade, "name":"distr", "offset":"0.0"}
+            if dist_type == "Uniform":
+                attribs["lower"] = str(cal.param1)
+                attribs["upper"] = str(cal.param2)
+            dist = ET.SubElement(cal_prior, dist_type, attribs)
+            if dist_type != "Uniform":
+                ET.SubElement(dist, "parameter", {"id":"CalibrationDistribution.%s.param1" % clade, "name":p1_names[dist_type], "estimate":"false"}).text = str(cal.param1)
+                ET.SubElement(dist, "parameter", {"id":"CalibrationDistribution.%s.param2" % clade, "name":p2_names[dist_type], "estimate":"false"}).text = str(cal.param2)
 
     def add_tree_prior(self):
         """
