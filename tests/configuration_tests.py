@@ -167,19 +167,20 @@ class Tests(WithConfigAndTempDir):
         # Test lower bound format
         config = self._make_cfg('basic', 'calibration_lower_bound')
         config.process()
-        self.assertEqual(config.calibrations[config.calibrations.keys()[0]].dist, "uniform")
-        self.assertEqual(config.calibrations[config.calibrations.keys()[0]].param2, "Infinity")
+        self.assertEqual(list(config.calibrations.values())[0].dist, "uniform")
+        self.assertEqual(list(config.calibrations.values())[0].param2, "Infinity")
         # Test upper bound format
         config = self._make_cfg('basic', 'calibration_upper_bound')
         config.process()
-        self.assertEqual(config.calibrations[config.calibrations.keys()[0]].dist, "uniform")
-        self.assertEqual(config.calibrations[config.calibrations.keys()[0]].param1, 0.0)
+        self.assertEqual(list(config.calibrations.values())[0].dist, "uniform")
+        self.assertEqual(list(config.calibrations.values())[0].param1, 0.0)
 
         # Test range and param formats for all three distributions
         for dist in ('normal', 'lognormal', 'uniform'):
             for style in ('range', 'params'):
                 config = self._make_cfg('basic', 'calibration_%s_%s' % (dist, style))
                 config.process()
+            self.assertEqual(list(config.calibrations.values())[0].dist, dist)
             self.assertEqual(config.calibrations[config.calibrations.keys()[0]].dist, dist)
 
 
