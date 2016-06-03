@@ -297,7 +297,7 @@ class BeastXml(object):
         """
         self.add_screen_logger()
         self.add_tracer_logger()
-        self.add_tree_logger()
+        self.add_tree_loggers()
 
     def add_screen_logger(self):
         """
@@ -347,19 +347,47 @@ class BeastXml(object):
             ET.SubElement(tracer_logger,"log",{"idref":"YuleModel.t:beastlingTree"})
             ET.SubElement(tracer_logger,"log",{"idref":"YuleBirthRatePrior.t:beastlingTree"})
 
-    def add_tree_logger(self):
+    def add_tree_loggers(self):
         """
         Add tree logger, if configured to do so.
         """
-        if ((self.config.log_trees or self.config.log_all) and not
+        if not ((self.config.log_trees or self.config.log_all) and not
             self.config.tree_logging_pointless):
-            tree_logger = ET.SubElement(self.run, "logger", {"mode":"tree", "fileName":self.config.basename+".nex","logEvery":str(self.config.log_every),"id":"treeWithMetaDataLogger"})
-            log = ET.SubElement(tree_logger, "log", attrib={"id":"TreeLogger","spec":"beast.evolution.tree.TreeWithMetaDataLogger","tree":"@Tree.t:beastlingTree"})
-            if self.config.geo_config.get("log_locations",False):
-                ET.SubElement(log, "metadata", {
-                    "id":"location",
-                    "spec":"sphericalGeo.TraitFunction",
-                    "likelihood":"@sphericalGeographyLikelihood"}).text = "0.0"
+            return
+
+        pure_tree_done = False
+        non_strict_clocks = set([m.clock for m in self.config.models if not m.clock.is_strict])
+        if not non_strict_clocks:
+            # All clocks are strict, so we just do one pure log file
+            self.add_tree_logger()
+            pure_tree_done = True
+        else:
+            # There are non-strict clocks, so we do one log file each with branch rates
+            for clock in non_strict_clocks:
+                if len(non_strict_clocks) == 1:
+                    self.add_tree_logger("", clock.branchrate_model_id)
+                else:
+                    self.add_tree_logger("_%s_rates" % clock.name, clock.branchrate_model_id)
+
+        # If asked to log locations, do so in a dedicated log file
+        # and include the branch rates for the geo model's clock if non-relaxed
+        if self.config.geo_config.get("log_locations",False):
+            self.add_tree_logger("_geography", self.config.geo_model.clock.branchrate_model_id, True)
+
+        # If asked, do a topology-only tree log (i.e. no branch rates)
+        if self.config.log_pure_tree and not pure_tree_done:
+            self.add_tree_logger("_pure")
+
+    def add_tree_logger(self, suffix="", branchrate_model_id=None, locations=False):
+        tree_logger = ET.SubElement(self.run, "logger", {"mode":"tree", "fileName":self.config.basename + suffix + ".nex", "logEvery":str(self.config.log_every),"id":"treeLogger" + suffix})
+        log = ET.SubElement(tree_logger, "log", attrib={"id":"TreeLoggerWithMetaData"+suffix,"spec":"beast.evolution.tree.TreeWithMetaDataLogger","tree":"@Tree.t:beastlingTree"})
+        if branchrate_model_id:
+            ET.SubElement(log, "branchratemodel", {"idref":branchrate_model_id})
+        if locations:
+            ET.SubElement(log, "metadata", {
+                "id":"location",
+                "spec":"sphericalGeo.TraitFunction",
+                "likelihood":"@sphericalGeographyLikelihood"}).text = "0.0"
 
     def tostring(self):
         """

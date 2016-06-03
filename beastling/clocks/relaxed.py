@@ -17,6 +17,7 @@ class RelaxedClock(BaseClock):
 
         BaseClock.__init__(self, clock_config, global_config)
         self.number_of_rates = int(clock_config.get("rates","-1"))
+        self.is_strict = False
 
     def add_state(self, state):
 

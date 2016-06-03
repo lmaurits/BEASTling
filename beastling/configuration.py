@@ -125,6 +125,8 @@ class Configuration(object):
         """A boolean value, controlling whether or not to log individuaal components of the prior and likelihood,."""
         self.log_trees = True
         """A boolean value, controlling whether or not to log the sampled trees."""
+        self.log_pure_tree = False
+        """A boolean value, controlling whether or not to log a separate file of the sampled trees with no metadata included."""
         self.macroareas = "*"
         """List of Glottolog macro-areas to filter down to, or name of a file containing such a list."""
         self.model_configs = []
@@ -197,6 +199,7 @@ class Configuration(object):
                 'log_fine_probs': p.getboolean,
                 'log_params': p.getboolean,
                 'log_trees': p.getboolean,
+                'log_pure_tree': p.getboolean,
                 'glottolog_release': p.get,
             },
             'MCMC': {

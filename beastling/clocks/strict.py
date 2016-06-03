@@ -12,6 +12,7 @@ class StrictClock(BaseClock):
         self.mean_rate_id = "clockRate.c:%s" % self.name
         self.mean_rate_idref = "@%s" % self.mean_rate_id
         self.branchrate_model_id = "StrictClockModel.c:%s" % self.name
+        self.is_strict = True
 
     def add_state(self, state):
 

@@ -10,6 +10,7 @@ class RandomLocalClock(BaseClock):
         BaseClock.__init__(self, clock_config, global_config)
         self.mean_rate_id = "meanClockRate.c:%s" % self.name
         self.mean_rate_idref = "@%s" % self.mean_rate_id
+        self.is_strict = False
         self.correlated = clock_config.get("correlated","false").lower()
         self.estimate_variance = clock_config.get("estimate_variance","false").lower()
 
