@@ -433,7 +433,7 @@ class Configuration(object):
                 failed = False
                 node = glottocode2node[t.glottocode]
                 ancestor = node.ancestor
-                while label2name[ancestor.name] not in self.locations:
+                while label2name[ancestor.name][1] not in self.locations:
                     if not ancestor.ancestor:
                         # We've hit the root without finding an ancestral node
                         # with location data!
@@ -443,7 +443,7 @@ class Configuration(object):
                         ancestor = ancestor.ancestor
                 if failed:
                     continue
-                latlon = self.locations[label2name[ancestor.name]]
+                latlon = self.locations[label2name[ancestor.name][1]]
                 self.locations[t.glottocode] = latlon
                 for isocode in t.isocodes.split():
                     self.locations[isocode] = latlon
