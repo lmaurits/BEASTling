@@ -156,6 +156,7 @@ class Configuration(object):
         self.stdin_data = stdin_data
 
         # Glottolog data
+        self.glottolog_loaded = False
         self.classifications = {}
         self.glotto_macroareas = {}
         self.locations = {}
@@ -351,8 +352,7 @@ class Configuration(object):
             # So in this case, just log everything.
             self.log_every = self.chainlength // 10000 or 1
 
-        self.load_glotto_class()
-        self.load_glotto_geo()
+        self.load_glottolog_data()
         self.load_user_geo()
         self.build_language_filter()
         self.instantiate_models()
@@ -366,15 +366,18 @@ class Configuration(object):
         self.handle_starting_tree()
         self.processed = True
 
-    def load_glotto_class(self):
+    def load_glottolog_data(self):
         """
         Loads the Glottolog classification information from the appropriate
         newick file, parses it and stores the required datastructure in
         self.classification.
         """
-        if self.classifications:
+        if self.glottolog_loaded:
             return
+        self.glottolog_loaded = True
+
         label2name = {}
+        glottocode2node = {}
 
         def parse_label(label):
             match = GLOTTOLOG_NODE_LABEL.match(label)
@@ -392,6 +395,7 @@ class Configuration(object):
                 ancestor = ancestor.ancestor
             return list(reversed(res))
 
+        # Walk the tree and build the classifications dictionary
         glottolog_trees = newick.read(get_glottolog_data('newick', self.glottolog_release))
         for tree in glottolog_trees:
             for node in tree.walk():
@@ -400,24 +404,46 @@ class Configuration(object):
                 self.classifications[glottocode] = classification
                 if isocode:
                     self.classifications[isocode] = classification
+                glottocode2node[glottocode] = node
 
-    def load_glotto_geo(self):
-        """
-        Loads the Glottolog geographic information from the appropriate .csv
-        file, parses it and stores the required datastructures in
-        self.glotto_macroareas and self.locations.
-        """
-        if self.glotto_macroareas:
-            return
-
+        # Load geographic metadata
         for t in reader(
                 get_glottolog_data('geo', self.glottolog_release), namedtuples=True):
             if t.macroarea:
                 self.glotto_macroareas[t.glottocode] = t.macroarea
                 for isocode in t.isocodes.split():
                     self.glotto_macroareas[isocode] = t.macroarea
+            if self.location_data:
+                continue # Use user-supplied data instead
+
             if t.latitude and t.longitude:
                 latlon = (float(t.latitude), float(t.longitude))
+                self.locations[t.glottocode] = latlon
+                for isocode in t.isocodes.split():
+                    self.locations[isocode] = latlon
+
+        if self.location_data:
+            return
+
+        # Second pass of geographic data to handle dialects, which inherit
+        # their parent language's location
+        for t in reader(
+                get_glottolog_data('geo', self.glottolog_release), namedtuples=True):
+            if t.level == "dialect":
+                failed = False
+                node = glottocode2node[t.glottocode]
+                ancestor = node.ancestor
+                while label2name[ancestor.name] not in self.locations:
+                    if not ancestor.ancestor:
+                        # We've hit the root without finding an ancestral node
+                        # with location data!
+                        failed = True
+                        break
+                    else:
+                        ancestor = ancestor.ancestor
+                if failed:
+                    continue
+                latlon = self.locations[label2name[ancestor.name]]
                 self.locations[t.glottocode] = latlon
                 for isocode in t.isocodes.split():
                     self.locations[isocode] = latlon
