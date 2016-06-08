@@ -372,6 +372,10 @@ class Configuration(object):
         newick file, parses it and stores the required datastructure in
         self.classification.
         """
+        # Don't load if the analysis doesn't use it
+        if not self.check_glottolog_required():
+            return
+        # Don't load if we already have - can this really happen?
         if self.glottolog_loaded:
             return
         self.glottolog_loaded = True
@@ -447,6 +451,21 @@ class Configuration(object):
                 self.locations[t.glottocode] = latlon
                 for isocode in t.isocodes.split():
                     self.locations[isocode] = latlon
+
+    def check_glottolog_required(self):
+        # We need Glottolog if...
+        return (
+            # ...we've been given a list of families
+            self.families != "*"
+            # ...we've been given a list of macroareas
+            or self.macroareas != "*"
+            # ...we're using monophyly constraints
+            or self.monophyly
+            # ...we're using calibrations (well, sometimes)
+            or self.calibration_configs
+            # ...we're using geography
+            or self.geo_config
+        )
 
     def load_user_geo(self):
         if not self.location_data:
