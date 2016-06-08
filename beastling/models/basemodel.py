@@ -201,14 +201,14 @@ class BaseModel(object):
         configured.
         """
         if self.rate_variation:
-            for f in self.features:
-                fname = "%s:%s" % (self.name, f)
+            plate = ET.SubElement(state, "plate", {
+                "var":"feature",
+                "range":",".join(self.features)})
+            param = ET.SubElement(plate, "parameter", {
+                "id":"featureClockRate:%s:$(feature)" % self.name,
+                "name":"stateNode"})
+            param.text="1.0"
 
-                attribs = {}
-                attribs["id"] = "featureClockRate:%s" % fname
-                attribs["name"] = "stateNode"
-                parameter = ET.SubElement(state, "parameter", attribs)
-                parameter.text="1.0"
             parameter = ET.SubElement(state, "parameter", {"id":"featureClockRateGammaShape:%s" % self.name, "lower":"0.0","upper":"100.0","name":"stateNode"})
             parameter.text="2.0"
             parameter = ET.SubElement(state, "parameter", {"id":"featureClockRateGammaScale:%s" % self.name, "name":"stateNode"})
@@ -222,9 +222,11 @@ class BaseModel(object):
         if self.rate_variation:
             sub_prior = ET.SubElement(prior, "prior", {"id":"featureClockRatePrior.s:%s" % self.name, "name":"distribution"})
             compound = ET.SubElement(sub_prior, "input", {"id":"featureClockRateCompound:%s" % self.name, "spec":"beast.core.parameter.CompoundValuable", "name":"x"})
-            for f in self.features:
-                fname = "%s:%s" % (self.name, f)
-                var = ET.SubElement(compound, "var", {"idref":"featureClockRate:%s" % fname})
+            plate = ET.SubElement(compound, "plate", {
+                "var":"feature",
+                "range":",".join(self.features)})
+            ET.SubElement(plate, "var", {
+                "idref":"featureClockRate:%s:$(feature)" % self.name})
             gamma  = ET.SubElement(sub_prior, "input", {"id":"featureClockRatePriorGamma:%s" % self.name, "spec":"beast.math.distributions.Gamma", "name":"distr", "alpha":"@featureClockRateGammaShape:%s" % self.name, "beta":"@featureClockRateGammaScale:%s" % self.name})
 
             sub_prior = ET.SubElement(prior, "prior", {"id":"featureClockRateGammaShapePrior.s:%s" % self.name, "name":"distribution", "x":"@featureClockRateGammaShape:%s" % self.name})
@@ -292,10 +294,11 @@ class BaseModel(object):
         """
         if self.rate_variation:
             delta = ET.SubElement(run, "operator", {"id":"featureClockRateDeltaExchanger:%s" % self.name, "spec":"DeltaExchangeOperator", "weight":"3.0"})
-            for f in self.features:
-                fname = "%s:%s" % (self.name, f)
-                param = ET.SubElement(delta, "parameter", {"idref":"featureClockRate:%s" % fname})
-            
+            plate = ET.SubElement(delta, "plate", {
+                "var":"feature",
+                "range":",".join(self.features)})
+            ET.SubElement(plate, "parameter", {
+                "idref":"featureClockRate:%s:$(feature)" % self.name})
             updown = ET.SubElement(run, "operator", {"id":"featureClockRateGammaUpDown:%s" % self.name, "spec":"UpDownOperator", "scaleFactor":"0.5","weight":"0.3"})
             ET.SubElement(updown, "parameter", {"idref":"featureClockRateGammaShape:%s" % self.name, "name":"up"})
             ET.SubElement(updown, "parameter", {"idref":"featureClockRateGammaScale:%s" % self.name, "name":"down"})
@@ -306,16 +309,20 @@ class BaseModel(object):
         substition rates if rate variation is configured.
         """
         if self.config.log_fine_probs:
-            for n, f in enumerate(self.features):
-                fname = "%s:%s" % (self.name, f)
-                ET.SubElement(logger,"log",{"idref":"traitedtreeLikelihood:%s" % fname})
+            plate = ET.SubElement(logger, "plate", {
+                "var":"feature",
+                "range":",".join(self.features)})
+            ET.SubElement(plate, "log", {
+                "idref":"traitedtreeLikelihood:%s:$(feature)" % self.name})
             if self.rate_variation:
                 ET.SubElement(logger,"log",{"idref":"featureClockRatePrior.s:%s" % self.name})
                 ET.SubElement(logger,"log",{"idref":"featureClockRateGammaShapePrior.s:%s" % self.name})
 
         if self.rate_variation:
-            for f in self.features:
-                fname = "%s:%s" % (self.name, f)
-                ET.SubElement(logger,"log",{"idref":"featureClockRate:%s" % fname})
+            plate = ET.SubElement(logger, "plate", {
+                "var":"feature",
+                "range":",".join(self.features)})
+            ET.SubElement(plate, "log", {
+                "idref":"featureClockRate:%s:$(feature)" % self.name})
             # Log the shape, but not the scale, as it is always 1 / shape
             ET.SubElement(logger,"log",{"idref":"featureClockRateGammaShape:%s" % self.name})

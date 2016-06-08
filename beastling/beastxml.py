@@ -133,8 +133,12 @@ class BeastXml(object):
         """
         tree = ET.SubElement(self.state, "tree", {"id":"Tree.t:beastlingTree", "name":"stateNode"})
         taxonset = ET.SubElement(tree, "taxonset", {"id":"taxa"})
-        for lang in self.config.languages:
-            ET.SubElement(taxonset, "taxon", {"id":lang,})
+        plate = ET.SubElement(taxonset, "plate", {
+            "var":"language",
+            "range":",".join(self.config.languages)})
+        ET.SubElement(plate, "taxon", {
+            "id":"$(language)"})
+
 
         param = ET.SubElement(self.state, "parameter", {"id":"birthRate.t:beastlingTree","name":"stateNode"})
         param.text="1.0"
@@ -208,8 +212,11 @@ class BeastXml(object):
 
             # Create "taxonset" param for MRCAPrior
             taxonset = ET.SubElement(cal_prior, "taxonset", {"id" : clade, "spec":"TaxonSet"})
-            for lang in cal.langs:
-                ET.SubElement(taxonset, "taxon", {"idref":lang})
+            plate = ET.SubElement(taxonset, "plate", {
+                "var":"language",
+                "range":",".join(cal.langs)})
+            ET.SubElement(plate, "taxon", {
+                "idref":"$(language)"})
 
             # Create "distr" param for MRCAPrior
             dist_type = {"normal":"Normal","lognormal":"LogNormal","uniform":"Uniform"}[cal.dist]
