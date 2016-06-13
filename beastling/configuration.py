@@ -754,8 +754,8 @@ class Configuration(object):
                     p2 = "Infinity"
             else:
                 raise ValueError("Could not parse calibration \"%s\" for clade %s" % (calibration, clade))
-            
-            self.calibrations[clade] = Calibration(langs, originate, dist_type, p1, p2)
+            clade_identifier = "originate_%s" % clade if originate else clade
+            self.calibrations[clade_identifier] = Calibration(langs, originate, dist_type, p1, p2)
 
     def handle_starting_tree(self):
         """
