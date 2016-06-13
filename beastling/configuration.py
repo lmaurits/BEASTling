@@ -28,7 +28,7 @@ _BEAST_MAX_LENGTH = 2147483647
 GLOTTOLOG_NODE_LABEL = re.compile(
     "'(?P<name>[^\[]+)\[(?P<glottocode>[a-z0-9]{8})\](\[(?P<isocode>[a-z]{3})\])?'")
 
-Calibration = collections.namedtuple("Calibration", ["langs", "dist", "param1", "param2"])
+Calibration = collections.namedtuple("Calibration", ["langs", "originate", "dist", "param1", "param2"])
 class URLopener(FancyURLopener):
     def http_error_default(self, url, fp, errcode, errmsg, headers):
         raise ValueError()  # pragma: no cover
@@ -694,11 +694,16 @@ class Configuration(object):
     def instantiate_calibrations(self):
         self.calibrations = {}
         for clade, cs in self.calibration_configs.items():
+            originate = False
             # First parse the clade identifier
             # Might be "root", or else a Glottolog identifier
             if clade.lower() == "root":
                 langs = self.languages
             else:
+                # First check for originate()
+                if clade.lower().startswith("originate(") and clade.endswith(")"):
+                    originate = True
+                    clade = clade[10:-1]
                 langs = []
                 for l in self.languages:
                     for name, glottocode in self.classifications.get(l.lower(),""):
@@ -750,7 +755,7 @@ class Configuration(object):
             else:
                 raise ValueError("Could not parse calibration \"%s\" for clade %s" % (calibration, clade))
             
-            self.calibrations[clade] = Calibration(langs, dist_type, p1, p2)
+            self.calibrations[clade] = Calibration(langs, originate, dist_type, p1, p2)
 
     def handle_starting_tree(self):
         """

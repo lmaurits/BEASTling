@@ -208,6 +208,8 @@ class BeastXml(object):
             attribs["monophyletic"] = "true"
             attribs["spec"] = "beast.math.distributions.MRCAPrior"
             attribs["tree"] = "@Tree.t:beastlingTree"
+            if cal.originate:
+                attribs["useOriginate"] = "true"
             cal_prior = ET.SubElement(self.prior, "distribution", attribs)
 
             # Create "taxonset" param for MRCAPrior

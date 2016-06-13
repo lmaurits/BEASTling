@@ -116,7 +116,7 @@ calibration section
 
 The ``calibration`` section should contain one parameter for each distinct calibration point that you wish to include in the analysis.
 
-The name of each parameter should be a comma-separated list of family names or Glottocodes.  The corresponding values can be strings in one of several supported formats.  The two simplest formats are to specify a range of ages, or a single upper or lower bounding age.
+The name of each parameter should be a comma-separated list of family names or Glottocodes.  Optionally, the name can be enclosed in ``originate( )`` to place the calibration not on the MRCA of the languages/families specificed, but on the originate, i.e. the top of the branch leading to the MRCA.  The value for each calibration can be a string in one of several supported formats.  The two simplest formats are to specify a range of ages, or a single upper or lower bounding age.
 
 Ranges can be specified as follows:
 
