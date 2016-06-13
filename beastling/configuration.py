@@ -740,8 +740,8 @@ class Configuration(object):
                     p2b = (math.log(upper) - p1) / 1.96
                     p2 = (p2a+p2b)/2.0
                 elif dist_type == "uniform":
-                    p1 = upper
-                    p2 = lower
+                    p1 = lower
+                    p2 = upper
             elif (cs.count("<") == 1 or cs.count(">") == 1) and not any([x in cs for x in (",", "-")]):
                 # We've got a single bound
                 dist_type = "uniform"
