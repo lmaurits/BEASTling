@@ -45,10 +45,11 @@ class BeastXml(object):
         self.add_beastling_comment()
         self.embed_data()
         self.add_maps()
+        for model in self.config.models:
+            model.add_master_data(self.beast)
+            model.add_misc(self.beast)
         for clock in self.config.clocks:
             clock.add_branchrate_model(self.beast)
-        for model in self.config.all_models:
-            model.add_misc(self.beast)
         self.add_run()
 
     def add_beastling_comment(self):

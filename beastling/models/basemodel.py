@@ -250,7 +250,7 @@ class BaseModel(object):
                 tree_id = "Tree.t:prunedBeastlingTree.%s" % fname
                 tree = ET.SubElement(distribution, "tree", {"id":tree_id, "spec":"beast.evolution.tree.PrunedTree","quickshortcut":"true","assert":"false"})
                 ET.SubElement(tree, "tree", {"idref":"Tree.t:beastlingTree"})
-                ET.SubElement(tree, "alignment", {"idref":"%s.filt"%fname})
+                ET.SubElement(tree, "alignment", {"idref":"pruned_data_%s"%fname})
                 # Create pruned branchrate
                 self.clock.add_pruned_branchrate_model(distribution, fname, tree_id)
             else:
@@ -262,32 +262,41 @@ class BaseModel(object):
             self.add_sitemodel(distribution, f, fname)
 
             # Data
-            self.add_data(distribution, f, fname)
+            self.add_feature_data(distribution, n, f, fname)
 
     def add_sitemodel(self, beast):
         pass
 
-    def add_data(self, distribution, feature, fname):
+    def add_master_data(self, beast):
+        data = ET.SubElement(beast, "data", {
+            "id":"data_%s" % self.name,
+            "name":"data_%s" % self.name,
+            "dataType":"integer"})
+        for lang in self.data:
+            seq = ET.SubElement(data, "sequence", {
+                "id":"data_%s:%s" % (self.name, lang),
+                "taxon":lang,
+                "value":",".join([str(self.data[lang].get(f, "?")) for f in self.features])})
+#                "value":",".join([str(self.unique_values[f].index(self.data[lang][f])) if self.data[lang].get(f, "?") != "?" else "?" for f in self.features])})
+
+    def add_feature_data(self, distribution, index, feature, fname):
         """
         Add <data> element corresponding to the indicated feature, descending
         from the indicated likelihood distribution.
         """
         if self.pruned:
-            data = ET.SubElement(distribution,"data",{"id":"%s.filt" % fname, "spec":"PrunedAlignment"})
-            source = ET.SubElement(data,"source",{"id":fname,"spec":"AlignmentFromTrait"})
-            parent = source
+            pruned_align = ET.SubElement(distribution,"data",{"id":"pruned_data_%s" % fname, "spec":"PrunedAlignment"})
+            parent = pruned_align
+            name = "source"
         else:
-            data = ET.SubElement(distribution,"data",{"id":fname, "spec":"AlignmentFromTrait"})
-            parent = data
-        traitset = ET.SubElement(parent, "traitSet", {"id":"traitSet.%s" % fname,"spec":"beast.evolution.tree.TraitSet","taxa":"@taxa","traitname":"discrete"})
-        stringbits = []
-        for lang in self.config.languages:
-           if lang in self.data:
-               stringbits.append("%s=%s," % (lang, self.data[lang][feature]))
-           else:
-               stringbits.append("%s=?," % lang)
-        traitset.text = " ".join(stringbits)
-        userdatatype = ET.SubElement(parent, "userDataType", {"id":"traitDataType.%s"%fname,"spec":"beast.evolution.datatype.UserDataType","codeMap":self.codemaps[feature],"codelength":"-1","states":str(self.valuecounts[feature])})
+            parent = distribution
+            name = "data"
+        data = ET.SubElement(parent, name, {
+            "id":"data_%s" % fname,
+            "spec":"FilteredAlignment",
+            "data":"@data_%s" % self.name,
+            "filter":str(index+1)})
+        userdatatype = ET.SubElement(data, "userDataType", {"id":"featureDataType.%s"%fname,"spec":"beast.evolution.datatype.UserDataType","codeMap":self.codemaps[feature],"codelength":"-1","states":str(self.valuecounts[feature])})
 
     def add_operators(self, run):
         """

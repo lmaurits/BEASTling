@@ -64,7 +64,7 @@ class CovarionModel(BaseModel):
         switch = ET.SubElement(state, "parameter", {"id":"%s:covarion_s.s" % self.name, "lower":"1.0E-4", "name":"stateNode", "upper":"Infinity"})
         switch.text="0.5"
 
-    def add_data(self, distribution, feature, fname):
+    def add_feature_data(self, distribution, index, feature, fname):
         frange = sorted(list(set(self.data[lang][feature] for lang in self.config.languages)))
         if "?" in frange:
             frange.remove("?")
@@ -95,6 +95,9 @@ class CovarionModel(BaseModel):
                     valuestring = "".join(valuestring)
 
             seq = ET.SubElement(data, "sequence", {"id":"seq_%s_%s" % (lang, fname), "taxon":lang, "totalcount":"4","value":valuestring})
+
+    def add_master_data(self, beast):
+        pass
 
     def add_misc(self, beast):
         # The "vfrequencies" parameter here is the frequencies
