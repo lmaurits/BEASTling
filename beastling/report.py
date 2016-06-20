@@ -97,8 +97,10 @@ class BeastlingGeoJSON(object):
             lbit = {}
             lbit["type"] = "Feature"
             (lat, lon) = self.config.locations[l]
+            # TODO: This could be prettier (e.g. include N/S, E/W
+            pretty_location = "Lat: %.2f, Long: %.2f" % (lat, lon)
             lbit["geometry"] = {"type":"Point", "coordinates": (lon, lat)}
-            props = {"name":l, "family": fam, "macroarea": area}
+            props = {"name":l, "family": fam, "macroarea": area, "location": pretty_location}
             shape, colour = style_map[fam]
             props["marker-symbol"]  = shape
             props["marker-color"]  = colour
