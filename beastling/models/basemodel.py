@@ -76,11 +76,13 @@ class BaseModel(object):
         Remove all languages from the data set which are not part of the
         configured language filter.
         """
-        languages_in_data = set(self.data.keys())
-        languages_to_keep = (languages_in_data & self.config.lang_filter) - self.config.exclusions
-        languages_to_remove = languages_in_data - languages_to_keep
-        for lang in languages_to_remove:
+        all_langs = self.data.keys()
+        langs_to_remove = [l for l in all_langs if not self.config.filter_language(l)]
+        for lang in langs_to_remove:
             self.data.pop(lang)
+        # Make sure we've not removed all languages
+        if not self.data.keys():
+            raise ValueError("Language filters leave nothing in the dataset for model '%s'" % self.name)
 
     def apply_feature_filter(self):
         """

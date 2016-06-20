@@ -9,7 +9,7 @@ import newick
 from clldutils.path import Path
 
 from beastling.configuration import (
-    Configuration, get_glottolog_data, _BEAST_MAX_LENGTH, UniversalSet,
+    Configuration, get_glottolog_data, _BEAST_MAX_LENGTH,
 )
 from beastling.beastxml import BeastXml
 from .util import WithConfigAndTempDir, config_path
@@ -21,11 +21,6 @@ class Tests(WithConfigAndTempDir):
 
     def _make_bad_cfg(self, name):
         return self.make_cfg(config_path(name, bad=True).as_posix())
-
-    def test_UniversalSet(self):
-        s = {1, 2, 3}
-        self.assertEqual(s & UniversalSet(), s)
-        self.assertEqual(UniversalSet() & s, s)
 
     def test_get_glottolog_geo(self):
         geodata = self.tmp.joinpath('glottolog-2.5-geo.csv')
@@ -79,8 +74,7 @@ class Tests(WithConfigAndTempDir):
         cfg2 = self._make_cfg('glottolog_families_from_file')
         cfg1.process()
         cfg2.process()
-        self.assertEqual(cfg1.lang_filter, cfg2.lang_filter)
-        self.assertEqual(len(cfg1.lang_filter), 6107)
+        self.assertEqual(cfg1.languages, cfg2.languages)
 
     def test_config(self):
         cfg = Configuration(configfile={

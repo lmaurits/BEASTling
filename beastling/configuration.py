@@ -34,16 +34,6 @@ class URLopener(FancyURLopener):
         raise ValueError()  # pragma: no cover
 
 
-class UniversalSet(set):
-    """Set which intersects fully with any other set."""
-    # Based on https://stackoverflow.com/a/28565931
-    def __and__(self, other):
-        return other
-
-    def __rand__(self, other):
-        return other
-
-
 def get_glottolog_data(datatype, release):
     """
     Lookup or download data from Glottolog.
@@ -103,13 +93,13 @@ class Configuration(object):
         """A list of languages to exclude from the analysis, or a name of a file containing such a list."""
         self.exclusions = ""
         """A boolean value, controlling whether or not to embed data files in the XML."""
-        self.families = "*"
+        self.families = []
         """List of families to filter down to, or name of a file containing such a list."""
         self.geo_config = {}
         """A dictionary with keys and values corresponding to a [geography] section in a configuration file."""
         self.glottolog_release = '2.7'
         """A string representing a Glottolog release number."""
-        self.languages = "*"
+        self.languages = []
         """List of languages to filter down to, or name of a file containing such a list."""
         self.location_data = None
         """Name of a file containing latitude/longitude data."""
@@ -127,7 +117,7 @@ class Configuration(object):
         """A boolean value, controlling whether or not to log the sampled trees."""
         self.log_pure_tree = False
         """A boolean value, controlling whether or not to log a separate file of the sampled trees with no metadata included."""
-        self.macroareas = "*"
+        self.macroareas = []
         """List of Glottolog macro-areas to filter down to, or name of a file containing such a list."""
         self.model_configs = []
         """A list of dictionaries, each of which specifies the configuration for a single clock model."""
@@ -456,9 +446,9 @@ class Configuration(object):
         # We need Glottolog if...
         return (
             # ...we've been given a list of families
-            self.families != "*"
+            self.families
             # ...we've been given a list of macroareas
-            or self.macroareas != "*"
+            or self.macroareas
             # ...we're using monophyly constraints
             or self.monophyly
             # ...we're using calibrations (well, sometimes)
@@ -493,26 +483,7 @@ class Configuration(object):
         self.families = self.handle_file_or_list(self.families)
         self.exclusions = set(self.handle_file_or_list(self.exclusions))
         self.macroareas = self.handle_file_or_list(self.macroareas)
-        # Build language filter based on languages or families
-        if self.languages != ["*"] and self.families != ["*"]:
-            # Can't filter by languages and families at same time!
-            raise ValueError("languages and families both defined in [languages]!")
-        elif self.languages != ["*"]:
-            # Filter by language
-            self.lang_filter = set(self.languages)
-        elif self.families != ["*"]:
-            # Filter by glottolog classification
-            self.lang_filter = {
-                l for l in self.classifications
-                if any([family in [n for t in self.classifications[l] for n in t]
-                        for family in self.families])}
-        else:
-            self.lang_filter = UniversalSet()
-        # Impose macro-area requirements
-        if self.macroareas != ["*"]:
-            self.geo_filter = {
-                    l for l in self.glotto_macroareas if self.glotto_macroareas[l] in self.macroareas}
-            self.lang_filter = self.lang_filter & self.geo_filter
+
     def handle_file_or_list(self, value):
         if not (isinstance(value, list) or isinstance(value, set)):
             if os.path.exists(value):
@@ -524,6 +495,21 @@ class Configuration(object):
         else:
             result = value
         return result
+
+    def filter_language(self, l):
+        if self.languages and l not in self.languages:
+            return False
+        if self.families and not any([name in self.families or glottocode in self.families for (name, glottocode) in self.classifications.get(l,[])]):
+            return False
+        if self.macroareas and self.glotto_macroareas.get(l,None) not in self.macroareas:
+            return False
+        if self.exclusions and l in self.exclusions:
+            return False
+        if self.geo_config and l not in self.locations:
+            print("Geo drop!")
+            return False
+        return True
+
 
     def instantiate_clocks(self):
         """
@@ -669,7 +655,10 @@ class Configuration(object):
         if self.models:
             self.languages = set(self.models[0].data.keys())
         else:
-            self.languages = self.lang_filter
+            # There are no models
+            # So this must be a geography-only analysis
+            # Start with all languages in Glottolog, then apply filters
+            self.languages = [l for l in self.classifications if self.filter_language(l)]
         self.overlap_warning = False
         for model in self.models:
             addition = set(model.data.keys())
