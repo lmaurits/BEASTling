@@ -98,8 +98,6 @@ class GeoModel(object):
         param.text = "0.0 0.0"
         loc_data_text_bits = []
         for lang in self.config.languages:
-            if lang not in self.config.locations:
-                continue
             lat, lon = self.config.locations[lang]
             bit = "%s=%.2f %.2f" % (lang, lat, lon)
             loc_data_text_bits.append(bit)
