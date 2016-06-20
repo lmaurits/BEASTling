@@ -29,6 +29,12 @@ class BeastXml(object):
         self.config = config
         if not self.config.processed:
             self.config.process()
+        # Tell everybody about ourselves
+        for model in self.config.all_models:
+            model.beastxml = self
+        for clock in self.config.clocks:
+            clock.beastxml = self
+        self._taxon_sets = {}
         self.build_xml()
 
     def build_xml(self):
@@ -133,14 +139,7 @@ class BeastXml(object):
         Add tree-related <state> sub-elements.
         """
         tree = ET.SubElement(self.state, "tree", {"id":"Tree.t:beastlingTree", "name":"stateNode"})
-        taxonset = ET.SubElement(tree, "taxonset", {"id":"taxa"})
-        plate = ET.SubElement(taxonset, "plate", {
-            "var":"language",
-            "range":",".join(self.config.languages)})
-        ET.SubElement(plate, "taxon", {
-            "id":"$(language)"})
-
-
+        self.add_taxon_set(tree, "taxa", self.config.languages, define_taxa=True)
         param = ET.SubElement(self.state, "parameter", {"id":"birthRate.t:beastlingTree","name":"stateNode"})
         param.text="1.0"
 
@@ -214,12 +213,7 @@ class BeastXml(object):
             cal_prior = ET.SubElement(self.prior, "distribution", attribs)
 
             # Create "taxonset" param for MRCAPrior
-            taxonset = ET.SubElement(cal_prior, "taxonset", {"id" : clade, "spec":"TaxonSet"})
-            plate = ET.SubElement(taxonset, "plate", {
-                "var":"language",
-                "range":",".join(cal.langs)})
-            ET.SubElement(plate, "taxon", {
-                "idref":"$(language)"})
+            self.add_taxon_set(cal_prior, clade, cal.langs)
 
             # Create "distr" param for MRCAPrior
             dist_type = {"normal":"Normal","lognormal":"LogNormal","uniform":"Uniform"}[cal.dist]
@@ -231,6 +225,30 @@ class BeastXml(object):
             if dist_type != "Uniform":
                 ET.SubElement(dist, "parameter", {"id":"CalibrationDistribution.%s.param1" % clade, "name":p1_names[dist_type], "estimate":"false"}).text = str(cal.param1)
                 ET.SubElement(dist, "parameter", {"id":"CalibrationDistribution.%s.param2" % clade, "name":p2_names[dist_type], "estimate":"false"}).text = str(cal.param2)
+
+    def add_taxon_set(self, parent, label, langs, define_taxa=False):
+        """
+        Add a TaxonSet element with the specified set of languages.
+
+        If a TaxonSet previously defined by this method contains exactly the
+        same set of taxa, a reference to that TaxonSet will be added instead.
+        By default, each TaxonSet will contain references to the taxa,
+        assuming that they have been defined previously (most probably in the
+        definition of the tree).  If this is not the case, passing
+        define_taxa=True will define, rather than refer to, the taxa.
+        """
+        # Refer to any previous TaxonSet with the same languages
+        for idref, taxa in self._taxon_sets.items():
+            if set(langs) == taxa:
+                ET.SubElement(parent, "taxonset", {"idref" : idref, "spec":"TaxonSet"})
+                return
+        # Otherwise, create and register a new TaxonSet
+        taxonset = ET.SubElement(parent, "taxonset", {"id" : label, "spec":"TaxonSet"})
+        plate = ET.SubElement(taxonset, "plate", {
+            "var":"language",
+            "range":",".join(langs)})
+        ET.SubElement(plate, "taxon", {"id" if define_taxa else "idref" :"$(language)"})
+        self._taxon_sets[label] = set(langs)
 
     def add_tree_prior(self):
         """

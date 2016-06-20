@@ -695,13 +695,7 @@ class Configuration(object):
                 if clade.lower().startswith("originate(") and clade.endswith(")"):
                     originate = True
                     clade = clade[10:-1]
-                langs = []
-                for l in self.languages:
-                    for name, glottocode in self.classifications.get(l.lower(),""):
-                        if clade.lower() == name.lower() or clade.lower() == glottocode:
-                            langs.append(l)
-                            break
-
+                langs = self.get_languages_by_glottolog_clade(clade)
             if len(langs) < 2:
                 self.messages.append("[INFO] Calibration on clade %s ignored as no matching languages in analysis." % clade)
                 continue
@@ -747,6 +741,15 @@ class Configuration(object):
                 raise ValueError("Could not parse calibration \"%s\" for clade %s" % (orig_cs, orig_clade))
             clade_identifier = "originate_%s" % clade if originate else clade
             self.calibrations[clade_identifier] = Calibration(langs, originate, dist_type, p1, p2)
+
+    def get_languages_by_glottolog_clade(self, clade):
+        langs = []
+        for l in self.languages:
+            for name, glottocode in self.classifications.get(l.lower(),""):
+                if clade.lower() == name.lower() or clade.lower() == glottocode:
+                    langs.append(l)
+                    break
+        return langs
 
     def handle_starting_tree(self):
         """
