@@ -694,6 +694,8 @@ class Configuration(object):
     def instantiate_calibrations(self):
         self.calibrations = {}
         for clade, cs in self.calibration_configs.items():
+            orig_clade = clade[:]
+            orig_cs = cs[:]
             originate = False
             # First parse the clade identifier
             # Might be "root", or else a Glottolog identifier
@@ -724,7 +726,7 @@ class Configuration(object):
                 # Default to normal
                 dist_type = "normal"
 
-            if cs.count(",") == 1 and not any([x in cs for x in ("-", "<", ">")]):
+            if cs.count(",") == 1 and not any([x in cs for x in ("<", ">")]):
                 # We've got explicit params
                 p1, p2 = map(float,cs.split(","))
             elif cs.count("-") == 1 and not any([x in cs for x in (",", "<", ">")]):
@@ -753,7 +755,7 @@ class Configuration(object):
                     p1 = float(bound.strip())
                     p2 = "Infinity"
             else:
-                raise ValueError("Could not parse calibration \"%s\" for clade %s" % (calibration, clade))
+                raise ValueError("Could not parse calibration \"%s\" for clade %s" % (orig_cs, orig_clade))
             clade_identifier = "originate_%s" % clade if originate else clade
             self.calibrations[clade_identifier] = Calibration(langs, originate, dist_type, p1, p2)
 
