@@ -228,14 +228,6 @@ class Configuration(object):
             raise ValueError(
                 "Value for overlap needs to be either 'union', or 'intersection'."
             )
-        if (self.starting_tree and not
-                (self.sample_topology or self.sample_branch_lengths)):
-            self.tree_logging_pointless = True
-            self.messages.append(
-                "[INFO] Tree logging disabled because starting tree is known and fixed.")
-        else:
-            self.tree_logging_pointless = False
-
         if p.has_option(sec, "monophyletic"):
             self.monophyly = p.getboolean(sec, "monophyletic")
         elif p.has_option(sec, "monophyly"):
@@ -341,6 +333,15 @@ class Configuration(object):
             # This causes BEAST to die.
             # So in this case, just log everything.
             self.log_every = self.chainlength // 10000 or 1
+
+        # Decide whether or not to log trees
+        if (self.starting_tree and not
+                (self.sample_topology or self.sample_branch_lengths)):
+            self.tree_logging_pointless = True
+            self.messages.append(
+                "[INFO] Tree logging disabled because starting tree is known and fixed.")
+        else:
+            self.tree_logging_pointless = False
 
         self.load_glottolog_data()
         self.load_user_geo()
