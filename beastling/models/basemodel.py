@@ -31,7 +31,7 @@ class BaseModel(object):
         self.minimum_data = float(model_config.get("minimum_data", 0))
         self.lang_column = model_config.get("language_column", None)
         self.substitution_name = self.__class__.__name__
-
+        self.data_separator = ","
 
         self.data = load_data(self.data_filename, file_format=model_config.get("file_format",None), lang_column=model_config.get("language_column",None))
         self.build_feature_filter()
@@ -266,16 +266,29 @@ class BaseModel(object):
         pass
 
     def add_master_data(self, beast):
+        self.filters = {}
         data = ET.SubElement(beast, "data", {
             "id":"data_%s" % self.name,
             "name":"data_%s" % self.name,
             "dataType":"integer"})
         for lang in self.data:
+            formatted_points = [self.format_datapoint(f, self.data[lang][f]) for f in self.features]
+            value_string = self.data_separator.join(formatted_points)
+            if not self.filters:
+                n = 1
+                for f, x in zip(self.features, formatted_points):
+                    if len(x) == 1:
+                        self.filters[f] = str(n)
+                    else:
+                        self.filters[f] = "%d-%d" % (n, n+len(x)-1)
+                    n += len(x)
             seq = ET.SubElement(data, "sequence", {
                 "id":"data_%s:%s" % (self.name, lang),
                 "taxon":lang,
-                "value":",".join([str(self.data[lang].get(f, "?")) for f in self.features])})
-#                "value":",".join([str(self.unique_values[f].index(self.data[lang][f])) if self.data[lang].get(f, "?") != "?" else "?" for f in self.features])})
+                "value":value_string})
+
+    def format_datapoint(self, feature, point):
+        return str(point)
 
     def add_feature_data(self, distribution, index, feature, fname):
         """
@@ -293,8 +306,12 @@ class BaseModel(object):
             "id":"data_%s" % fname,
             "spec":"FilteredAlignment",
             "data":"@data_%s" % self.name,
-            "filter":str(index+1)})
-        userdatatype = ET.SubElement(data, "userDataType", {"id":"featureDataType.%s"%fname,"spec":"beast.evolution.datatype.UserDataType","codeMap":self.codemaps[feature],"codelength":"-1","states":str(self.valuecounts[feature])})
+            "filter":self.filters[feature]})
+        data.append(self.get_userdatatype(feature, fname))
+        return data
+
+    def get_userdatatype(self, feature, fname):
+        return ET.Element("userDataType", {"id":"featureDataType.%s"%fname,"spec":"beast.evolution.datatype.UserDataType","codeMap":self.codemaps[feature],"codelength":"-1","states":str(self.valuecounts[feature])})
 
     def add_operators(self, run):
         """

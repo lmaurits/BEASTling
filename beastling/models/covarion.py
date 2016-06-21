@@ -1,32 +1,13 @@
 import xml.etree.ElementTree as ET
 
-from .basemodel import BaseModel
+from .binary import BinaryModel
 
 
-class CovarionModel(BaseModel):
+class CovarionModel(BinaryModel):
 
     def __init__(self, model_config, global_config):
 
-        BaseModel.__init__(self, model_config, global_config)
-        if model_config.get("binarised", None) is None:
-            # We've not been explicitly told if the data has been binarised
-            # or not.  So attempt automagic:
-            if all([self.valuecounts[f]==2 for f in self.features]):
-                self.binarised = True
-                self.messages.append("""[INFO] Model "%s": Assuming that data source %s contains pre-binarised cognate data.  Set "binarised=False" in config to stop this.""" % (self.name, self.data_filename))
-            else:
-                self.binarised = False
-        else:
-            # If we've been told, listen.
-            self.binarised = model_config["binarised"]
-        if self.constant_feature:
-            self.ascertained = False
-            self.messages.append("""[INFO] Model "%s": Constant features in data have been retained, so ascertainment correction will be disabled.""" % (self.name))
-        else:
-            self.ascertained = model_config.get("ascertained", True)
-            if str(self.ascertained).lower() == "false":
-                self.ascertained = False
-
+        BinaryModel.__init__(self, model_config, global_config)
         self.freq_str = self.build_freq_str()
 
     def build_freq_str(self):
@@ -59,70 +40,14 @@ class CovarionModel(BaseModel):
         return "%.2f %.2f" % (zerf, onef)
 
     def add_state(self, state):
-        BaseModel.add_state(self, state)
+        BinaryModel.add_state(self, state)
         alpha = ET.SubElement(state, "parameter", {"id":"%s:covarion_alpha.s" % self.name, "lower":"1.0E-4", "name":"stateNode", "upper":"1.0"})
         alpha.text="0.5"
         switch = ET.SubElement(state, "parameter", {"id":"%s:covarion_s.s" % self.name, "lower":"1.0E-4", "name":"stateNode", "upper":"Infinity"})
         switch.text="0.5"
 
-
-    def add_master_data(self, beast):
-        self.filters = {}
-        extra_columns = 1 if self.ascertained else 0
-        data = ET.SubElement(beast, "data", {
-            "id":"data_%s" % self.name,
-            "name":"data_%s" % self.name,
-            "dataType":"integer"})
-        for lang in self.data:
-            whole_valuestring = ""
-            for feature in self.features:
-                frange = sorted(list(set(self.data[lang][feature] for lang in self.config.languages)))
-                if "?" in frange:
-                    frange.remove("?")
-                if self.binarised:
-                    if self.data[lang][feature] == "?":
-                        valuestring = "??" if self.ascertained else "?"
-                    else:
-                        valuestring = str(frange.index(self.data[lang][feature]))
-                        if self.ascertained:
-                            valuestring = "0" + valuestring
-                else:
-                    if self.data[lang][feature] == "?":
-                        valuestring = "".join(["?" for i in range(0,len(frange)+extra_columns)])
-                    else:
-                        valuestring = ["0" for i in range(0,len(frange)+extra_columns)]
-                        valuestring[frange.index(self.data[lang][feature])+extra_columns] = "1"
-                        valuestring = "".join(valuestring)
-                self.filters[feature] = "%d-%d" % (len(whole_valuestring)+1, len(whole_valuestring)+len(valuestring))
-                whole_valuestring += valuestring
-
-            seq = ET.SubElement(data, "sequence", {
-                "id":"data_%s:%s" % (self.name, lang),
-                "taxon":lang,
-                "value":whole_valuestring})
-
-    def add_feature_data(self, distribution, index, feature, fname):
-        if self.pruned:
-            pruned_align = ET.SubElement(distribution,"data",{"id":"pruned_data_%s" % fname, "spec":"PrunedAlignment"})
-            parent = pruned_align
-            name = "source"
-        else:
-            parent = distribution
-            name = "data"
-        attribs = {
-            "id":"data_%s" % fname,
-            "spec":"FilteredAlignment",
-            "data":"@data_%s" % self.name,
-            "filter":self.filters[feature]
-            }
-        if self.ascertained:
-            attribs["ascertained"] = "true"
-            attribs["excludefrom"] = "0"
-            attribs["excludeto"] = "1"
-        else:
-            attribs["ascertained"] = "false"
-        data = ET.SubElement(parent, name, attribs)
-        ET.SubElement(data, "userDataType", {"spec":"beast.evolution.datatype.TwoStateCovarion"})
+    def get_userdatatype(self, feature, fname):
+        return ET.Element("userDataType", {"spec":"beast.evolution.datatype.TwoStateCovarion"})
 
     def add_misc(self, beast):
         # The "vfrequencies" parameter here is the frequencies
@@ -157,7 +82,7 @@ class CovarionModel(BaseModel):
         sitemodel = ET.SubElement(distribution, "siteModel", {"id":"SiteModel.%s"%fname,"spec":"SiteModel", "mutationRate":mr,"shape":"1","proportionInvariant":"0", "substModel":"@%s:covarion.s" % self.name})
 
     def add_prior(self, prior):
-        BaseModel.add_prior(self, prior)
+        BinaryModel.add_prior(self, prior)
         alpha_prior = ET.SubElement(prior, "prior", {"id":"%s:covarion_alpha_prior.s" % self.name,"name":"distribution","x":"@%s:covarion_alpha.s" % self.name})
         ET.SubElement(alpha_prior, "Uniform", {"id":"%s:CovAlphaUniform" % self.name,"name":"distr","upper":"Infinity"})
         switch_prior = ET.SubElement(prior, "prior", {"id":"%s:covarion_s_prior.s" % self.name,"name":"distribution","x":"@%s:covarion_s.s" % self.name})
@@ -166,12 +91,12 @@ class CovarionModel(BaseModel):
         ET.SubElement(gamma, "parameter", {"id":"%s:covarion_switch_gamma_param2" % self.name,"name":"beta","lower":"0.0","upper":"0.0"}).text = "10.0"
 
     def add_operators(self, run):
-        BaseModel.add_operators(self, run)
+        BinaryModel.add_operators(self, run)
         ET.SubElement(run, "operator", {"id":"%s:covarion_alpha_scaler.s" % self.name, "spec":"ScaleOperator","parameter":"@%s:covarion_alpha.s" % self.name,"scaleFactor":"0.5","weight":"1.0"})
         ET.SubElement(run, "operator", {"id":"%s:covarion_s_scaler.s" % self.name, "spec":"ScaleOperator","parameter":"@%s:covarion_s.s" % self.name,"scaleFactor":"0.5","weight":"1.0"})
 
     def add_param_logs(self, logger):
-        BaseModel.add_param_logs(self, logger)
+        BinaryModel.add_param_logs(self, logger)
         ET.SubElement(logger,"log",{"idref":"%s:covarion_alpha.s" % self.name})
         ET.SubElement(logger,"log",{"idref":"%s:covarion_s.s" % self.name})
         if self.config.log_fine_probs:
