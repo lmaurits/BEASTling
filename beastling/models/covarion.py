@@ -8,7 +8,7 @@ class CovarionModel(BaseModel):
     def __init__(self, model_config, global_config):
 
         BaseModel.__init__(self, model_config, global_config)
-        if model_config["binarised"] is None:
+        if model_config.get("binarised", None) is None:
             # We've not been explicitly told if the data has been binarised
             # or not.  So attempt automagic:
             if all([self.valuecounts[f]==2 for f in self.features]):
@@ -52,9 +52,10 @@ class CovarionModel(BaseModel):
                         all_data.extend(valuestring)
 
         all_data = [d for d in all_data if d !="?"]
-        assert set([int(x) for x in all_data]) == set([0,1])
+        all_data = [int(d) for d in all_data]
         zerf = 1.0*all_data.count(0) / len(all_data)
         onef = 1.0*all_data.count(1) / len(all_data)
+        assert abs(1.0 - (zerf+onef)) < 1e-6
         return "%.2f %.2f" % (zerf, onef)
 
     def add_state(self, state):
@@ -64,40 +65,64 @@ class CovarionModel(BaseModel):
         switch = ET.SubElement(state, "parameter", {"id":"%s:covarion_s.s" % self.name, "lower":"1.0E-4", "name":"stateNode", "upper":"Infinity"})
         switch.text="0.5"
 
+
+    def add_master_data(self, beast):
+        self.filters = {}
+        extra_columns = 1 if self.ascertained else 0
+        data = ET.SubElement(beast, "data", {
+            "id":"data_%s" % self.name,
+            "name":"data_%s" % self.name,
+            "dataType":"integer"})
+        for lang in self.data:
+            whole_valuestring = ""
+            for feature in self.features:
+                frange = sorted(list(set(self.data[lang][feature] for lang in self.config.languages)))
+                if "?" in frange:
+                    frange.remove("?")
+                if self.binarised:
+                    if self.data[lang][feature] == "?":
+                        valuestring = "??" if self.ascertained else "?"
+                    else:
+                        valuestring = str(frange.index(self.data[lang][feature]))
+                        if self.ascertained:
+                            valuestring = "0" + valuestring
+                else:
+                    if self.data[lang][feature] == "?":
+                        valuestring = "".join(["?" for i in range(0,len(frange)+extra_columns)])
+                    else:
+                        valuestring = ["0" for i in range(0,len(frange)+extra_columns)]
+                        valuestring[frange.index(self.data[lang][feature])+extra_columns] = "1"
+                        valuestring = "".join(valuestring)
+                self.filters[feature] = "%d-%d" % (len(whole_valuestring)+1, len(whole_valuestring)+len(valuestring))
+                whole_valuestring += valuestring
+
+            seq = ET.SubElement(data, "sequence", {
+                "id":"data_%s:%s" % (self.name, lang),
+                "taxon":lang,
+                "value":whole_valuestring})
+
     def add_feature_data(self, distribution, index, feature, fname):
-        frange = sorted(list(set(self.data[lang][feature] for lang in self.config.languages)))
-        if "?" in frange:
-            frange.remove("?")
-        attribs = {"id":fname, "spec":"Alignment"}
+        if self.pruned:
+            pruned_align = ET.SubElement(distribution,"data",{"id":"pruned_data_%s" % fname, "spec":"PrunedAlignment"})
+            parent = pruned_align
+            name = "source"
+        else:
+            parent = distribution
+            name = "data"
+        attribs = {
+            "id":"data_%s" % fname,
+            "spec":"FilteredAlignment",
+            "data":"@data_%s" % self.name,
+            "filter":self.filters[feature]
+            }
         if self.ascertained:
             attribs["ascertained"] = "true"
             attribs["excludefrom"] = "0"
             attribs["excludeto"] = "1"
         else:
             attribs["ascertained"] = "false"
-        data = ET.SubElement(distribution,"data",attribs)
-        ET.SubElement(data, "userDataType",{"spec":"beast.evolution.datatype.TwoStateCovarion"})
-        extra_columns = 1 if self.ascertained else 0
-        for lang in self.config.languages:
-            if self.binarised:
-                if self.data[lang][feature] == "?":
-                    valuestring = "??" if self.ascertained else "?"
-                else:
-                    valuestring = str(frange.index(self.data[lang][feature]))
-                    if self.ascertained:
-                        valuestring = "0" + valuestring
-            else:
-                if self.data[lang][feature] == "?":
-                    valuestring = "".join(["?" for i in range(0,len(frange)+extra_columns)])
-                else:
-                    valuestring = ["0" for i in range(0,len(frange)+extra_columns)]
-                    valuestring[frange.index(self.data[lang][feature])+extra_columns] = "1"
-                    valuestring = "".join(valuestring)
-
-            seq = ET.SubElement(data, "sequence", {"id":"seq_%s_%s" % (lang, fname), "taxon":lang, "totalcount":"4","value":valuestring})
-
-    def add_master_data(self, beast):
-        pass
+        data = ET.SubElement(parent, name, attribs)
+        ET.SubElement(data, "userDataType", {"spec":"beast.evolution.datatype.TwoStateCovarion"})
 
     def add_misc(self, beast):
         # The "vfrequencies" parameter here is the frequencies
