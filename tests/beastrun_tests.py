@@ -47,6 +47,8 @@ def test_basic():
         ("admin", "mk", "union"),
         ("admin", "mk", "intersection"),
         ("admin", "mk", "relaxed"),
+        ("admin", "mk", "relaxed_expon"),
+        ("admin", "mk", "relaxed_gamma"),
         ("admin", "mk", "random"),
         ("admin", "mk", "calibration_uniform_params"),
         ("admin", "mk", "calibration_normal_params"),
