@@ -781,7 +781,7 @@ class Configuration(object):
             tree_langs = set(tree_langs)
             # Make sure languges in tree is a superset of languages in the analysis
             if not tree_langs.issuperset(self.languages):
-                missing_langs = self.languages.difference(tree_langs)
+                missing_langs = set(self.languages).difference(tree_langs)
                 miss_string = ",".join(missing_langs)
                 raise ValueError("Some languages in the data are not in the starting tree: %s" % miss_string)
             # If the trees' language set is a proper superset, prune the tree to fit the analysis
