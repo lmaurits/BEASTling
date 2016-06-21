@@ -98,7 +98,6 @@ class Tests(WithConfigAndTempDir):
                 'binarized': True,
             },
         })
-        self.assertTrue(cfg.tree_logging_pointless)
         self.assertAlmostEqual(cfg.calibration_configs['abcd1234, efgh5678'], "10-20")
         self.assertTrue(cfg.model_configs[1]['binarised'])
 
