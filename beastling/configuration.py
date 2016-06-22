@@ -580,8 +580,6 @@ class Configuration(object):
                     raise ValueError("Unknown model type '%s' for model section '%s', and failed to import a third-party model." % (config["model"], config["name"]))
                 model = UserClass(config, self)
 
-            if config["model"].lower() != "covarion":
-                self.messages.append("""[DEPENDENCY] Model %s: AlignmentFromTrait is implemented in the BEAST package "BEAST_CLASSIC".""" % config["name"])
             self.messages.extend(model.messages)
             self.models.append(model)
             

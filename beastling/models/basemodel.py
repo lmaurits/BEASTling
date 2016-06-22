@@ -241,7 +241,7 @@ class BaseModel(object):
         """
         for n, f in enumerate(self.features):
             fname = "%s:%s" % (self.name, f)
-            attribs = {"id":"traitedtreeLikelihood:%s" % fname,"spec":"TreeLikelihood","useAmbiguities":"true"}
+            attribs = {"id":"featureLikelihood:%s" % fname,"spec":"TreeLikelihood","useAmbiguities":"true"}
             if self.pruned:
                 distribution = ET.SubElement(likelihood, "distribution",attribs)
                 # Create pruned tree
@@ -339,7 +339,7 @@ class BaseModel(object):
                 "var":"feature",
                 "range":",".join(self.features)})
             ET.SubElement(plate, "log", {
-                "idref":"traitedtreeLikelihood:%s:$(feature)" % self.name})
+                "idref":"featureLikelihood:%s:$(feature)" % self.name})
             if self.rate_variation:
                 ET.SubElement(logger,"log",{"idref":"featureClockRatePrior.s:%s" % self.name})
                 ET.SubElement(logger,"log",{"idref":"featureClockRateGammaShapePrior.s:%s" % self.name})
