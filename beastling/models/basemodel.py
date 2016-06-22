@@ -82,7 +82,7 @@ class BaseModel(object):
             self.data.pop(lang)
         # Make sure we've not removed all languages
         if not self.data.keys():
-            raise ValueError("Language filters leave nothing in the dataset for model '%s'" % self.name)
+            raise ValueError("Language filters leave nothing in the dataset for model '%s'!" % self.name)
 
     def apply_feature_filter(self):
         """
