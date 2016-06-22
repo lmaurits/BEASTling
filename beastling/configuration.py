@@ -510,6 +510,7 @@ class Configuration(object):
         if self.exclusions and l in self.exclusions:
             return False
         if self.geo_config and l not in self.locations:
+            self.messages.append("""[INFO] All models: Feature %s excluded due to lack of loation data.""" % f)
             return False
         return True
 
