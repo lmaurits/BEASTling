@@ -319,12 +319,8 @@ class BaseModel(object):
         variation is configured.
         """
         if self.rate_variation:
-            delta = ET.SubElement(run, "operator", {"id":"featureClockRateDeltaExchanger:%s" % self.name, "spec":"DeltaExchangeOperator", "weight":"3.0"})
-            plate = ET.SubElement(delta, "plate", {
-                "var":"feature",
-                "range":",".join(self.features)})
-            ET.SubElement(plate, "parameter", {
-                "idref":"featureClockRate:%s:$(feature)" % self.name})
+            # UpDownOperator to scale the Gamma distribution for this model's
+            # feature rates
             updown = ET.SubElement(run, "operator", {"id":"featureClockRateGammaUpDown:%s" % self.name, "spec":"UpDownOperator", "scaleFactor":"0.5","weight":"0.3"})
             ET.SubElement(updown, "parameter", {"idref":"featureClockRateGammaShape:%s" % self.name, "name":"up"})
             ET.SubElement(updown, "parameter", {"idref":"featureClockRateGammaScale:%s" % self.name, "name":"down"})

@@ -1,4 +1,5 @@
 import datetime
+import itertools
 from math import log
 import sys
 import xml.etree.ElementTree as ET
@@ -287,6 +288,16 @@ class BeastXml(object):
             clock.add_operators(self.run)
         for model in self.config.all_models:
             model.add_operators(self.run)
+        if any([model.rate_variation for model in self.config.models]):
+            # Add one big DeltaExchangeOperator which operates on all
+            # feature clock rates from all models
+            delta = ET.SubElement(self.run, "operator", {"id":"featureClockRateDeltaExchanger", "spec":"DeltaExchangeOperator", "weight":"3.0"})
+            features = itertools.chain(*[["%s:%s" % (m.name, f) for f in m.features] for m in self.config.models if m.rate_variation])
+            plate = ET.SubElement(delta, "plate", {
+                "var":"feature",
+                "range":",".join(features)})
+            ET.SubElement(plate, "parameter", {"idref":"featureClockRate:$(feature)"})
+
 
     def add_tree_operators(self):
         """
