@@ -680,6 +680,7 @@ class Configuration(object):
 
     def instantiate_calibrations(self):
         self.calibrations = {}
+        useless_calibrations = []
         for clade, cs in self.calibration_configs.items():
             orig_clade = clade[:]
             orig_cs = cs[:]
@@ -696,6 +697,7 @@ class Configuration(object):
                 langs = self.get_languages_by_glottolog_clade(clade)
             if len(langs) < 2:
                 self.messages.append("[INFO] Calibration on clade %s ignored as no matching languages in analysis." % clade)
+                useless_calibrations.append(clade)
                 continue
             
             # Next parse the calibration string
@@ -739,6 +741,10 @@ class Configuration(object):
                 raise ValueError("Could not parse calibration \"%s\" for clade %s" % (orig_cs, orig_clade))
             clade_identifier = "originate_%s" % clade if originate else clade
             self.calibrations[clade_identifier] = Calibration(langs, originate, dist_type, p1, p2)
+
+        # Get rid of useless calibrations
+        for clade in useless_calibrations:
+            self.calibrations.pop(clade)
 
     def get_languages_by_glottolog_clade(self, clade):
         langs = []
