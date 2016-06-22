@@ -105,6 +105,7 @@ class BaseModel(object):
         """
 
         self.valuecounts = {}
+        self.unique_values = {}
         self.missing_ratios = {}
         self.counts = {}
         self.dimensions = {}
@@ -130,6 +131,7 @@ class BaseModel(object):
             # ...otherwise, just sort normally
             else:
                 unique_values.sort()
+            self.unique_values[f] = unique_values
 
             N = len(unique_values)
             self.valuecounts[f] = N

@@ -30,22 +30,19 @@ class BinaryModel(BaseModel):
 
     def format_datapoint(self, feature, point):
         extra_columns = 1 if self.ascertained else 0
-        frange = sorted(list(set(self.data[lang][feature] for lang in self.config.languages)))
-        if "?" in frange:
-            frange.remove("?")
         if self.binarised:
             if point == "?":
                 valuestring = "??" if self.ascertained else "?"
             else:
-                valuestring = str(frange.index(point))
+                valuestring = str(self.unique_values[feature].index(point))
                 if self.ascertained:
                     valuestring = "0" + valuestring
         else:
             if point == "?":
-                valuestring = "".join(["?" for i in range(0,len(frange)+extra_columns)])
+                valuestring = "".join(["?" for i in range(0,len(self.unique_values[feature])+extra_columns)])
             else:
-                valuestring = ["0" for i in range(0,len(frange)+extra_columns)]
-                valuestring[frange.index(point)+extra_columns] = "1"
+                valuestring = ["0" for i in range(0,len(self.unique_values[feature])+extra_columns)]
+                valuestring[self.unique_values[feature].index(point)+extra_columns] = "1"
                 valuestring = "".join(valuestring)
         return valuestring
 

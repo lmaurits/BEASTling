@@ -14,22 +14,20 @@ class CovarionModel(BinaryModel):
         if self.binarised:
             all_data = []
             for f in self.features:
-                frange = sorted(list(set(self.data[lang][f] for lang in self.data)))
                 for lang in self.data:
                     if self.data[lang][f] == "?":
                         continue
-                    dpoint, index = self.data[lang][f], frange.index(self.data[lang][f])
+                    dpoint, index = self.data[lang][f], self.unique_values[f].index(self.data[lang][f])
                     all_data.append(index)
         else:
             all_data = []
             for f in self.features:
-                frange = sorted(list(set(self.data[lang][f] for lang in self.data)))
                 for lang in self.data:
                     if self.data[lang].get(f,"?") == "?":
-                        valuestring = "".join(["?" for i in range(0,len(frange)+1)])
+                        valuestring = "".join(["?" for i in range(0,len(self.unique_values[f])+1)])
                     else:
-                        valuestring = ["0" for i in range(0,len(frange)+1)]
-                        valuestring[frange.index(self.data[lang][f])+1] = "1"
+                        valuestring = ["0" for i in range(0,len(self.unique_values[f])+1)]
+                        valuestring[self.unique_values[f].index(self.data[lang][f])+1] = "1"
                         all_data.extend(valuestring)
 
         all_data = [d for d in all_data if d !="?"]
