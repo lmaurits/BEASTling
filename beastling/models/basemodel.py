@@ -278,14 +278,7 @@ class BaseModel(object):
         for lang in self.languages:
             formatted_points = [self.format_datapoint(f, self.data[lang][f]) for f in self.features]
             value_string = self.data_separator.join(formatted_points)
-            if not self.filters:
-                n = 1
-                for f, x in zip(self.features, formatted_points):
-                    if len(x) == 1:
-                        self.filters[f] = str(n)
-                    else:
-                        self.filters[f] = "%d-%d" % (n, n+len(x)-1)
-                    n += len(x)
+            self.filters = {f:str(n+1) for n, f in enumerate(self.features)}
             seq = ET.SubElement(data, "sequence", {
                 "id":"data_%s:%s" % (self.name, lang),
                 "taxon":lang,
