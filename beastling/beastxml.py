@@ -356,7 +356,7 @@ class BeastXml(object):
         """
         if not(self.config.log_probabilities or self.config.log_params or self.config.log_all):
             return
-        tracer_logger = ET.SubElement(self.run,"logger",{"id":"tracelog","fileName":self.config.basename+".log","logEvery":str(self.config.log_every),"model":"@posterior","sanitiseHeaders":"true","sort":"smart"})
+        tracer_logger = ET.SubElement(self.run,"logger",{"id":"tracelog","fileName":self.config.basename+".log","logEvery":str(self.config.log_every),"sanitiseHeaders":"true","sort":"smart"})
         # Log prior, likelihood and posterior
         if self.config.log_probabilities or self.config.log_all:
             ET.SubElement(tracer_logger,"log",{"idref":"prior"})
