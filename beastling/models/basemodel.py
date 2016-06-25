@@ -83,6 +83,8 @@ class BaseModel(object):
         # Make sure we've not removed all languages
         if not self.data.keys():
             raise ValueError("Language filters leave nothing in the dataset for model '%s'!" % self.name)
+        # Keep a sorted list so that the order of things in XML is deterministic
+        self.languages = sorted(list(self.data.keys()))
 
     def apply_feature_filter(self):
         """
@@ -90,7 +92,7 @@ class BaseModel(object):
         configured feature filter.
         """
         self.features = set()
-        for lang in self.data:
+        for lang in self.languages:
             features_in_data = set(self.data[lang].keys())
             features_to_keep = features_in_data & self.feature_filter
             self.features |= features_to_keep
@@ -173,7 +175,7 @@ class BaseModel(object):
 
         for bad in bad_feats:
             self.features.remove(bad)
-            for lang in self.data:
+            for lang in self.languages:
                 if bad in self.data[lang]:
                     self.data[lang].pop(bad)
 
@@ -273,7 +275,7 @@ class BaseModel(object):
             "id":"data_%s" % self.name,
             "name":"data_%s" % self.name,
             "dataType":"integer"})
-        for lang in self.data:
+        for lang in self.languages:
             formatted_points = [self.format_datapoint(f, self.data[lang][f]) for f in self.features]
             value_string = self.data_separator.join(formatted_points)
             if not self.filters:
