@@ -186,13 +186,12 @@ class BeastXml(object):
         """
         Add monophyly constraints to prior distribution.
         """
-        glotto_iso_langs = [l for l in self.config.languages if l.lower() in self.config.classifications]
-        if self.config.monophyly and glotto_iso_langs:
+        if self.config.monophyly:
             attribs = {}
             attribs["id"] = "constraints"
             attribs["spec"] = "beast.math.distributions.MultiMonophyleticConstraint"
             attribs["tree"] = "@Tree.t:beastlingTree"
-            attribs["newick"] = self.make_monophyly_newick(glotto_iso_langs)
+            attribs["newick"] = self.config.monophyly_newick
             ET.SubElement(self.prior, "distribution", attribs)
 
     def add_calibrations(self):
@@ -452,93 +451,3 @@ class BeastXml(object):
         else:
             with open(filename or self.config.basename + ".xml", "wb") as stream:
                 self.write(stream)
-
-    def make_monophyly_newick(self, langs):
-        """
-        Transforms a list of list of language identifiers (ISO or Glottocodes)
-        into a Newick tree representing the corresponding Glottolog
-        family structure, suitable as use for a BEAST monophyly constraint.
-        """
-        # First we build a "monophyly structure".  This can be done in either
-        # a "top-down" or "bottom-up" way.
-        if self.config.monophyly_end_depth is not None:
-            # A power user has explicitly provided start and end depths
-            start = self.config.monophyly_start_depth
-            end = self.config.monophyly_end_depth
-        elif self.config.monophyly_direction == "top_down":
-            # Compute start and end in a top-down fashion
-            start = self.config.monophyly_start_depth
-            end = start + self.config.monophyly_levels
-        elif self.config.monophyly_direction == "bottom_up":
-            # Compute start and end in a bottom-up fashion
-            classifications = [self.config.classifications[name.lower()] for name in langs]
-            end = max([len(c) for c in classifications]) - self.config.monophyly_start_depth
-            start = max(0, end - self.config.monophyly_levels)
-        struct = self.make_monophyly_structure(langs, depth=start, maxdepth=end)
-        # Now we serialise the "monophyly structure" into a Newick tree.
-        return self.make_monophyly_string(struct)
-
-    def make_monophyly_structure(self, langs, depth, maxdepth):
-        """
-        Recursively partition a list of languages (ISO or Glottocodes) into
-        lists corresponding to their Glottolog classification.  The process
-        may be halted part-way down the Glottolog tree.
-        """
-        if depth > maxdepth:
-            # We're done, so terminate recursion
-            return langs
-
-        def subgroup(name, depth):
-            ancestors = self.config.classifications[name.lower()]
-            return ancestors[depth][0] if depth < len(ancestors) else ''
-
-        def sortkey(i):
-            """
-            Callable to pass into `sorted` to port sorting behaviour from py2 to py3.
-
-            :param i: Either a string or a list (of lists, ...) of strings.
-            :return: Pair (nesting level, first string)
-            """
-            d = 0
-            while isinstance(i, list):
-                d -= 1
-                i = i[0] if i else ''
-            return d, i
-
-        # Find the ancestor of all the given languages at at particular depth 
-        # (i.e. look `depth` nodes below the root of the Glottolog tree)
-        levels = list(set([subgroup(l, depth) for l in langs]))
-        if len(levels) == 1:
-            # If all languages belong to the same classificatio at this depth,
-            # there are two possibilities
-            if levels[0] == "":
-                # If the common classification is an empty string, then we know
-                # that there is no further refinement possible, so stop
-                # the recursion here.
-                langs.sort()
-                return langs
-            else:
-                # If the common classification is non-empty, we need to
-                # descend further, since some languages might get
-                # separated later
-                return self.make_monophyly_structure(langs, depth+1, maxdepth)
-        else:
-            # If the languages belong to multiple classifications, split them
-            # up accordingly and then break down each classification
-            # individually.
-
-            partition = [[l for l in langs if subgroup(l, depth) == level] for level in levels]
-            partition = [part for part in partition if part]
-            return sorted(
-                [self.make_monophyly_structure(group, depth+1, maxdepth)
-                 for group in partition],
-                key=sortkey)
-
-    def make_monophyly_string(self, struct, depth=0):
-        """
-        Converts a structure of nested lists into Newick string.
-        """
-        if not type([]) in [type(x) for x in struct]:
-            return "(%s)" % ",".join(struct)
-        else:
-            return "(%s)" % ",".join([self.make_monophyly_string(substruct) for substruct in struct])

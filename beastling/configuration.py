@@ -348,6 +348,7 @@ class Configuration(object):
         self.build_language_filter()
         self.instantiate_models()
         self.build_language_list()
+        self.handle_monophyly()
         self.instantiate_calibrations()
         # At this point, we can tell whether or not the tree's length units
         # can be treated as arbitrary
@@ -514,6 +515,124 @@ class Configuration(object):
             return False
         return True
 
+    def handle_monophyly(self):
+        """
+        Construct a representation of the Glottolog monophyly constraints
+        for the languages in self.languages.  If the constraints are
+        meaningful, create and store a Newick tree representation of
+        them.  If the constraints are not meaningful, e.g. all
+        languages are classified identically by Glottolog, then override
+        the monophyly=True setting.
+        """
+        if not self.monophyly:
+            return
+        if len(self.languages) < 3:
+            # Monophyly constraints are meaningless for so few languages
+            self.monophyly = False
+            self.messages.append("""[INFO] Disabling Glottolog monophyly constraints because there are only %d languages in analysis.""" % len(self.languages))
+        # Build a list-based representation of the monophyly constraints
+        # This can be done in either a "top-down" or "bottom-up" way.
+        langs = [l for l in self.languages if l.lower() in self.classifications]
+        if self.monophyly_end_depth is not None:
+            # A power user has explicitly provided start and end depths
+            start = self.monophyly_start_depth
+            end = self.monophyly_end_depth
+        elif self.monophyly_direction == "top_down":
+            # Compute start and end in a top-down fashion
+            start = self.monophyly_start_depth
+            end = start + self.monophyly_levels
+        elif self.monophyly_direction == "bottom_up":
+            # Compute start and end in a bottom-up fashion
+            classifications = [self.classifications[name.lower()] for name in langs]
+            end = max([len(c) for c in classifications]) - self.monophyly_start_depth
+            start = max(0, end - self.monophyly_levels)
+        struct = self.make_monophyly_structure(langs, depth=start, maxdepth=end)
+        # Make sure this struct is not pointlessly flat
+        if not self.check_monophyly_structure(struct):
+            self.monophyly = False
+            self.messages.append("""[INFO] Disabling Glottolog monophyly constraints because all languages in the analysis are classified identically.""")
+        # At this point everything looks good, so keep monophyly on and serialise the "monophyly structure" into a Newick tree.
+        self.monophyly_newick = self.make_monophyly_string(struct)
+
+    def make_monophyly_structure(self, langs, depth, maxdepth):
+        """
+        Recursively partition a list of languages (ISO or Glottocodes) into
+        lists corresponding to their Glottolog classification.  The process
+        may be halted part-way down the Glottolog tree.
+        """
+        if depth > maxdepth:
+            # We're done, so terminate recursion
+            return langs
+
+        def subgroup(name, depth):
+            ancestors = self.classifications[name.lower()]
+            return ancestors[depth][0] if depth < len(ancestors) else ''
+
+        def sortkey(i):
+            """
+            Callable to pass into `sorted` to port sorting behaviour from py2 to py3.
+
+            :param i: Either a string or a list (of lists, ...) of strings.
+            :return: Pair (nesting level, first string)
+            """
+            d = 0
+            while isinstance(i, list):
+                d -= 1
+                i = i[0] if i else ''
+            return d, i
+
+        # Find the ancestor of all the given languages at at particular depth
+        # (i.e. look `depth` nodes below the root of the Glottolog tree)
+        levels = list(set([subgroup(l, depth) for l in langs]))
+        if len(levels) == 1:
+            # If all languages belong to the same classificatio at this depth,
+            # there are two possibilities
+            if levels[0] == "":
+                # If the common classification is an empty string, then we know
+                # that there is no further refinement possible, so stop
+                # the recursion here.
+                langs.sort()
+                return langs
+            else:
+                # If the common classification is non-empty, we need to
+                # descend further, since some languages might get
+                # separated later
+                return self.make_monophyly_structure(langs, depth+1, maxdepth)
+        else:
+            # If the languages belong to multiple classifications, split them
+            # up accordingly and then break down each classification
+            # individually.
+
+            partition = [[l for l in langs if subgroup(l, depth) == level] for level in levels]
+            partition = [part for part in partition if part]
+            return sorted(
+                [self.make_monophyly_structure(group, depth+1, maxdepth)
+                 for group in partition],
+                key=sortkey)
+
+    def check_monophyly_structure(self, struct):
+        """
+        Return True if the monophyly structure represented by struct is
+        considered "meaningful", i.e. encodes something other than an
+        unstructured polytomy.
+        """
+
+        # TODO: Make this more rigorous.
+        # Current test will fail ['foo', 'bar', 'baz'], but
+        # will pass [['foo'], ['bar'], ['baz']], which is no better.
+        if not any([type(x) == list for x in struct]):
+            # Struct is just a list of language names, with no internal structure
+            return False
+        return True
+
+    def make_monophyly_string(self, struct, depth=0):
+        """
+        Converts a structure of nested lists into Newick string.
+        """
+        if not type([]) in [type(x) for x in struct]:
+            return "(%s)" % ",".join(struct)
+        else:
+            return "(%s)" % ",".join([self.make_monophyly_string(substruct) for substruct in struct])
 
     def instantiate_clocks(self):
         """
