@@ -151,15 +151,30 @@ class BeastXml(object):
         # If a starting tree is specified, use it...
         if self.config.starting_tree:
             init = ET.SubElement(self.run, "init", {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "spec":"beast.util.TreeParser","IsLabelledNewick":"true", "newick":self.config.starting_tree})
-        # ...if not, use a random tree
+        # ...if not, use the simplest random tree initialiser possible
         else:
-            # But the random tree must respect any constraints!
-            if self.config.monophyly:
-                init = ET.SubElement(self.run, "init", {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "taxonset":"@taxa", "spec":"beast.evolution.tree.ConstrainedRandomTree", "constraints":"@constraints"})
+            # If we have non-trivial monophyly constraints, use ConstrainedRandomTree
+            if self.config.monophyly and len(self.config.languages) > 2:
+                self.add_constrainedrandomtree_init()
+            # If we have hard-bound calibrations, use SimpleRandomTree
+            elif any([c.dist == "uniform" for c in self.config.calibrations.values()]):
+                self.add_simplerandomtree_init()
+            # Otherwise, just use RandomTree
             else:
-                init = ET.SubElement(self.run, "init", {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "taxonset":"@taxa", "spec":"beast.evolution.tree.RandomTree"})
-            popmod = ET.SubElement(init, "populationModel", {"spec":"ConstantPopulation"})
-            ET.SubElement(popmod, "popSize", {"spec":"parameter.RealParameter","value":"1"})
+                self.add_randomtree_init()
+
+    def add_randomtree_init(self):
+        init = ET.SubElement(self.run, "init", {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "taxonset":"@taxa", "spec":"beast.evolution.tree.RandomTree"})
+        popmod = ET.SubElement(init, "populationModel", {"spec":"ConstantPopulation"})
+        ET.SubElement(popmod, "popSize", {"spec":"parameter.RealParameter","value":"1"})
+
+    def add_simplerandomtree_init(self):
+        ET.SubElement(self.run, "init", {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "taxonset":"@taxa", "spec":"beast.evolution.tree.SimpleRandomTree"})
+
+    def add_constrainedrandomtree_init(self):
+        init = ET.SubElement(self.run, "init", {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "taxonset":"@taxa", "spec":"beast.evolution.tree.ConstrainedRandomTree", "constraints":"@constraints"})
+        popmod = ET.SubElement(init, "populationModel", {"spec":"ConstantPopulation"})
+        ET.SubElement(popmod, "popSize", {"spec":"parameter.RealParameter","value":"1"})
 
     def add_distributions(self):
         """
