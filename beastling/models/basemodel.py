@@ -271,6 +271,7 @@ class BaseModel(object):
 
     def add_master_data(self, beast):
         self.filters = {}
+        self.weights = {}
         data = ET.SubElement(beast, "data", {
             "id":"data_%s" % self.name,
             "name":"data_%s" % self.name,
@@ -286,6 +287,7 @@ class BaseModel(object):
                         length = len(x.split(self.data_separator))
                     else:
                         length = len(x)
+                    self.weights[f] = length
                     # Format the FilteredAlignment filter appropriately
                     if length == 1:
                         self.filters[f] = str(n)
