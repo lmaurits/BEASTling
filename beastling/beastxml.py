@@ -302,18 +302,19 @@ class BeastXml(object):
             clock.add_operators(self.run)
         for model in self.config.all_models:
             model.add_operators(self.run)
-        if any([model.rate_variation for model in self.config.models]):
+        # Add one DeltaExchangeOperator for feature rates per clock
+        for clock in self.config.clocks:
+            clock_models = [m for m in self.config.models if m.rate_variation and m.clock == clock]
+            if not clock_models:
+                continue
             # Add one big DeltaExchangeOperator which operates on all
             # feature clock rates from all models
             delta = ET.SubElement(self.run, "operator", {"id":"featureClockRateDeltaExchanger", "spec":"DeltaExchangeOperator", "weight":"3.0"})
-            for model in self.config.models:
-                if not model.rate_variation:
-                    continue
+            for model in clock_models:
                 plate = ET.SubElement(delta, "plate", {
                     "var":"feature",
                     "range":",".join(model.features)})
                 ET.SubElement(plate, "parameter", {"idref":"featureClockRate:%s:$(feature)" % model.name})
-
 
     def add_tree_operators(self):
         """
