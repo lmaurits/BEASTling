@@ -435,14 +435,17 @@ class BeastXml(object):
                 else:
                     self.add_tree_logger("_%s_rates" % clock.name, clock.branchrate_model_id)
 
-        # If asked to log locations, do so in a dedicated log file
-        # and include the branch rates for the geo model's clock if non-relaxed
-        if self.config.geo_config.get("log_locations",False):
-            self.add_tree_logger("_geography", self.config.geo_model.clock.branchrate_model_id, True)
-
         # If asked, do a topology-only tree log (i.e. no branch rates)
         if self.config.log_pure_tree and not pure_tree_done:
             self.add_tree_logger("_pure")
+
+
+        # Created a dedicated geographic tree log if asked to log locations,
+        # or if the geo model's clock is non-strict
+        if not self.config.geo_config:
+            return
+        if self.config.geo_config["log_locations"] or not self.config.geo_model.clock.is_strict:
+            self.add_tree_logger("_geography", self.config.geo_model.clock.branchrate_model_id, True)
 
     def add_tree_logger(self, suffix="", branchrate_model_id=None, locations=False):
         tree_logger = ET.SubElement(self.run, "logger", {"mode":"tree", "fileName":self.config.basename + suffix + ".nex", "logEvery":str(self.config.log_every),"id":"treeLogger" + suffix})

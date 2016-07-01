@@ -334,15 +334,6 @@ class Configuration(object):
             # So in this case, just log everything.
             self.log_every = self.chainlength // 10000 or 1
 
-        # Decide whether or not to log trees
-        if (self.starting_tree and not
-                (self.sample_topology or self.sample_branch_lengths)):
-            self.tree_logging_pointless = True
-            self.messages.append(
-                "[INFO] Tree logging disabled because starting tree is known and fixed.")
-        else:
-            self.tree_logging_pointless = False
-
         self.load_glottolog_data()
         self.load_user_geo()
         self.build_language_filter()
@@ -357,6 +348,19 @@ class Configuration(object):
         self.link_clocks_to_models()
         self.handle_starting_tree()
         self.processed = True
+
+        # Decide whether or not to log trees
+        if (
+            self.starting_tree and
+            not self.sample_topology and
+            not self.sample_branch_lengths and
+            all([c.is_strict for c in self.clocks if c.is_used])
+        ):
+            self.tree_logging_pointless = True
+            self.messages.append(
+                "[INFO] Tree logging disabled because starting tree is known and fixed and all clocks are strict.")
+        else:
+            self.tree_logging_pointless = False
 
     def load_glottolog_data(self):
         """
