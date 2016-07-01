@@ -296,6 +296,7 @@ class Configuration(object):
         cfg = {
             'name': 'geography',
             'model': 'geo',
+            'log_locations': True,
         }
         for key, value in p[section].items():
             if key == "log_locations":
