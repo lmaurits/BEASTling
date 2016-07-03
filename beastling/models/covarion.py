@@ -50,7 +50,11 @@ class CovarionModel(BinaryModel):
             vfreq.text="0.5 0.5"
 
     def get_userdatatype(self, feature, fname):
-        return ET.Element("userDataType", {"spec":"beast.evolution.datatype.TwoStateCovarion"})
+        if not self.beastxml._covarion_userdatatype_created:
+            self.beastxml._covarion_userdatatype_created = True
+            return ET.Element("userDataType", {"id":"TwoStateCovarionDatatype", "spec":"beast.evolution.datatype.TwoStateCovarion"})
+        else:
+            return ET.Element("userDataType", {"idref":"TwoStateCovarionDatatype"})
 
     def add_misc(self, beast):
         # The "vfrequencies" parameter here is the frequencies
