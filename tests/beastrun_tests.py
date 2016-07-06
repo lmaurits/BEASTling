@@ -37,6 +37,7 @@ def test_basic():
         ("admin", "noncode"),
         ("admin", "bsvs"),
         ("admin", "covarion"),
+        ("admin", "dollo"),
         ("admin", "mk", "families"),
         ("admin", "mk", "features"),
         ("admin", "mk", "monophyletic"),

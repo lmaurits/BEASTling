@@ -22,6 +22,7 @@ import beastling.models.geo as geo
 import beastling.models.bsvs as bsvs
 import beastling.models.covarion as covarion
 import beastling.models.mk as mk
+import beastling.models.dollo as dollo
 
 
 _BEAST_MAX_LENGTH = 2147483647
@@ -698,6 +699,10 @@ class Configuration(object):
                 if "mk_used" not in self.message_flags:
                     self.message_flags.append("mk_used")
                     self.messages.append(mk.MKModel.package_notice)
+            elif config["model"].lower() == "dollo":
+                model = dollo.StochasticDolloModel(config, self)
+                if dollo.StochasticDolloModel.package_notice not in self.messages:
+                    self.messages.append(dollo.StochasticDolloModel.package_notice)
             else:
                 try:
                     sys.path.insert(0, os.getcwd())
