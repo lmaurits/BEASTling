@@ -8,12 +8,18 @@ def load_data(filename, file_format=None, lang_column=None):
     if filename == 'stdin':
         filename = sys.stdin
     with UnicodeDictReader(filename) as reader:
-        if all([f in reader.fieldnames for f in ("Language_ID", "Value")]) \
-                and any([f in reader.fieldnames for f in ("Feature_ID", "Parameter_ID")]):
+        if file_format is None:
+            file_format = 'cldf' if all(
+                [f in reader.fieldnames for f in ("Language_ID", "Value")]) and any(
+                    [f in reader.fieldnames for f in ("Feature_ID", "Parameter_ID")]
+                ) else 'beastling'
+        if file_format == 'cldf':
             data = load_cldf_data(reader)
-        else:
+        elif file_format == 'beastling':
             data = load_beastling_data(reader, lang_column, filename)
-
+        else:
+            raise ValueError("File format specification '{:}' not understood".format(
+                file_format))
     return data
 
 
