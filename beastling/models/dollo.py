@@ -1,9 +1,10 @@
 import xml.etree.ElementTree as ET
 
-from .basemodel import BaseModel
+from .binary import BinaryModel
 
 
 class StochasticDolloModel(BinaryModel):
+    package_notice = """[DEPENDENCY]: The Stochastic Dollo model is implemented in the BEAST package "Babel"."""
 
     def __init__(self, model_config, global_config):
 
