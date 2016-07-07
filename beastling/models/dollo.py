@@ -159,7 +159,7 @@ class StochasticDolloModel(BinaryModel):
                 # Create pruned branchrate
                 self.clock.add_pruned_branchrate_model(distribution, fname, tree_id)
             else:
-                attribs["branchRateModel"] = "@%s" % self.clock.branchrate_model_id
+                #attribs["branchRateModel"] = "@%s" % self.clock.branchrate_model_id
                 attribs["tree"] = "@Tree.t:beastlingTree"
                 distribution = ET.SubElement(likelihood, "distribution", attribs)
 
