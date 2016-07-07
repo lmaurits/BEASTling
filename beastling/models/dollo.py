@@ -168,3 +168,39 @@ class StochasticDolloModel(BinaryModel):
 
             # Data
             self.add_feature_data(distribution, n, f, fname)
+
+    def add_master_data(self, beast):
+        self.filters = {}
+        self.weights = {}
+        # Compared to BaseModel.add_master_data, this function only
+        # differs in the data type.
+        data = ET.SubElement(beast, "data", {
+            "id": "data_%s" % self.name,
+            "name": "data_%s" % self.name})
+        mutationdeathtype = ET.SubElement(data, "userDataType", {
+            "id": "mutationdeathtype_%s" % self.name,
+            "spec": "MutationDeathType",
+            "deathChar": "0",
+            "extantCode": "1"})
+        for lang in self.languages:
+            formatted_points = [self.format_datapoint(f, self.data[lang][f]) for f in self.features]
+            value_string = self.data_separator.join(formatted_points)
+            if not self.filters:
+                n = 1
+                for f, x in zip(self.features, formatted_points):
+                    # Find out how many sites in the sequence correspond to this feature
+                    if self.data_separator:
+                        length = len(x.split(self.data_separator))
+                    else:
+                        length = len(x)
+                    self.weights[f] = length
+                    # Format the FilteredAlignment filter appropriately
+                    if length == 1:
+                        self.filters[f] = str(n)
+                    else:
+                        self.filters[f] = "%d-%d" % (n, n+length-1)
+                    n += length
+            seq = ET.SubElement(data, "sequence", {
+                "id":"data_%s:%s" % (self.name, lang),
+                "taxon":lang,
+                "value":value_string})
