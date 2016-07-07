@@ -76,13 +76,44 @@ class StochasticDolloModel(BinaryModel):
         freq = ET.SubElement(substmodel, "frequencies", {"id":"%s:dummyfrequences.s" % self.name,"spec":"Frequencies","frequencies":"0.5 0.5"})
 
     def add_sitemodel(self, distribution, feature, fname):
+        """ Add an *observationprocess* for the ALSTreeLikelihood `distribution`. """
 
         # Sitemodel
         if self.rate_variation:
             mr = "@featureClockRate:%s" % fname
         else:
             mr = "1.0"
-        sitemodel = ET.SubElement(distribution, "siteModel", {"id":"SiteModel.%s"%fname,"spec":"SiteModel", "mutationRate":mr,"shape":"1","proportionInvariant":"0", "substModel":"@%s:covarion.s" % self.name})
+        observationprocess = ET.SubElement(
+            distribution,
+            "observationprocess",
+            {"id": "AnyTipObservationProcess.%s"%fname,
+             "spec": "AnyTipObservationProcess",
+             "integrateGainRate": "true",
+             "mu": XXX, # Death Rate
+             "tree": XXX}
+            )
+        data = XXX
+        sitemodel = ET.SubElement(
+            observationprocess,
+            "siteModel",
+            {"id":"SiteModel.%s"%fname,
+             "spec":"SiteModel",
+             "mutationRate":mr,
+             "shape":"1",
+             "proportionInvariant":"0",
+             "substModel":"@%s:dollo.s" % self.name})
+
+    def add_feature_data(self, distribution, index, feature, fname):
+        """ Add feature data for the ALSTreeLikelihood `distribution`. 
+
+        Ensure that the data type is MutationDeathType."""
+        data = BaseModel.add_feature_data(self, distribution, index, feature, fname)
+        if self.ascertained:
+            data.set("ascertained", "true")
+            data.set("excludefrom", "0")
+            data.set("excludeto", "1")
+        else:
+            data.set("ascertained", "false")
 
     def add_prior(self, prior):
         BinaryModel.add_prior(self, prior)
