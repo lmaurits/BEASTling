@@ -1,6 +1,10 @@
+#!/usr/bin/env python
+# -*- encoding: utf-8 -*-
+
 import xml.etree.ElementTree as ET
 
 from .binary import BinaryModel
+from .basemodel import BaseModel
 
 
 class StochasticDolloModel(BinaryModel):
@@ -44,64 +48,53 @@ class StochasticDolloModel(BinaryModel):
         alpha.text="0.5"
         switch = ET.SubElement(state, "parameter", {"id":"%s:covarion_s.s" % self.name, "lower":"1.0E-4", "name":"stateNode", "upper":"Infinity"})
         switch.text="0.5"
-        vfreq = ET.SubElement(state, "parameter", {"id":"%s:visiblefrequencies.s" % self.name, "dimension":"2","name":"stateNode"})
-        if self.frequencies == "empirical":
-            vfreq.text = self.freq_str
-        else:
-            vfreq.text="0.5 0.5"
 
     def get_userdatatype(self, feature, fname):
-        if not self.beastxml._covarion_userdatatype_created:
-            self.beastxml._covarion_userdatatype_created = True
-            return ET.Element("userDataType", {"id":"TwoStateCovarionDatatype", "spec":"beast.evolution.datatype.TwoStateCovarion"})
-        else:
-            return ET.Element("userDataType", {"idref":"TwoStateCovarionDatatype"})
+        return ET.Element("userDataType", {"idref":"mutationdeathtype.%s"%self.name})
 
     def add_misc(self, beast):
-        # The "vfrequencies" parameter here is the frequencies
-        # of the *visible* states (present/absent) and should
-        # be based on the data (if we are doing an empirical
-        # analysis)
-        substmodel = ET.SubElement(beast, "substModel",{"id":"%s:covarion.s" % self.name,"spec":"BinaryCovarion","alpha":"@%s:covarion_alpha.s" % self.name, "switchRate":"@%s:covarion_s.s" % self.name, "vfrequencies":"@%s:visiblefrequencies.s" % self.name})
-        # These are the frequencies of the *hidden* states
-        # (fast / slow), and are just set to 50:50 
-        hfreq = ET.SubElement(substmodel, "parameter", {"id":"%s:hiddenfrequencies.s" % self.name,"dimension":"2","lower":"0.0","name":"hfrequencies","upper":"1.0"})
-        hfreq.text="0.5 0.5"
-
-        # Dummy frequencies - these do nothing and are required
-        # to stop the BinaryCovarion model complaining that the
-        # "frequencies" input is not specified, which is
-        # inherited behaviour from GeneralSubstitutionModel
-        # which probably should have been overridden...
-        freq = ET.SubElement(substmodel, "frequencies", {"id":"%s:dummyfrequences.s" % self.name,"spec":"Frequencies","frequencies":"0.5 0.5"})
+        pass
 
     def add_sitemodel(self, distribution, feature, fname):
         """ Add an *observationprocess* for the ALSTreeLikelihood `distribution`. """
 
-        # Sitemodel
+        # Observation process
+
+        # The death rate is the main clock rate of this model.
         if self.rate_variation:
-            mr = "@featureClockRate:%s" % fname
+            dr = "@featureClockRate:%s" % fname
         else:
-            mr = "1.0"
+            dr = "1.0"
         observationprocess = ET.SubElement(
             distribution,
             "observationprocess",
             {"id": "AnyTipObservationProcess.%s"%fname,
              "spec": "AnyTipObservationProcess",
              "integrateGainRate": "true",
-             "mu": XXX, # Death Rate
-             "tree": XXX}
+             "mu": dr, 
+             "tree": "@Tree.t:beastlingTree",
+             "data": "@orgdata.%s"%fname}
             )
-        data = XXX
         sitemodel = ET.SubElement(
             observationprocess,
             "siteModel",
-            {"id":"SiteModel.%s"%fname,
-             "spec":"SiteModel",
-             "mutationRate":mr,
-             "shape":"1",
-             "proportionInvariant":"0",
-             "substModel":"@%s:dollo.s" % self.name})
+            {"id": "SiteModel.%s"%fname,
+             "spec": "SiteModel",
+             "mutationRate": dr,
+             "shape": "1.0",
+             "proportionInvariant": "0.0"})
+        substmodel = ET.SubElement(
+            sitemodel,
+            "substModel",
+            {"id": "SDollo.%s" % fname,
+             "spec": "MutationDeathModel",
+             "deathprob": dr})
+        freq = ET.SubElement(
+            substmodel,
+            "frequencies",
+            {"id": "%s:dummyfrequences.s" % fname,
+             "spec": "Frequencies",
+             "frequencies":"0.5 0.5"})
 
     def add_feature_data(self, distribution, index, feature, fname):
         """ Add feature data for the ALSTreeLikelihood `distribution`. 
@@ -114,6 +107,8 @@ class StochasticDolloModel(BinaryModel):
             data.set("excludeto", "1")
         else:
             data.set("ascertained", "false")
+
+        data.set("id", "orgdata.%s"%fname)
 
     def add_prior(self, prior):
         BinaryModel.add_prior(self, prior)
@@ -129,16 +124,10 @@ class StochasticDolloModel(BinaryModel):
         ET.SubElement(run, "operator", {"id":"%s:covarion_alpha_scaler.s" % self.name, "spec":"ScaleOperator","parameter":"@%s:covarion_alpha.s" % self.name,"scaleFactor":"0.5","weight":"1.0"})
         ET.SubElement(run, "operator", {"id":"%s:covarion_s_scaler.s" % self.name, "spec":"ScaleOperator","parameter":"@%s:covarion_s.s" % self.name,"scaleFactor":"0.5","weight":"1.0"})
 
-        # Estimate frequencies if asked
-        if self.frequencies == "estimate":
-            ET.SubElement(run, "operator", {"id":"%s:covarion_frequency_sampler.s" % self.name, "spec":"DeltaExchangeOperator","parameter":"@%s:visiblefrequencies.s" % self.name,"delta":"0.01","weight":"1.0"})
-
     def add_param_logs(self, logger):
         BinaryModel.add_param_logs(self, logger)
         ET.SubElement(logger,"log",{"idref":"%s:covarion_alpha.s" % self.name})
         ET.SubElement(logger,"log",{"idref":"%s:covarion_s.s" % self.name})
-        if self.frequencies == "estimate":
-            ET.SubElement(logger,"log",{"idref":"%s:visiblefrequencies.s" % self.name})
         if self.config.log_fine_probs:
             ET.SubElement(logger,"log",{"idref":"%s:covarion_alpha_prior.s" % self.name})
             ET.SubElement(logger,"log",{"idref":"%s:covarion_s_prior.s" % self.name})
@@ -148,16 +137,9 @@ class StochasticDolloModel(BinaryModel):
         """
         for n, f in enumerate(self.features):
             fname = "%s:%s" % (self.name, f)
-            attribs = {"id":"featureLikelihood:%s" % fname,"spec":"ALSTreeLikelihood","useAmbiguities":"true"}
+            attribs = {"id":"featureLikelihood:%s" % fname,"spec":"ALSTreeLikelihood","useAmbiguities":"true","siteModel":"@SiteModel.%s"%fname}
             if self.pruned:
-                distribution = ET.SubElement(likelihood, "distribution",attribs)
-                # Create pruned tree
-                tree_id = "Tree.t:prunedBeastlingTree.%s" % fname
-                tree = ET.SubElement(distribution, "tree", {"id":tree_id, "spec":"beast.evolution.tree.PrunedTree","quickshortcut":"true","assert":"false"})
-                ET.SubElement(tree, "tree", {"idref":"Tree.t:beastlingTree"})
-                ET.SubElement(tree, "alignment", {"idref":"pruned_data_%s"%fname})
-                # Create pruned branchrate
-                self.clock.add_pruned_branchrate_model(distribution, fname, tree_id)
+                raise NotImplementedError
             else:
                 #attribs["branchRateModel"] = "@%s" % self.clock.branchrate_model_id
                 attribs["tree"] = "@Tree.t:beastlingTree"
@@ -176,10 +158,11 @@ class StochasticDolloModel(BinaryModel):
         # differs in the data type.
         data = ET.SubElement(beast, "data", {
             "id": "data_%s" % self.name,
+            "userDataType": "@mutationdeathtype.%s"%self.name,
             "name": "data_%s" % self.name})
-        mutationdeathtype = ET.SubElement(data, "userDataType", {
-            "id": "mutationdeathtype_%s" % self.name,
-            "spec": "MutationDeathType",
+        mutationdeathtype = ET.SubElement(beast, "userDataType", {
+            "id": "mutationdeathtype.%s"%self.name,
+            "spec": "beast.evolution.datatype.MutationDeathType",
             "deathChar": "0",
             "extantCode": "1"})
         for lang in self.languages:
