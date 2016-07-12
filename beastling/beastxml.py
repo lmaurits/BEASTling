@@ -242,6 +242,12 @@ class BeastXml(object):
                 ET.SubElement(dist, "parameter", {"id":"CalibrationDistribution.%s.param1" % clade, "name":p1_names[dist_type], "estimate":"false"}).text = str(cal.param1)
                 ET.SubElement(dist, "parameter", {"id":"CalibrationDistribution.%s.param2" % clade, "name":p2_names[dist_type], "estimate":"false"}).text = str(cal.param2)
 
+        for language, tip_height in self.config.tip_calibrations:
+            raise NotImplementedError
+
+        for language in self.config.tip_operators:
+            raise NotImplementedError
+
     def add_taxon_set(self, parent, label, langs, define_taxa=False):
         """
         Add a TaxonSet element with the specified set of languages.
