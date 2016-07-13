@@ -142,6 +142,7 @@ class BeastXml(object):
         datetrait = ET.SubElement(tree, "trait",
                       {"id": "datetrait",
                        "spec": "beast.evolution.tree.TraitSet",
+                       "taxa": "@taxa",
                        "traitname": "date"})
         datetrait.text = trait_string
 
@@ -273,6 +274,19 @@ class BeastXml(object):
             if set(langs) == taxa:
                 ET.SubElement(parent, "taxonset", {"idref" : idref, "spec":"TaxonSet"})
                 return
+        if len(langs) == 1:
+            # At some point, we may be able to use a plain taxon as a
+            # taxonset.  FIXME: Currently, we are ignoring the label
+            # given to us, because it is likely to be the name of a
+            # taxon
+            label = "set_of_only_%s" % langs[0]
+            taxonset = ET.SubElement(parent, "taxonset",
+                                     {"id": label,
+                                      "taxon": "@%s" % langs[0],
+                                      "spec": "TaxonSet"})
+            self._taxon_sets[label] = set(langs)
+            return
+
         # Otherwise, create and register a new TaxonSet
         taxonset = ET.SubElement(parent, "taxonset", {"id" : label, "spec":"TaxonSet"})
 
@@ -383,7 +397,7 @@ class BeastXml(object):
                                              "scaleFactor": "1.1",
                                              "tree": "@Tree.t:beastlingTree",
                                              "weight": "3.0"})
-                self.add_taxon_set(tiprandomwalker, "taxonset", tips)
+                self.add_taxon_set(tiprandomwalker, "movingTips", tips)
         except AttributeError:
             # There were no tips to calibrate
             pass
