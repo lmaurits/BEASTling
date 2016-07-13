@@ -44,9 +44,9 @@ class StochasticDolloModel(BinaryModel):
 
     def add_state(self, state):
         BinaryModel.add_state(self, state)
-        alpha = ET.SubElement(state, "parameter", {"id":"%s:covarion_alpha.s" % self.name, "lower":"1.0E-4", "name":"stateNode", "upper":"1.0"})
+        alpha = ET.SubElement(state, "parameter", {"id":"%s:dollo_alpha.s" % self.name, "lower":"1.0E-4", "name":"stateNode", "upper":"1.0"})
         alpha.text="0.5"
-        switch = ET.SubElement(state, "parameter", {"id":"%s:covarion_s.s" % self.name, "lower":"1.0E-4", "name":"stateNode", "upper":"Infinity"})
+        switch = ET.SubElement(state, "parameter", {"id":"%s:dollo_s.s" % self.name, "lower":"1.0E-4", "name":"stateNode", "upper":"Infinity"})
         switch.text="0.5"
 
     def get_userdatatype(self, feature, fname):
@@ -112,25 +112,25 @@ class StochasticDolloModel(BinaryModel):
 
     def add_prior(self, prior):
         BinaryModel.add_prior(self, prior)
-        alpha_prior = ET.SubElement(prior, "prior", {"id":"%s:covarion_alpha_prior.s" % self.name,"name":"distribution","x":"@%s:covarion_alpha.s" % self.name})
+        alpha_prior = ET.SubElement(prior, "prior", {"id":"%s:dollo_alpha_prior.s" % self.name,"name":"distribution","x":"@%s:dollo_alpha.s" % self.name})
         ET.SubElement(alpha_prior, "Uniform", {"id":"%s:CovAlphaUniform" % self.name,"name":"distr","upper":"Infinity"})
-        switch_prior = ET.SubElement(prior, "prior", {"id":"%s:covarion_s_prior.s" % self.name,"name":"distribution","x":"@%s:covarion_s.s" % self.name})
+        switch_prior = ET.SubElement(prior, "prior", {"id":"%s:dollo_s_prior.s" % self.name,"name":"distribution","x":"@%s:dollo_s.s" % self.name})
         gamma = ET.SubElement(switch_prior, "Gamma", {"id":"%s:Gamma.0" % self.name, "name":"distr"})
-        ET.SubElement(gamma, "parameter", {"id":"%s:covarion_switch_gamma_param1" % self.name,"name":"alpha","lower":"0.0","upper":"0.0"}).text = "0.05"
-        ET.SubElement(gamma, "parameter", {"id":"%s:covarion_switch_gamma_param2" % self.name,"name":"beta","lower":"0.0","upper":"0.0"}).text = "10.0"
+        ET.SubElement(gamma, "parameter", {"id":"%s:dollo_switch_gamma_param1" % self.name,"name":"alpha","lower":"0.0","upper":"0.0"}).text = "0.05"
+        ET.SubElement(gamma, "parameter", {"id":"%s:dollo_switch_gamma_param2" % self.name,"name":"beta","lower":"0.0","upper":"0.0"}).text = "10.0"
 
     def add_operators(self, run):
         BinaryModel.add_operators(self, run)
-        ET.SubElement(run, "operator", {"id":"%s:covarion_alpha_scaler.s" % self.name, "spec":"ScaleOperator","parameter":"@%s:covarion_alpha.s" % self.name,"scaleFactor":"0.5","weight":"1.0"})
-        ET.SubElement(run, "operator", {"id":"%s:covarion_s_scaler.s" % self.name, "spec":"ScaleOperator","parameter":"@%s:covarion_s.s" % self.name,"scaleFactor":"0.5","weight":"1.0"})
+        ET.SubElement(run, "operator", {"id":"%s:dollo_alpha_scaler.s" % self.name, "spec":"ScaleOperator","parameter":"@%s:dollo_alpha.s" % self.name,"scaleFactor":"0.5","weight":"1.0"})
+        ET.SubElement(run, "operator", {"id":"%s:dollo_s_scaler.s" % self.name, "spec":"ScaleOperator","parameter":"@%s:dollo_s.s" % self.name,"scaleFactor":"0.5","weight":"1.0"})
 
     def add_param_logs(self, logger):
         BinaryModel.add_param_logs(self, logger)
-        ET.SubElement(logger,"log",{"idref":"%s:covarion_alpha.s" % self.name})
-        ET.SubElement(logger,"log",{"idref":"%s:covarion_s.s" % self.name})
+        ET.SubElement(logger,"log",{"idref":"%s:dollo_alpha.s" % self.name})
+        ET.SubElement(logger,"log",{"idref":"%s:dollo_s.s" % self.name})
         if self.config.log_fine_probs:
-            ET.SubElement(logger,"log",{"idref":"%s:covarion_alpha_prior.s" % self.name})
-            ET.SubElement(logger,"log",{"idref":"%s:covarion_s_prior.s" % self.name})
+            ET.SubElement(logger,"log",{"idref":"%s:dollo_alpha_prior.s" % self.name})
+            ET.SubElement(logger,"log",{"idref":"%s:dollo_s_prior.s" % self.name})
 
     def add_likelihood(self, likelihood):
         """ Add an ALS likelihood distribution  corresponding to all features in the dataset.

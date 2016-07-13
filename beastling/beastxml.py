@@ -242,9 +242,6 @@ class BeastXml(object):
                 ET.SubElement(dist, "parameter", {"id":"CalibrationDistribution.%s.param1" % clade, "name":p1_names[dist_type], "estimate":"false"}).text = str(cal.param1)
                 ET.SubElement(dist, "parameter", {"id":"CalibrationDistribution.%s.param2" % clade, "name":p2_names[dist_type], "estimate":"false"}).text = str(cal.param2)
 
-        for language, tip_height in self.config.tip_calibrations:
-            raise NotImplementedError
-
         for language in self.config.tip_operators:
             raise NotImplementedError
 
@@ -266,9 +263,24 @@ class BeastXml(object):
                 return
         # Otherwise, create and register a new TaxonSet
         taxonset = ET.SubElement(parent, "taxonset", {"id" : label, "spec":"TaxonSet"})
+        if define_taxa:
+            try:
+                plate_langs = [lang for lang in langs
+                                if not lang in self.config.tip_calibrations]
+                for lang, age in self.config.tip_calibrations.items():
+                    calibrated_language = ET.SubElement(taxonset, "taxon", {"id": "$(language)"})
+                    ET.SubElement(calibrated_language, "date",
+                                  {"value": age})
+            except AttributeError:
+                # There were no calibrations
+                plate_langs = langs
+        else:
+            # Taxa are defined somewhere else, so this one does not
+            # care about calibrations.
+            plate_langs = langs
         plate = ET.SubElement(taxonset, "plate", {
             "var":"language",
-            "range":",".join(langs)})
+            "range":",".join(plate_langs)})
         ET.SubElement(plate, "taxon", {"id" if define_taxa else "idref" :"$(language)"})
         self._taxon_sets[label] = set(langs)
 
