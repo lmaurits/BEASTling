@@ -241,10 +241,7 @@ class BeastXml(object):
             if dist_type != "Uniform":
                 ET.SubElement(dist, "parameter", {"id":"CalibrationDistribution.%s.param1" % clade, "name":p1_names[dist_type], "estimate":"false"}).text = str(cal.param1)
                 ET.SubElement(dist, "parameter", {"id":"CalibrationDistribution.%s.param2" % clade, "name":p2_names[dist_type], "estimate":"false"}).text = str(cal.param2)
-
-        for language in self.config.tip_operators:
-            raise NotImplementedError
-
+  
     def add_taxon_set(self, parent, label, langs, define_taxa=False):
         """
         Add a TaxonSet element with the specified set of languages.
@@ -375,6 +372,19 @@ class BeastXml(object):
         # Birth rate scaler
         # Birth rate is *always* scaled.
         ET.SubElement(self.run, "operator", {"id":"YuleBirthRateScaler.t:beastlingTree","spec":"ScaleOperator","parameter":"@birthRate.t:beastlingTree", "scaleFactor":"0.5", "weight":"3.0"})
+
+        try:
+            tips = self.config.tip_operators
+            tiprandomwalker = ET.SubElement(self.run, "operator",
+                                            {"id": "TipDatesScaler",
+                                             "spec": "TipDatesScaler",
+                                             "scaleFactor": "1.1",
+                                             "tree": "@Tree.t:beastlingTree",
+                                             "weight": "3.0"})
+            self.add_taxon_set(tiprandomwalker, "taxonset", tips)
+        except AttributeError:
+            # There were no tips to calibrate
+            pass
 
     def add_loggers(self):
         """
