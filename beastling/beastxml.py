@@ -136,6 +136,15 @@ class BeastXml(object):
         for model in self.config.all_models:
             model.add_state(self.state)
 
+    def add_tip_heights(self, tree):
+        trait_string = "\n".join("{:s} = {:}".format(lang, age)
+                                 for lang, age in self.config.tip_calibrations.items())
+        datetrait = ET.SubElement(tree, "trait",
+                      {"id": "datetrait",
+                       "spec": "beast.evolution.tree.TraitSet",
+                       "traitname": "date"})
+        datetrait.text = trait_string
+
     def add_tree_state(self):
         """
         Add tree-related <state> sub-elements.
@@ -144,11 +153,17 @@ class BeastXml(object):
         self.add_taxon_set(tree, "taxa", self.config.languages, define_taxa=True)
         param = ET.SubElement(self.state, "parameter", {"id":"birthRate.t:beastlingTree","name":"stateNode"})
         param.text="1.0"
+        try:
+            if self.config.tip_calibrations:
+                self.add_tip_heights(tree)
+        except AttributeError:
+            pass
 
     def add_init(self):
         """
         Add the <init> element and all its descendants.
         """
+
         # If a starting tree is specified, use it...
         if self.config.starting_tree:
             init = ET.SubElement(self.run, "init", {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "spec":"beast.util.TreeParser","IsLabelledNewick":"true", "newick":self.config.starting_tree})
@@ -260,24 +275,10 @@ class BeastXml(object):
                 return
         # Otherwise, create and register a new TaxonSet
         taxonset = ET.SubElement(parent, "taxonset", {"id" : label, "spec":"TaxonSet"})
-        if define_taxa:
-            try:
-                plate_langs = [lang for lang in langs
-                                if not lang in self.config.tip_calibrations]
-                for lang, age in self.config.tip_calibrations.items():
-                    calibrated_language = ET.SubElement(taxonset, "taxon", {"id": "$(language)"})
-                    ET.SubElement(calibrated_language, "date",
-                                  {"value": age})
-            except AttributeError:
-                # There were no calibrations
-                plate_langs = langs
-        else:
-            # Taxa are defined somewhere else, so this one does not
-            # care about calibrations.
-            plate_langs = langs
+
         plate = ET.SubElement(taxonset, "plate", {
             "var":"language",
-            "range":",".join(plate_langs)})
+            "range":",".join(langs)})
         ET.SubElement(plate, "taxon", {"id" if define_taxa else "idref" :"$(language)"})
         self._taxon_sets[label] = set(langs)
 
