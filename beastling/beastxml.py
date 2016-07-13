@@ -376,13 +376,14 @@ class BeastXml(object):
 
         try:
             tips = self.config.tip_operators
-            tiprandomwalker = ET.SubElement(self.run, "operator",
+            if tips:
+                tiprandomwalker = ET.SubElement(self.run, "operator",
                                             {"id": "TipDatesScaler",
                                              "spec": "TipDatesScaler",
                                              "scaleFactor": "1.1",
                                              "tree": "@Tree.t:beastlingTree",
                                              "weight": "3.0"})
-            self.add_taxon_set(tiprandomwalker, "taxonset", tips)
+                self.add_taxon_set(tiprandomwalker, "taxonset", tips)
         except AttributeError:
             # There were no tips to calibrate
             pass
