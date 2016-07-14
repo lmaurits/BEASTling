@@ -71,6 +71,8 @@ def test_basic():
         ("admin", "mk", "calibration_tip"),
         ("admin", "mk", "calibration_tip_originate"),
         ("admin", "mk", "calibration_tip_fixed"),
+        ("admin", "mk", "calibration_tip_before"),
+        ("admin", "mk", "calibration_tip_after"),
         ("admin", "mk", "pruned"),
         ("admin", "mk", "pruned", "relaxed"),
         ("admin", "mk", "geo"),
