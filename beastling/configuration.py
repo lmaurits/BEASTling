@@ -22,6 +22,7 @@ import beastling.models.geo as geo
 import beastling.models.bsvs as bsvs
 import beastling.models.covarion as covarion
 import beastling.models.mk as mk
+import beastling.models.dollo as dollo
 
 
 _BEAST_MAX_LENGTH = 2147483647
@@ -698,6 +699,10 @@ class Configuration(object):
                 if "mk_used" not in self.message_flags:
                     self.message_flags.append("mk_used")
                     self.messages.append(mk.MKModel.package_notice)
+            elif config["model"].lower() == "dollo":
+                model = dollo.StochasticDolloModel(config, self)
+                if dollo.StochasticDolloModel.package_notice not in self.messages:
+                    self.messages.append(dollo.StochasticDolloModel.package_notice)
             else:
                 try:
                     sys.path.insert(0, os.getcwd())
@@ -811,11 +816,17 @@ class Configuration(object):
 
     def instantiate_calibrations(self):
         self.calibrations = {}
+        """ Calibration distributions for calibrated clades """
+        self.tip_calibrations = {}
+        """ Starting heights for calibrated tips """
+        self.tip_operators = []
+        """ Tips that need re-heighting operators """
         useless_calibrations = []
         for clade, cs in self.calibration_configs.items():
             orig_clade = clade[:]
             orig_cs = cs[:]
             originate = False
+            is_tip_calibration = False
             # First parse the clade identifier
             # Might be "root", or else a Glottolog identifier
             if clade.lower() == "root":
@@ -825,8 +836,17 @@ class Configuration(object):
                 if clade.lower().startswith("originate(") and clade.endswith(")"):
                     originate = True
                     clade = clade[10:-1]
-                langs = self.get_languages_by_glottolog_clade(clade)
-            if len(langs) < 2:
+                if clade in self.languages:
+                    langs = [clade]
+                else:
+                    langs = self.get_languages_by_glottolog_clade(clade)
+            if len(langs)==1 and not originate:
+                # Originate calibration on a tip is not a tip
+                # calibration, because we don't need to reheight the
+                # tip etc.
+                self.messages.append("[INFO] Calibration on clade %s taken as tip age calibration, as there was precisely 1 matching languages in analysis." % clade)
+                is_tip_calibration = True
+            elif len(langs)==0:
                 self.messages.append("[INFO] Calibration on clade %s ignored as no matching languages in analysis." % clade)
                 continue
             
@@ -842,6 +862,8 @@ class Configuration(object):
             if cs.count(",") == 1 and not any([x in cs for x in ("<", ">")]):
                 # We've got explicit params
                 p1, p2 = map(float,cs.split(","))
+                if is_tip_calibration:
+                    mid = (p1+p2)/2.0
             elif cs.count("-") == 1 and not any([x in cs for x in (",", "<", ">")]):
                 # We've got a 95% HPD range
                 lower, upper = map(float, cs.split("-"))
@@ -853,7 +875,7 @@ class Configuration(object):
                     p1 = math.log(mid)
                     p2a = (p1 - math.log(lower)) / 1.96
                     p2b = (math.log(upper) - p1) / 1.96
-                    p2 = (p2a+p2b)/2.0
+                    p2 = (p2a+p2b) / 2.0
                 elif dist_type == "uniform":
                     p1 = lower
                     p2 = upper
@@ -864,13 +886,28 @@ class Configuration(object):
                 if sign.strip() == "<":
                     p1 = 0.0
                     p2 = float(bound.strip())
+                    if is_tip_calibration:
+                        mid = p2 / 2.0
                 else:
                     p1 = float(bound.strip())
                     p2 = "Infinity"
+                    if is_tip_calibration:
+                        mid = p2 * 2.0
             else:
+                if is_tip_calibration:
+                    # Last chance: It's a single language pinned to a
+                    # single date, so make sure to pin it to that date
+                    # late and nothing else is left to do with this
+                    # calibration.
+                    self.tip_calibrations[clade] = float(cs)
+                    continue
                 raise ValueError("Could not parse calibration \"%s\" for clade %s" % (orig_cs, orig_clade))
             clade_identifier = "originate_%s" % clade if originate else clade
             self.calibrations[clade_identifier] = Calibration(langs, originate, dist_type, p1, p2)
+
+            if is_tip_calibration:
+                self.tip_calibrations[clade_identifier] = mid
+                self.tip_operators.append(clade_identifier)
 
     def get_languages_by_glottolog_clade(self, clade):
         langs = []

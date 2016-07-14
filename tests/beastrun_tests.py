@@ -37,6 +37,7 @@ def test_basic():
         ("admin", "noncode"),
         ("admin", "bsvs"),
         ("admin", "covarion"),
+        ("admin", "dollo"),
         ("admin", "mk", "families"),
         ("admin", "mk", "features"),
         ("admin", "mk", "monophyletic"),
@@ -64,6 +65,14 @@ def test_basic():
         ("admin", "mk", "calibration_lower_bound"),
         ("admin", "mk", "calibration", "relaxed"),
         ("admin", "mk", "calibration", "random"),
+        # Next two tests do *run* in the current beastling, but they
+        # miss the core point of some calibrations that should not be
+        # discarded.
+        ("admin", "mk", "calibration_tip"),
+        ("admin", "mk", "calibration_tip_originate"),
+        ("admin", "mk", "calibration_tip_fixed"),
+        ("admin", "mk", "calibration_tip_before"),
+        ("admin", "mk", "calibration_tip_after"),
         ("admin", "mk", "pruned"),
         ("admin", "mk", "pruned", "relaxed"),
         ("admin", "mk", "geo"),
