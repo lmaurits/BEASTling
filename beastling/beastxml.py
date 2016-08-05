@@ -216,7 +216,7 @@ class BeastXml(object):
         """
         p1_names = {"Normal":"mean", "LogNormal":"M","Uniform":"lower"}
         p2_names = {"Normal":"sigma", "LogNormal":"S","Uniform":"upper"}
-        for clade, cal in self.config.calibrations.items():
+        for clade, cal in sorted(self.config.calibrations.items()):
 
             # Create MRCAPrior node
             attribs = {}
@@ -229,7 +229,8 @@ class BeastXml(object):
             cal_prior = ET.SubElement(self.prior, "distribution", attribs)
 
             # Create "taxonset" param for MRCAPrior
-            self.add_taxon_set(cal_prior, clade, cal.langs)
+            taxonsetname = clade[:-len("_originate")] if clade.endswith("_originate") else clade
+            self.add_taxon_set(cal_prior, taxonsetname, cal.langs)
 
             # Create "distr" param for MRCAPrior
             dist_type = {"normal":"Normal","lognormal":"LogNormal","uniform":"Uniform"}[cal.dist]
@@ -406,7 +407,7 @@ class BeastXml(object):
                 "tree":"@Tree.t:beastlingTree"})
 
         # Log calibration clade heights
-        for clade in self.config.calibrations:
+        for clade in sorted(self.config.calibrations.keys()):
             ET.SubElement(tracer_logger,"log",{"idref":"%sMRCA" % clade})
 
         # Fine-grained logging

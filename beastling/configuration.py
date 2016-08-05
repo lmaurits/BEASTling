@@ -869,7 +869,7 @@ class Configuration(object):
                     p2 = "Infinity"
             else:
                 raise ValueError("Could not parse calibration \"%s\" for clade %s" % (orig_cs, orig_clade))
-            clade_identifier = "originate_%s" % clade if originate else clade
+            clade_identifier = "%s_originate" % clade if originate else clade
             self.calibrations[clade_identifier] = Calibration(langs, originate, dist_type, p1, p2)
 
     def get_languages_by_glottolog_clade(self, clade):
