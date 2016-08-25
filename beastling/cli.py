@@ -36,6 +36,11 @@ def main(*args):
         action="store_true",
         help="Save a high-level report on the analysis as a Markdown file.")
     parser.add_argument(
+        "--language-list",
+        default=False,
+        action="store_true",
+        help="Save a list of languages in the analysis as a plain text file.")
+    parser.add_argument(
         "-o", "--output",
         help="Output filename, no extension",
         default=None)
@@ -60,7 +65,6 @@ def main(*args):
         default=False,
         action="store_true")
     args = parser.parse_args(args or None)
-
     if args.extract:
         do_extract(args)
     else:
@@ -128,3 +132,12 @@ def do_generate(args):
         report.write_file(config.basename+".md")
         geojson = BeastlingGeoJSON(config)
         geojson.write_file(config.basename+".geojson")
+
+    # Build and write language list
+    if args.language_list:
+        write_language_list(config)
+
+def write_language_list(config):
+
+    with open(config.basename + "_languages.txt", "w") as fp:
+        fp.write("\n".join(config.languages)+"\n")
