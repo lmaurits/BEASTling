@@ -23,6 +23,7 @@ class BaseModel(object):
         self.data_filename = model_config["data"] 
         self.clock = model_config.get("clock", "")
         self.features = model_config.get("features",["*"])
+        self.exclusions = model_config.get("exclusions",None)
         self.constant_feature = False
         self.frequencies = model_config.get("frequencies", "empirical")
         self.pruned = model_config.get("pruned", False)
@@ -57,6 +58,8 @@ class BaseModel(object):
                     if lc in self.features:
                         self.features.remove(lc)
                         break
+        if self.exclusions:
+            self.features = [f for f in self.features if f not in self.exclusions]
         self.feature_filter = set(self.features)
 
     def process(self):
