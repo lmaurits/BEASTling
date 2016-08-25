@@ -34,9 +34,11 @@ class BaseModel(object):
         self.substitution_name = self.__class__.__name__
         self.data_separator = ","
 
+        # Load the entire dataset from the file
         self.data = load_data(self.data_filename, file_format=model_config.get("file_format",None), lang_column=model_config.get("language_column",None))
+        # Remove features not wanted in this analysis
         self.build_feature_filter()
-        self.process()
+        self.apply_feature_filter()
 
     def build_feature_filter(self):
         """
@@ -68,7 +70,6 @@ class BaseModel(object):
         which are compatible with the settings.
         """
         self.apply_language_filter()
-        self.apply_feature_filter()
         self.compute_feature_properties()
         self.remove_unwanted_features()
         if self.pruned:

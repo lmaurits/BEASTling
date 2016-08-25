@@ -5,9 +5,8 @@ from .binary import BinaryModel
 
 class CovarionModel(BinaryModel):
 
-    def __init__(self, model_config, global_config):
-
-        BinaryModel.__init__(self, model_config, global_config)
+    def process(self):
+        BinaryModel.process(self)
         self.freq_str = self.build_freq_str()
 
     def build_freq_str(self):

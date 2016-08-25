@@ -2,6 +2,7 @@ from __future__ import division, unicode_literals
 import collections
 import importlib
 import io
+import itertools
 import math
 import os
 import re
@@ -118,6 +119,8 @@ class Configuration(object):
         self.log_pure_tree = False
         """A boolean value, controlling whether or not to log a separate file of the sampled trees with no metadata included."""
         self.macroareas = []
+        """A floating point value, indicated the percentage of datapoints, across ALL models, which a language must have in order to be included in the analysis."""
+        self.minimum_data = 0.0
         """List of Glottolog macro-areas to filter down to, or name of a file containing such a list."""
         self.model_configs = []
         """A list of dictionaries, each of which specifies the configuration for a single clock model."""
@@ -232,6 +235,8 @@ class Configuration(object):
             self.monophyly = p.getboolean(sec, "monophyletic")
         elif p.has_option(sec, "monophyly"):
             self.monophyly = p.getboolean(sec, "monophyly")
+        if p.has_option(sec,'minimum_data'):
+            self.minimum_data = p.getfloat(sec, "minimum_data")
 
         ## Calibration
         if p.has_section("calibration"):
@@ -337,8 +342,9 @@ class Configuration(object):
 
         self.load_glottolog_data()
         self.load_user_geo()
-        self.build_language_filter()
         self.instantiate_models()
+        self.build_language_filter()
+        self.process_models()
         self.build_language_list()
         self.handle_monophyly()
         self.instantiate_calibrations()
@@ -493,6 +499,16 @@ class Configuration(object):
 
         self.exclusions = set(self.handle_file_or_list(self.exclusions))
         self.macroareas = self.handle_file_or_list(self.macroareas)
+        # Enforce minimum data constraint
+        all_langs = set(itertools.chain(*[model.data.keys() for model in self.models]))
+        N = sum([max([len(lang.keys()) for lang in model.data.values()]) for model in self.models])
+        datapoint_props = {}
+        for lang in all_langs:
+            count = 0
+            for model in self.models:
+                count += len([x for x in model.data[lang].values() if x != "?"])
+            datapoint_props[lang] = 1.0*count / N
+        self.sparse_languages = [l for l in all_langs if datapoint_props[l] < self.minimum_data]
 
     def handle_file_or_list(self, value):
         if not (isinstance(value, list) or isinstance(value, set)):
@@ -517,6 +533,8 @@ class Configuration(object):
             return False
         if self.geo_config and l not in self.locations:
             self.messages.append("""[INFO] All models: Language %s excluded due to lack of loation data.""" % l)
+            return False
+        if l in self.sparse_languages:
             return False
         return True
 
@@ -717,6 +735,10 @@ class Configuration(object):
             self.all_models = [self.geo_model] + self.models
         else:
             self.all_models = self.models
+
+    def process_models(self):
+        for model in self.models:
+            model.process()
 
     def link_clocks_to_models(self):
         """

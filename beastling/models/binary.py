@@ -8,6 +8,8 @@ class BinaryModel(BaseModel):
     def __init__(self, model_config, global_config):
 
         BaseModel.__init__(self, model_config, global_config)
+        # Compute feature properties early to facilitate auto-detection of binarisation
+        self.compute_feature_properties()
         self.data_separator = ""
         if model_config.get("binarised", None) is None:
             # We've not been explicitly told if the data has been binarised
