@@ -96,13 +96,13 @@ class BaseModel(object):
         configured feature filter.
         """
         self.features = set()
-        for lang in self.languages:
-            features_in_data = set(self.data[lang].keys())
+        for language in self.data.values():
+            features_in_data = set(language.keys())
             features_to_keep = features_in_data & self.feature_filter
             self.features |= features_to_keep
             features_to_remove = features_in_data - features_to_keep
             for feat in features_to_remove:
-                self.data[lang].pop(feat)
+                language.pop(feat)
         self.features = sorted(list(self.features))
 
     def compute_feature_properties(self):
