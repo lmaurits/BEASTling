@@ -134,6 +134,8 @@ class Configuration(object):
         """Integer; Number of levels of the Glottolog classification to include in monophyly constraints."""
         self.monophyly_direction = "top_down"
         """Either the string 'top_down' or 'bottom_up', controlling whether 'monophyly_levels' counts from roots (families) or leaves (languages) of the Glottolog classification."""
+        self.monophyly_newick = None
+        """Either a Newick tree string or the name of a file containing a Newick tree string which represents the desired monophyly constraints if a classification other than Glottolog is required."""
         self.overlap = "union"
         """Either the string 'union' or the string 'intersection', controlling how to handle multiple datasets with non-equal language sets."""
         self.sample_branch_lengths = True
@@ -235,6 +237,13 @@ class Configuration(object):
             self.monophyly = p.getboolean(sec, "monophyletic")
         elif p.has_option(sec, "monophyly"):
             self.monophyly = p.getboolean(sec, "monophyly")
+        if p.has_option(sec, "monophyly_newick"):
+            value = p.get(sec, "monophyly_newick")
+            if os.path.exists(value):
+                with io.open(value, encoding="UTF-8") as fp:
+                    self.monophyly_newick = fp.read()
+            else:
+                self.monophyly_newick = value
         if p.has_option(sec,'minimum_data'):
             self.minimum_data = p.getfloat(sec, "minimum_data")
 
@@ -353,7 +362,7 @@ class Configuration(object):
         self.arbitrary_tree = self.sample_branch_lengths and not self.calibrations
         self.instantiate_clocks()
         self.link_clocks_to_models()
-        self.handle_starting_tree()
+        self.starting_tree = self.handle_user_supplied_tree(self.starting_tree, "starting")
         self.processed = True
 
         # Decide whether or not to log trees
@@ -553,7 +562,12 @@ class Configuration(object):
             # Monophyly constraints are meaningless for so few languages
             self.monophyly = False
             self.messages.append("""[INFO] Disabling Glottolog monophyly constraints because there are only %d languages in analysis.""" % len(self.languages))
-        # Build a list-based representation of the monophyly constraints
+            return
+        if self.monophyly_newick:
+            # The user has provided a tree, so no need to build our own
+            self.monophyly_newick = self.handle_user_supplied_tree(self.starting_tree, "monophyly")
+            return
+        # Build a list-based representation of the Glottolog monophyly constraints
         # This can be done in either a "top-down" or "bottom-up" way.
         langs = [l for l in self.languages if l.lower() in self.classifications]
         if self.monophyly_end_depth is not None:
@@ -903,9 +917,31 @@ class Configuration(object):
                     break
         return langs
 
-    def handle_starting_tree(self):
+    def handle_user_supplied_tree(self, value, tree_type):
         """
-        Makes any changes to the user-provided starting tree required to make
+        If the provided value is a filename, read the contents and treat it
+        as a Newick tree specification.  Otherwise, assume the provided value
+        is a Neick tree specification.  In either case, inspect the tree and
+        make appropriate minor changes so it is suitable for inclusion in the
+        BEAST XML file.
+        """
+        # Make sure we've got a legitimate tree type
+        tree_type = tree_type.lower()
+        if tree_type not in ("starting", "monophyly"):
+            raise ValueError("Valid tree types for sanitising are 'starting' and 'monophyly', not %s." % tree_type)
+        # Read from file if necessary
+        if os.path.exists(value):
+            with io.open(value, encoding="UTF-8") as fp:
+                value = fp.read().strip()
+        # Sanitise
+        if value:
+            value = self.sanitise_tree(value, tree_type)
+        # Done
+        return value
+
+    def sanitise_tree(self, tree, tree_type):
+        """
+        Makes any changes to a user-provided tree required to make
         it suitable for passing to BEAST.
 
         In particular, this method checks that the supplied string or the
@@ -915,34 +951,34 @@ class Configuration(object):
             * has taxa which are a superset of the languages in the analysis
             * has no polytomies or unifurcations.
         """
-        if os.path.exists(self.starting_tree):
-            with io.open(self.starting_tree, encoding="UTF-8") as fp:
-                self.starting_tree = fp.read().strip()
-        if self.starting_tree:
-            # Make sure starting tree can be parsed
-            try:
-                tree = newick.loads(self.starting_tree)[0]
-            except:
-                raise ValueError("Could not parse starting tree.  Is it valid Newick?")
-            # Make sure starting tree contains no duplicate taxa
-            tree_langs = [n.name for n in tree.walk() if n.is_leaf]
-            if not len(set(tree_langs)) == len(tree_langs):
-                dupes = [l for l in tree_langs if tree_langs.count(l) > 1]
-                dupestring = ",".join(["%s (%d)" % (d, tree_langs.count(d)) for d in dupes])
-                raise ValueError("Starting tree contains duplicate taxa: %s" % dupestring)
-            tree_langs = set(tree_langs)
-            # Make sure languges in tree is a superset of languages in the analysis
-            if not tree_langs.issuperset(self.languages):
-                missing_langs = set(self.languages).difference(tree_langs)
-                miss_string = ",".join(missing_langs)
-                raise ValueError("Some languages in the data are not in the starting tree: %s" % miss_string)
-            # If the trees' language set is a proper superset, prune the tree to fit the analysis
-            if not tree_langs == self.languages:
-                tree.prune_by_names(self.languages, inverse=True)
-                self.messages.append("[INFO] Starting tree includes languages not present in any data set and will be pruned.")
-            # Get the tree looking nice
-            tree.remove_redundant_nodes()
+        # Make sure tree can be parsed
+        try:
+            tree = newick.loads(tree)[0]
+        except:
+            raise ValueError("Could not parse %s tree.  Is it valid Newick?" % tree_type)
+        # Make sure starting tree contains no duplicate taxa
+        tree_langs = tree.get_leaf_names()
+        if not len(set(tree_langs)) == len(tree_langs):
+            dupes = [l for l in tree_langs if tree_langs.count(l) > 1]
+            dupestring = ",".join(["%s (%d)" % (d, tree_langs.count(d)) for d in dupes])
+            raise ValueError("%s tree contains duplicate taxa: %s" % (tree_type.capitalize(), dupestring))
+        tree_langs = set(tree_langs)
+        # Make sure languges in tree is a superset of languages in the analysis
+        if not tree_langs.issuperset(self.languages):
+            missing_langs = set(self.languages).difference(tree_langs)
+            miss_string = ",".join(missing_langs)
+            raise ValueError("Some languages in the data are not in the %s tree: %s" % (tree_type, miss_string))
+        # If the trees' language set is a proper superset, prune the tree to fit the analysis
+        if not tree_langs == self.languages:
+            tree.prune_by_names(self.languages, inverse=True)
+            self.messages.append("[INFO] %s tree includes languages not present in any data set and will be pruned." % tree_type.capitalize())
+        # Get the tree looking nice
+        tree.remove_redundant_nodes()
+        if tree_type == "starting":
             tree.resolve_polytomies()
-            # Replace the starting_tree from the config with the new one
-            self.starting_tree = newick.dumps(tree)
-
+        # Remove lengths for a monophyly tree
+        if tree_type == "monophyly":
+            for n in tree.walk():
+                n._length = None
+        # Done
+        return newick.dumps(tree)
