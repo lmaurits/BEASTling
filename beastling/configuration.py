@@ -980,5 +980,9 @@ class Configuration(object):
         if tree_type == "monophyly":
             for n in tree.walk():
                 n._length = None
+        # Checks
+        assert all([len(n.descendants) in (0,2) for n in tree.walk()])
+        assert len(tree.get_leaves())  == len(self.languages)
+        assert all([l.name for l in tree.get_leaves()])
         # Done
         return newick.dumps(tree)
