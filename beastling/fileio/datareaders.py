@@ -1,3 +1,4 @@
+import csv
 import sys
 import collections
 
@@ -5,17 +6,35 @@ from clldutils.dsv import UnicodeDictReader
 
 
 def load_data(filename, file_format=None, lang_column=None):
+    # Handle CSV dialect issues
     if filename == 'stdin':
         filename = sys.stdin
-    with UnicodeDictReader(filename) as reader:
-        if all([f in reader.fieldnames for f in ("Language_ID", "Value")]) \
-                and any([f in reader.fieldnames for f in ("Feature_ID", "Parameter_ID")]):
+        # We can't sniff from stdin, so guess comma-delimited and hope for
+        # the best
+        dialect = "excel" # Default dialect for csv module
+    elif file_format and file_format.lower() == "cldf":
+        # CLDF standard says delimiter is indicated by file extension
+        if str(filename).lower().endswith("csv") or filename == "stdin":
+            dialect = "excel"
+        elif str(filename).lower().endswith("tsv"):
+            dialect = "excel_tab"
+        else:
+            raise ValueError("CLDF standard dictates that filenames must end in .csv or .tsv")
+    else:
+        # Use CSV dialect sniffer in all other cases
+        fp = open(str(filename), "r") # Cast PosixPath to str
+        dialect = csv.Sniffer().sniff(fp.read(1024))
+        fp.close()
+
+    # Read
+    with UnicodeDictReader(filename, dialect=dialect) as reader:
+        if (file_format and file_format.lower()) == "cldf" or (all([f in reader.fieldnames for f in ("Language_ID", "Value")]) \
+                and any([f in reader.fieldnames for f in ("Feature_ID", "Parameter_ID")])):
             data = load_cldf_data(reader)
         else:
             data = load_beastling_data(reader, lang_column, filename)
 
     return data
-
 
 _language_column_names = ("iso", "iso_code", "glotto", "glottocode", "language", "language_id", "lang", "lang_id")
 
