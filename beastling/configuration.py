@@ -565,7 +565,7 @@ class Configuration(object):
             return
         if self.monophyly_newick:
             # The user has provided a tree, so no need to build our own
-            self.monophyly_newick = self.handle_user_supplied_tree(self.starting_tree, "monophyly")
+            self.monophyly_newick = self.handle_user_supplied_tree(self.monophyly_newick, "monophyly")
             return
         # Build a list-based representation of the Glottolog monophyly constraints
         # This can be done in either a "top-down" or "bottom-up" way.
