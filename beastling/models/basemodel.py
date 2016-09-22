@@ -48,7 +48,10 @@ class BaseModel(object):
         """
         if self.features == ["*"]:
             random_iso = list(self.data.keys())[0]
-            self.features = list(self.data[random_iso].keys())
+            self.features = set()
+            for lang_features in self.data.values():
+                self.features |= set(lang_features.keys())
+            self.features = list(self.features)
             # Need to remove the language ID column
             if self.lang_column:
                 self.features.remove(self.lang_column)
