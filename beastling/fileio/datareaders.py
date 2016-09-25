@@ -23,7 +23,15 @@ def load_data(filename, file_format=None, lang_column=None):
     else:
         # Use CSV dialect sniffer in all other cases
         fp = open(str(filename), "r") # Cast PosixPath to str
-        dialect = csv.Sniffer().sniff(fp.read(1024))
+        # On large files, csv.Sniffer seems to need a lot of datta to make a
+        # successful inference...
+        sample = fp.read(1024)
+        while True:
+            try:
+                dialect = csv.Sniffer().sniff(sample)
+                break
+            except csv.Error:
+                sample += fp.read(1024)
         fp.close()
 
     # Read
