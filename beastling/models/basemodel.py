@@ -2,8 +2,7 @@ import io
 import os
 import xml.etree.ElementTree as ET
 
-from ..fileio.datareaders import load_data, _language_column_names
-
+from ..fileio.datareaders import load_data
 
 class BaseModel(object):
     """
@@ -30,7 +29,6 @@ class BaseModel(object):
         self.rate_variation = model_config.get("rate_variation", False)
         self.remove_constant_features = model_config.get("remove_constant_features", True)
         self.minimum_data = float(model_config.get("minimum_data", 0))
-        self.lang_column = model_config.get("language_column", None)
         self.substitution_name = self.__class__.__name__
         self.data_separator = ","
 
@@ -52,17 +50,6 @@ class BaseModel(object):
             for lang_features in self.data.values():
                 self.features |= set(lang_features.keys())
             self.features = list(self.features)
-            # Need to remove the language ID column
-            if self.lang_column:
-                self.features.remove(self.lang_column)
-            else:
-                # If no language column name was explicitly given, just
-                # remove the first of the automatically-recognised names
-                # which we encounter:
-                for lc in _language_column_names:
-                    if lc in self.features:
-                        self.features.remove(lc)
-                        break
         if self.exclusions:
             self.features = [f for f in self.features if f not in self.exclusions]
         self.feature_filter = set(self.features)

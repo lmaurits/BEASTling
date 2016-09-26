@@ -68,7 +68,8 @@ def load_beastling_data(reader, lang_column, filename):
     for row in reader:
         if row[lang_column] in data:
             raise ValueError("Duplicated language identifier '%s' found in data file %s" % (row[lang_column], filename))
-        data[row[lang_column]] = collections.defaultdict(lambda : "?", row)
+        lang = row.pop(lang_column)
+        data[lang] = collections.defaultdict(lambda : "?", row)
     return data
 
 
