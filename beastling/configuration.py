@@ -959,7 +959,7 @@ class Configuration(object):
         # Make sure starting tree contains no duplicate taxa
         tree_langs = tree.get_leaf_names()
         if not len(set(tree_langs)) == len(tree_langs):
-            dupes = [l for l in tree_langs if tree_langs.count(l) > 1]
+            dupes = set([l for l in tree_langs if tree_langs.count(l) > 1])
             dupestring = ",".join(["%s (%d)" % (d, tree_langs.count(d)) for d in dupes])
             raise ValueError("%s tree contains duplicate taxa: %s" % (tree_type.capitalize(), dupestring))
         tree_langs = set(tree_langs)
