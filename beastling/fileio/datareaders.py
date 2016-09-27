@@ -28,7 +28,7 @@ def load_data(filename, file_format=None, lang_column=None):
         sample = fp.read(1024)
         while True:
             try:
-                dialect = csv.Sniffer().sniff(sample)
+                dialect = csv.Sniffer().sniff(sample, [",","\t"])
                 break
             except csv.Error:
                 sample += fp.read(1024)
