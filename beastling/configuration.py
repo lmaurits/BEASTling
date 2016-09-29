@@ -106,6 +106,8 @@ class Configuration(object):
         """Name of a file containing latitude/longitude data."""
         self.log_all = False
         """A boolean value, setting this True is a shortcut for setting log_params, log_probabilities and log_trees True."""
+        self.log_dp = 4
+        """An integer value, setting the number of decimal points to use when logging rates, locations, etc.  Defaults to 4.  Use -1 to enable full precision."""
         self.log_every = 0
         """An integer indicating how many MCMC iterations should occurr between consecutive log entries."""
         self.log_params = False
@@ -189,8 +191,9 @@ class Configuration(object):
                 'basename': p.get,
                 'embed_data': p.getboolean,
                 'screenlog': p.getboolean,
-                'log_every': p.getint,
                 'log_all': p.getboolean,
+                'log_dp': p.getint,
+                'log_every': p.getint,
                 'log_probabilities': p.getboolean,
                 'log_fine_probs': p.getboolean,
                 'log_params': p.getboolean,

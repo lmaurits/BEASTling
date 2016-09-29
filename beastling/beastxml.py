@@ -451,7 +451,7 @@ class BeastXml(object):
 
     def add_tree_logger(self, suffix="", branchrate_model_id=None, locations=False):
         tree_logger = ET.SubElement(self.run, "logger", {"mode":"tree", "fileName":self.config.basename + suffix + ".nex", "logEvery":str(self.config.log_every),"id":"treeLogger" + suffix})
-        log = ET.SubElement(tree_logger, "log", attrib={"id":"TreeLoggerWithMetaData"+suffix,"spec":"beast.evolution.tree.TreeWithMetaDataLogger","tree":"@Tree.t:beastlingTree"})
+        log = ET.SubElement(tree_logger, "log", attrib={"id":"TreeLoggerWithMetaData"+suffix,"spec":"beast.evolution.tree.TreeWithMetaDataLogger","tree":"@Tree.t:beastlingTree", "dp":str(self.config.log_dp)})
         if branchrate_model_id:
             ET.SubElement(log, "branchratemodel", {"idref":branchrate_model_id})
         if locations:
