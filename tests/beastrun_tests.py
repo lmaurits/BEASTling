@@ -67,6 +67,7 @@ def test_basic():
         ("admin", "mk", "pruned"),
         ("admin", "mk", "pruned", "relaxed"),
         ("admin", "mk", "geo"),
+        ("admin", "mk", "geo", "geo_user_loc"),
         ("admin", "mk", "geo_own_clock"),
         ("admin", "mk", "geo", "geo_sampled"),
     ]:
