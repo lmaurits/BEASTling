@@ -52,19 +52,22 @@ class LogNormalRelaxedClock(RelaxedClock):
 
     def __init__(self, clock_config, global_config):
         RelaxedClock.__init__(self, clock_config, global_config)
+        self.estimate_variance = clock_config.get("estimate_variance",True)
+        self.initial_variance = clock_config.get("variance",0.1)
 
     def add_state(self, state):
         RelaxedClock.add_state(self, state)
         # Standard deviation for lognormal dist
-        ET.SubElement(state, "parameter", {"id":"ucldSdev.c:%s" % self.name, "lower":"0.0", "upper":"10.0","name":"stateNode"}).text = "0.1"
+        ET.SubElement(state, "parameter", {"id":"ucldSdev.c:%s" % self.name, "lower":"0.0", "upper":"10.0","name":"stateNode"}).text = str(self.initial_variance)
 
     def add_prior(self, prior):
         RelaxedClock.add_prior(self, prior)
-        # Gamma prior on the standard deviation for lognormal dist
-        sub_prior = ET.SubElement(prior, "prior", {"id":"ucldSdev:%s" % self.name, "name":"distribution","x":"@ucldSdev.c:%s" % self.name})
-        gamma = ET.SubElement(sub_prior, "Gamma", {"id":"uclSdevPrior:%s" % self.name, "name":"distr"})
-        ET.SubElement(gamma, "parameter", {"id":"uclSdevPriorAlpha:%s" % self.name, "estimate":"false", "name":"alpha"}).text = "0.5396"
-        ET.SubElement(gamma, "parameter", {"id":"uclSdevPriorBeta:%s" % self.name, "estimate":"false", "name":"beta"}).text = "0.3819"
+        if self.estimate_variance:
+            # Gamma prior on the standard deviation for lognormal dist
+            sub_prior = ET.SubElement(prior, "prior", {"id":"ucldSdev:%s" % self.name, "name":"distribution","x":"@ucldSdev.c:%s" % self.name})
+            gamma = ET.SubElement(sub_prior, "Gamma", {"id":"uclSdevPrior:%s" % self.name, "name":"distr"})
+            ET.SubElement(gamma, "parameter", {"id":"uclSdevPriorAlpha:%s" % self.name, "estimate":"false", "name":"alpha"}).text = "0.5396"
+            ET.SubElement(gamma, "parameter", {"id":"uclSdevPriorBeta:%s" % self.name, "estimate":"false", "name":"beta"}).text = "0.3819"
 
     def add_branchrate_model(self, beast):
         RelaxedClock.add_branchrate_model(self, beast)
@@ -77,7 +80,8 @@ class LogNormalRelaxedClock(RelaxedClock):
     def add_operators(self, run):
         RelaxedClock.add_operators(self, run)
         # Sample lognormal stddev
-        ET.SubElement(run, "operator", {"id":"ucldSdevScaler.c:%s" % self.name, "spec":"ScaleOperator", "parameter":"@ucldSdev.c:%s" % self.name, "scaleFactor": "0.5", "weight":"3.0"})
+        if self.estimate_variance:
+            ET.SubElement(run, "operator", {"id":"ucldSdevScaler.c:%s" % self.name, "spec":"ScaleOperator", "parameter":"@ucldSdev.c:%s" % self.name, "scaleFactor": "0.5", "weight":"3.0"})
 
     def add_param_logs(self, logger):
         RelaxedClock.add_param_logs(self, logger)

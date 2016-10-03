@@ -7,7 +7,21 @@ class BaseClock(object):
     def __init__(self, clock_config, global_config):
 
         self.config = global_config
-        self.estimate_mean = clock_config.get("estimate_mean",None)
+        # By default, whether or not to estimate the rate is left up to
+        # BEASTling.
+        default_estimate_rate = None
+        # But if the user specifies a rate, we assume they do not want it
+        # estimated...
+        if "mean" in clock_config:
+            self.initial_mean = clock_config["mean"]
+            default_estimate_rate = False
+        elif "rate" in clock_config:
+            self.initial_mean = clock_config["rate"]
+            default_estimate_rate = False
+        else:
+            self.initial_mean = 1.0
+        # ...but they can override this by explicitly saying so.
+        self.estimate_rate = clock_config.get("estimate_rate",default_estimate_rate)
         self.calibrations = global_config.calibrations
         self.name = clock_config["name"] 
         self.mean_rate_id = "clockRate.c:%s" % self.name
@@ -20,7 +34,7 @@ class BaseClock(object):
             "id": self.mean_rate_id,
             "name": "stateNode"
             })
-        parameter.text="1.0"
+        parameter.text=str(self.initial_mean)
 
     def add_prior(self, prior):
         # Uniform prior on mean clock rate
@@ -34,7 +48,7 @@ class BaseClock(object):
         raise Exception("This clock is not compatible with PrunedTrees!")
 
     def add_operators(self, run):
-        if self.estimate_mean:
+        if self.estimate_rate:
             # Scale mean clock rate
             ET.SubElement(run, "operator", {"id":"clockScaler.c:%s" % self.name, "spec":"ScaleOperator","parameter":"@clockRate.c:%s" % self.name, "scaleFactor":"0.5","weight":"3.0"})
 

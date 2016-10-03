@@ -291,8 +291,10 @@ class Configuration(object):
             'name': section[5:].strip(),
         }
         for key, value in p[section].items():
-            if key == 'estimate_mean':
+            if key in ('estimate_mean', 'estimate_rate','estimate_variance', 'correlated'):
                 value = p.getboolean(section, key)
+            elif key in ('mean','rate','variance'):
+                value = p.getfloat(section, key)
             cfg[key] = value
         return cfg
 
@@ -802,17 +804,17 @@ class Configuration(object):
         # indicated a preference on whether the mean should be estimated
         free_clocks = list(set([m.clock for m in self.models
             if m.clock.is_used
-            and m.clock.estimate_mean == None]))
+            and m.clock.estimate_rate == None]))
         if free_clocks:
             # To begin with, estimate all free clocks
             for clock in free_clocks:
-                clock.estimate_mean = True
+                clock.estimate_rate = True
             # But if the tree is arbitrary, then fix one free clock, unless the
             # user has fixed an un-free clock
             if self.arbitrary_tree and all(
-                [m.clock.estimate_mean for m in self.models]):
-                free_clocks[0].estimate_mean = False
-                self.messages.append("""[INFO] Clock "%s" has had it's mean fixed to 1.0.  Tree branch lengths are in units of expected substitutions for features in models using this clock.""" % free_clocks[0].name)
+                [m.clock.estimate_rate for m in self.models]):
+                free_clocks[0].estimate_rate = False
+                self.messages.append("""[INFO] Clock "%s" has had it's mean rate fixed to 1.0.  Tree branch lengths are in units of expected substitutions for features in models using this clock.""" % free_clocks[0].name)
 
         # Determine whether or not precision-scaling is required
         if self.geo_config:
@@ -825,7 +827,7 @@ class Configuration(object):
                     break
             # If geo has it's own clock, estimate the mean
             if not self.geo_model.scale_precision:
-                self.geo_model.clock.estimate_mean = True
+                self.geo_model.clock.estimate_rate = True
 
     def build_language_list(self):
         """
