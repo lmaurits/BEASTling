@@ -177,6 +177,7 @@ class Configuration(object):
         default option settings accordingly.
         """
         self.configfile = INI(interpolation=None)
+        self.configfile.optionxform = str
         if isinstance(configfile, dict):
             self.configfile.read_dict(configfile)
         else:

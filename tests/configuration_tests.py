@@ -140,12 +140,12 @@ class Tests(WithConfigAndTempDir):
     def test_calibration(self):
         config = self._make_cfg('basic', 'calibration')
         config.process()
-        self.assertIn('austronesian', config.calibrations)
-        v = config.calibrations['austronesian']
+        self.assertIn('Austronesian', config.calibrations)
+        v = config.calibrations['Austronesian']
         xml1 = BeastXml(config).tostring().decode('utf8')
 
         # Now remove one calibration point ...
-        del config.calibrations['austronesian']
+        del config.calibrations['Austronesian']
         xml2 = BeastXml(config).tostring().decode('utf8')
         self.assertNotEqual(
             len(xml1.split('CalibrationDistribution.')), len(xml2.split('CalibrationDistribution.')))
