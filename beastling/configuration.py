@@ -265,13 +265,23 @@ class Configuration(object):
         model_sections = [s for s in p.sections() if s.lower().startswith("model")]
         for section in model_sections:
             self.model_configs.append(self.get_model_config(p, section))
-        
         # Geography
         if p.has_section("geography"):
             self.geo_config = self.get_geo_config(p, "geography")
         else:
             self.geo_config = {}
-
+        if p.has_section("geo_priors"):
+            if not p.has_section("geography"):
+                raise ValueError("Config file contains geo_priors section but no geography section.")
+            self.geo_config["geo_priors"] = {}
+            for clades, klm in p.items("geo_priors"):
+                for clade in clades.split(','):
+                    clade = clade.strip()
+                    if clade not in self.geo_config["sampling_points"]:
+                        #FIXME Emit some message here!
+                        continue
+                    if clade:
+                        self.geo_config["geo_priors"][clade] = klm
         # Make sure analysis is non-empty
         if not model_sections and not self.geo_config:
             raise ValueError("Config file contains no model sections and no geography section.")
@@ -319,6 +329,8 @@ class Configuration(object):
         for key, value in p[section].items():
             if key == "log_locations":
                 value = p.getboolean(section, key)
+            elif key == "sampling_points":
+                value = self.handle_file_or_list(value)
             cfg[key] = value
         return cfg
 

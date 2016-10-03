@@ -68,6 +68,7 @@ def test_basic():
         ("admin", "mk", "pruned", "relaxed"),
         ("admin", "mk", "geo"),
         ("admin", "mk", "geo_own_clock"),
+        ("admin", "mk", "geo", "geo_sampled"),
     ]:
         # To turn each config into a separate test, we
         yield _do_test, configs

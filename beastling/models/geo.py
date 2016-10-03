@@ -20,6 +20,8 @@ class GeoModel(object):
         self.messages = []
         self.name = model_config["name"]
         self.clock = model_config.get("clock", None)
+        self.sampling_points = model_config.get("sampling_points", [])
+        self.geo_priors = model_config.get("geo_priors", {})
         self.scale_precision = False
 
     def add_misc(self, beast):
@@ -30,23 +32,29 @@ class GeoModel(object):
             "id":"sphericalPrecision",
             "lower":"0.0",
             "name":"stateNode"}).text = "100.0"
+        ET.SubElement(state, "stateNode", {
+            "id":"location.geo",
+            "spec":"sphericalGeo.LocationParameter",
+            "minordimension":"2",
+            "estimate":"true",
+            "value":"0.0 0.0",
+            "lower":"0.0"})
 
     def add_prior(self, prior):
         """
         Add prior distributions for Gamma-distributed rate heterogenetiy, if
         configured.
         """
-        if not self.scale_precision:
-            return
-        precision_prior = ET.SubElement(prior, "prior", {
-            "id":"sphericalPrecisionPrior",
-            "x":"@sphericalPrecision",
-            "name":"distribution"})
-        ET.SubElement(precision_prior, "Uniform", {
-            "id":"sphericalPrecisionPriorUniform",
-            "name":"distr",
-            "lower":"0",
-            "upper":"1e10"})
+        if self.scale_precision:
+            precision_prior = ET.SubElement(prior, "prior", {
+                "id":"sphericalPrecisionPrior",
+                "x":"@sphericalPrecision",
+                "name":"distribution"})
+            ET.SubElement(precision_prior, "Uniform", {
+                "id":"sphericalPrecisionPriorUniform",
+                "name":"distr",
+                "lower":"0",
+                "upper":"1e10"})
 
     def add_likelihood(self, likelihood):
         """
@@ -54,10 +62,45 @@ class GeoModel(object):
         dataset.
         """
         attribs = {"id":"sphericalGeographyLikelihood",
-            "spec":"sphericalGeo.ApproxMultivariateTraitLikelihood",
-            "tree":"@Tree.t:beastlingTree"
-            }
+            "tree":"@Tree.t:beastlingTree",
+            "logAverage":"true",
+            "scale":"false",
+            "location":"@location.geo"}
+        # Use appropriate Likelihood implementation depending
+        # upon presence/absence of sampled locations
+        if self.sampling_points:
+            attribs["spec"] = "sphericalGeo.ApproxMultivariateTraitLikelihoodF2"
+        else:
+            attribs["spec"] = "sphericalGeo.ApproxMultivariateTraitLikelihood"
         distribution = ET.SubElement(likelihood, "distribution",attribs)
+        if self.sampling_points:
+            multi = ET.SubElement(distribution, "multiGeoprior", {
+                "id":"multiGeoPrior",
+                "spec":"sphericalGeo.MultiGeoPrior",
+                "tree":"@Tree.t:beastlingTree",
+                "newick":""})
+            for clade in self.sampling_points:
+                # Get languages in clade
+                if clade == "root":
+                    langs = self.config.languages
+                else:
+                    langs = self.config.get_languages_by_glottolog_clade(clade)
+                if not langs:
+                    continue
+                # Add the geo prior, which will trigger sampling
+                geoprior = ET.SubElement(multi, "geoprior", {
+                    "id":"%s.geoPrior" %  clade,
+                    "spec":"sphericalGeo.GeoPrior",
+                    "location":"@location.geo",
+                    "tree":"@Tree.t:beastlingTree"})
+                self.beastxml.add_taxon_set(geoprior, "%s.geo" % clade, langs)
+                # Also add the KML file if we have an actual constraint
+                if clade in self.geo_priors:
+                    kml = self.geo_priors[clade]
+                    ET.SubElement(geoprior, "region", {
+                        "spec":"sphericalGeo.region.KMLRegion",
+                        "kml":kml})
+
         self.add_sitemodel(distribution)
         ET.SubElement(distribution, "branchRateModel", {"idref": self.clock.branchrate_model_id})
         self.add_data(distribution)
@@ -71,7 +114,8 @@ class GeoModel(object):
             "id":"sphericalDiffusionSubstModel",
             "spec":"sphericalGeo.SphericalDiffusionModel",
             "precision":"@sphericalPrecision",
-            "fast":"true"})
+            "fast":"true",
+            "threshold":"1"})
 
     def add_data(self, distribution):
         """
@@ -112,15 +156,20 @@ class GeoModel(object):
         Add <operators> for individual feature substitution rates if rate
         variation is configured.
         """
-        if not self.scale_precision:
-            return
-        ET.SubElement(run, "operator", {
-            "id":"sphericalPrecisionScaler",
-            "spec":"ScaleOperator",
-            "parameter":"@sphericalPrecision",
-            "weight":"5",
-            "scaleFactor":"0.7"})
-
+        if self.scale_precision:
+            ET.SubElement(run, "operator", {
+                "id":"sphericalPrecisionScaler",
+                "spec":"ScaleOperator",
+                "parameter":"@sphericalPrecision",
+                "weight":"5",
+                "scaleFactor":"0.7"})
+        if self.sampling_points:
+            ET.SubElement(run, "operator", {
+                "id":"location.sampler",
+                "spec":"sphericalGeo.LocationOperatorF",
+                "location":"@location.geo",
+                "likelihood":"@sphericalGeographyLikelihood",
+                "weight":"10"})
 
     def add_param_logs(self, logger):
         """
