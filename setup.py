@@ -10,7 +10,7 @@ from beastling import __version__ as version
 
 requires = [
     'six',
-    'newick',
+    'newick>=0.6.0',
     'appdirs',
     'clldutils',
 ]
