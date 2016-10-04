@@ -1002,8 +1002,6 @@ class Configuration(object):
         if tree_type == "starting":
             assert all([len(n.descendants) in (0,2) for n in tree.walk()])
         assert len(tree.get_leaves()) == len(self.languages)
-        # FIXME
-        # Uncomment the assert below once newick library has been sorted out
-#        assert all([l.name for l in tree.get_leaves()])
+        assert all([l.name for l in tree.get_leaves()])
         # Done
         return newick.dumps(tree)
