@@ -27,6 +27,8 @@ class BaseModel(object):
         self.frequencies = model_config.get("frequencies", "empirical")
         self.pruned = model_config.get("pruned", False)
         self.rate_variation = model_config.get("rate_variation", False)
+        self.feature_rates = model_config.get("feature_rates", None)
+
         self.remove_constant_features = model_config.get("remove_constant_features", True)
         self.minimum_data = float(model_config.get("minimum_data", 0))
         self.substitution_name = self.__class__.__name__
@@ -60,6 +62,7 @@ class BaseModel(object):
         which are compatible with the settings.
         """
         self.apply_language_filter()
+        self.load_feature_rates()
         self.compute_feature_properties()
         self.remove_unwanted_features()
         if self.pruned:
@@ -79,6 +82,24 @@ class BaseModel(object):
             raise ValueError("Language filters leave nothing in the dataset for model '%s'!" % self.name)
         # Keep a sorted list so that the order of things in XML is deterministic
         self.languages = sorted(list(self.data.keys()))
+
+    def load_feature_rates(self):
+        """
+        Load relative feature rates from .csv file.
+        """
+        if not self.feature_rates:
+            return
+        if not os.path.exists(self.feature_rates):
+            raise ValueError("Could not find feature rate file %s." % self.feature_rates)
+        with io.open(self.feature_rates, encoding="UTF-8") as fp:
+            self.feature_rates = {}
+            for line in fp:
+                feature, rate = line.split(",")
+                rate = float(rate.strip())
+                self.feature_rates[feature] = rate
+        norm = sum(self.feature_rates.values())
+        for f in self.feature_rates:
+            self.feature_rates[f] /= norm
 
     def apply_feature_filter(self):
         """
@@ -201,13 +222,22 @@ class BaseModel(object):
         configured.
         """
         if self.rate_variation:
-            plate = ET.SubElement(state, "plate", {
-                "var":"feature",
-                "range":",".join(self.features)})
-            param = ET.SubElement(plate, "parameter", {
-                "id":"featureClockRate:%s:$(feature)" % self.name,
-                "name":"stateNode"})
-            param.text="1.0"
+            if not self.feature_rates:
+                # Set all rates to 1.0 in a big plate
+                plate = ET.SubElement(state, "plate", {
+                    "var":"feature",
+                    "range":",".join(self.features)})
+                param = ET.SubElement(plate, "parameter", {
+                    "id":"featureClockRate:%s:$(feature)" % self.name,
+                    "name":"stateNode"})
+                param.text="1.0"
+            else:
+                # Give each rate a custom value
+                for f in self.features:
+                    param = ET.SubElement(state, "parameter", {
+                        "id":"featureClockRate:%s:%s" % (self.name, f),
+                        "name":"stateNode"})
+                    param.text=str(self.feature_rates.get(f,1.0))
 
             parameter = ET.SubElement(state, "parameter", {"id":"featureClockRateGammaShape:%s" % self.name, "lower":"0.0","upper":"100.0","name":"stateNode"})
             parameter.text="2.0"

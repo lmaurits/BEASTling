@@ -39,6 +39,8 @@ def test_basic():
         ("admin", "covarion"),
         ("admin", "mk", "families"),
         ("admin", "mk", "features"),
+        ("admin", "mk", "rate_var"),
+        ("admin", "mk", "rate_var", "rate_var_user_rates"),
         ("admin", "mk", "monophyletic"),
         ("admin", "mk", "monophyletic-bottom-up"),
         ("admin", "mk", "monophyletic-partial"),

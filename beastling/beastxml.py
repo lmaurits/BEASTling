@@ -306,7 +306,7 @@ class BeastXml(object):
             model.add_operators(self.run)
         # Add one DeltaExchangeOperator for feature rates per clock
         for clock in self.config.clocks:
-            clock_models = [m for m in self.config.models if m.rate_variation and m.clock == clock]
+            clock_models = [m for m in self.config.models if m.rate_variation and not m.feature_rates and m.clock == clock]
             if not clock_models:
                 continue
             # Add one big DeltaExchangeOperator which operates on all
