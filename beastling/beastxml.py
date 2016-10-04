@@ -272,14 +272,34 @@ class BeastXml(object):
         Add Yule birth-process tree prior.
         """
         # Tree prior
+        ## Decide whether to use the standard Yule or the fancy calibrated one
+        if len(self.config.calibrations) == 1:
+            yule = "calibrated"
+        elif len(self.config.calibrations) == 2:
+            # Two calibrations can be handled by the calibrated Yule if they
+            # are nested
+            langs1, langs2 = [c.langs for c in self.config.calibrations.values()]
+            if len(set(langs1) & set(langs2)) in (len(langs1), len(langs2)):
+                yule = "calibrated"
+            else:
+                yule = "standard"
+        else:
+            yule = "standard"
+
         attribs = {}
-        attribs["birthDiffRate"] = "@birthRate.t:beastlingTree"
         attribs["id"] = "YuleModel.t:beastlingTree"
-        attribs["spec"] = "beast.evolution.speciation.YuleModel"
         attribs["tree"] = "@Tree.t:beastlingTree"
+        if yule == "standard":
+            attribs["spec"] = "beast.evolution.speciation.YuleModel"
+            attribs["birthDiffRate"] = "@birthRate.t:beastlingTree"
+            if "root" in self.config.calibrations:
+                attribs["conditionalOnRoot"] = "true"
+        elif yule == "calibrated":
+            attribs["spec"] = "beast.evolution.speciation.CalibratedYuleModel"
+            attribs["birthRate"] = "@birthRate.t:beastlingTree"
         ET.SubElement(self.prior, "distribution", attribs)
 
-        # Birth rate
+        # Birth rate prior
         attribs = {}
         attribs["id"] = "YuleBirthRatePrior.t:beastlingTree"
         attribs["name"] = "distribution"

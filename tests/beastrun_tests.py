@@ -55,6 +55,9 @@ def test_basic():
         ("admin", "mk", "relaxed_gamma"),
         ("admin", "mk", "random"),
         ("admin", "mk", "calibration"),
+        ("admin", "mk", "calibration_nested"),
+        ("admin", "mk", "calibration_disjoint"),
+        ("admin", "mk", "calibration_nested_root"),
         # Test below has calibration on Austronesian, but macroareas=Africa,
         # resulting in an emtpy calibration, which is the point of the test
         ("admin", "mk", "calibration", "macroareas"),
