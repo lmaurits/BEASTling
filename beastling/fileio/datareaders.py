@@ -17,7 +17,7 @@ def load_data(filename, file_format=None, lang_column=None):
         if str(filename).lower().endswith("csv") or filename == "stdin":
             dialect = "excel"
         elif str(filename).lower().endswith("tsv"):
-            dialect = "excel_tab"
+            dialect = "excel-tab"
         else:
             raise ValueError("CLDF standard dictates that filenames must end in .csv or .tsv")
     else:
