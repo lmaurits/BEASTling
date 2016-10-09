@@ -45,7 +45,7 @@ def load_data(filename, file_format=None, lang_column=None):
 
         # Load data
         if file_format == 'cldf':
-            data = load_cldf_data(reader)
+            data = load_cldf_data(reader, filename)
         elif file_format == 'beastling':
             data = load_beastling_data(reader, lang_column, filename)
         else:
@@ -73,11 +73,13 @@ def load_beastling_data(reader, lang_column, filename):
     return data
 
 
-def load_cldf_data(reader):
+def load_cldf_data(reader, filename):
     if "Feature_ID" in reader.fieldnames:
         feature_column = "Feature_ID"
-    else:
+    elif "Parameter_ID" in reader.fieldnames:
         feature_column = "Parameter_ID"
+    else:
+        raise ValueError("Could not find Feature_ID or Parameter_ID column, is %s a valid CLDF file?" % filename)
     data = collections.defaultdict(lambda: collections.defaultdict(lambda: "?"))
     for row in reader:
         lang = row["Language_ID"]

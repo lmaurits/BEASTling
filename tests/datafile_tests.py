@@ -21,7 +21,7 @@ class Tests(WithConfigAndTempDir):
     def test_beastling_misspecified_as_cldf(self):
         config = self.make_cfg(config_path("basic").as_posix())
         config.model_configs[0]["file_format"] = 'cldf'
-        self.assertRaises(KeyError, config.process)
+        self.assertRaises(ValueError, config.process)
 
     def test_unknown_file_format(self):
         config = self.make_cfg(config_path("basic").as_posix())
