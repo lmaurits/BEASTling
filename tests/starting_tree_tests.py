@@ -30,6 +30,6 @@ class Tests(WithConfigAndTempDir):
         cfg.process()
 
     @raises(ValueError)
-    def test_subset_tree(self):
+    def test_duplicate_taxa_tree(self):
         cfg = self._make_tree_cfg("duplicates")
         cfg.process()
