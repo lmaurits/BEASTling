@@ -190,3 +190,13 @@ class Tests(WithConfigAndTempDir):
         # Check for evidence of families
         self.assertTrue("Malayo-Polynesian" in xml)
 
+    def test_minimum_data(self):
+        # f8 has 60% missing data.  By default it should be included...
+        config = self._make_cfg('basic')
+        config.process()
+        self.assertTrue("f8" in config.models[0].features)
+        # ...but if we insist on 75% data or more it should be excluded...
+        config = self._make_cfg('basic', 'minimum_data')
+        config.process()
+        self.assertEqual(config.models[0].minimum_data, 75.0)
+        self.assertTrue("f8" not in config.models[0].features)
