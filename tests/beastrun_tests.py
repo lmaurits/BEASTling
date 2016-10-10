@@ -47,6 +47,7 @@ def test_basic():
         ("admin", "mk", "no_screen_logging"),
         ("admin", "mk", "no_file_logging"),
         ("admin", "mk", "starting_tree"),
+        ("admin", "mk", "monophyly_tree"),
         ("admin", "mk", "sample_prior"),
         ("admin", "mk", "union"),
         ("admin", "mk", "intersection"),
