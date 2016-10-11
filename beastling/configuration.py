@@ -792,6 +792,12 @@ class Configuration(object):
                 model.clock = self.clocks_by_name["default"]
             model.clock.is_used = True
 
+        # Disable pruned trees in models using RLCs
+        for model in self.models:
+            if model.pruned and isinstance(model.clock, random.RandomLocalClock):
+                model.pruned = False
+                self.messages.append("""[INFO] Disabling pruned trees in model %s because associated clock %s is a RandomLocalClock.  Pruned trees are currently only compatible with StrictClocks and RelaxedClocks.""" % (model.name, model.clock.name))
+
         # Warn user about unused clock(s) (but not the default clock)
         for clock in self.clocks:
             if clock.name != "default" and not clock.is_used:

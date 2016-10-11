@@ -200,3 +200,10 @@ class Tests(WithConfigAndTempDir):
         config.process()
         self.assertEqual(config.models[0].minimum_data, 75.0)
         self.assertTrue("f8" not in config.models[0].features)
+
+    def test_pruned_rlc(self):
+        # Make sure pruned trees are disabled if used in conjunction with RLC
+        config = self._make_cfg('basic', 'pruned', 'random')
+        self.assertTrue(config.model_configs[0]["pruned"])
+        config.process()
+        self.assertFalse(config.models[0].pruned)
