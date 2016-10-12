@@ -280,6 +280,77 @@ output) and then run BEAST.
          Sample ESS(posterior)          prior     likelihood      posterior
      [...]
      
+When BEAST has finished running, you should see two new files in your directory:
+
+    $ dir
+    [...]
+    beastling.log       beastling.nex   beastling.xml
+    [...]
+
+beastling.log is a log file which contains various details of each of the 100 trees sampled in this analysis, including their prior probability, likelihood and posterior probability, as well as the height of the tree.  In more complicated analyses, this file will contain much more information, like rates of change for different features in the dataset, details of evolutionary clock models, the ages of certain clades in the tree and more.
+
+beastling.log is a tab separated value (tsv) file.  You should be able to open it up in a spreadsheet program like Microsoft Excel, LibreOffice Calc or Gnumeric.
+
+(discuss Tracer here, too)
+
+beastling.nex is a tree log file which contains the actual 100 trees themselves.  This file is in a format knows as Nexus, which itself expresses phylogenetic trees in a format known as Newick, which uses nested brackets to represent trees.  These files can be visualised using special purpose programs.  FigTree is a popular example.  Let's take a look at our trees!
+
+More advanced modelling
+=======================
+
+Our BEASTling analyses so far have had very short and neat configuration, but have not been based on a terribly realistic model of linguistic evolution, and so we may want to make some changes.  We will continue to use the Austronesian vocabulary example here, but everything in this section should be equally applicable to the typological analysis as well.
+
+The main oversimplification in the default analysis is the treatment of the rate at which linguistic features change.  The default analysis makes two simplifications: first, all features in the dataset change at the same rate as each other.  Secondly, it assumes that the rate of change is fixed at all points in time annd at all locations on the phylogenetic tree.  BEASTling makes it easy to relax either of these assumptions, or both.  The cost you pay is that your analysis will not run as quickly, and you may experience convergance issues.
+
+Rate variation
+--------------
+
+You can enable rate variation by adding `rate_variation = True` to your `[model]` section, like this:
+
+    ::
+           [model austronesian_vocabulary]
+           model=mk
+           data=abvd.csv
+           rate_variation=True
+    --- austronesian_vocabulary.conf
+
+This will assign a separate rate of evolution to each feature in the dataset (each meaning slot in the case of our cognate data).  The words for some meaning slots, such as pronouns or body parts, may change very slowly compared to the average, while the words for other meaning slots may change very slowly.  With rate variation enabled, BEAST will attempt to figure out relative rates of change for each of your features.
+
+Rebuild your XML file and run BEAST again:
+
+(shell output here)
+
+Permitting rate variation can impact the topology of the trees which are sampled.  If two languages have different words for a meaning slot which evolves very slowly, this is evidence the the languages are only distantly related.  However, if two languages have different words for a meaning slot which evolves rapidly, then this does not necessarily mean they cannot be closely related.  This kind of nuanced inference cannot be made in a model where all features are forced to evolve at the same rate, so the tree topology which comes out of the two models can differ significantly.  Let's look at our new trees:
+
+(FigTree output here)
+
+Clock variation
+---------------
+
+If you want the rate of language change to vary across different branches in the tree, you can specify your own clock model.
+
+    ::
+           [model austronesian_vocabulary]
+           model=mk
+           data=abvd.csv
+           rate_variation=True
+           [clock default]
+           type=relaxed
+    --- austronesian_vocabulary.conf
+
+Here we have specified a relaxed clock model.  This means that every branch on the tree will have its own specific rate of change.  However, all of these rates will be sampled from one distribution, so that most branches will receive rates which are only slightly faster or slower than the average, while a small number of branches may have outlying rates.
+
+Adding calibrations
+-------------------
+
+The trees we have been looking at up until now have all had branch lengths expressed in units of expected number of substitutions, or "change events", per feature.  One common application of phylogenetics in linguistics is to estimate the age of language families or subfamilies.  In order to do this, we need to calibrate our tree by providing BEAST with our best estimate of the age of some points on the tree.  If we do this, the trees in our .nex output file will instead have branch lenghts in units which match the units used for our calibration.
+
+Calibrations are added to their own section in the configuration file:
+
+(research sensible Austronesian calibrations and put some in here)
+
+Adding geography
+-------------------
 
 .. `Lexibank`: ???
 .. `ABVD`: http://language.psy.auckland.ac.nz/austronesian/
