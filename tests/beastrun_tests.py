@@ -75,7 +75,8 @@ def test_basic():
         ("admin", "mk", "geo"),
         ("admin", "mk", "geo", "geo_user_loc"),
         ("admin", "mk", "geo_own_clock"),
-        ("admin", "mk", "geo", "geo_sampled"),
+        ("admin", "mk", "monophyletic", "geo", "geo_sampled"),
+        ("admin", "mk", "monophyletic", "geo", "geo_prior"),
     ]:
         # To turn each config into a separate test, we
         yield _do_test, configs

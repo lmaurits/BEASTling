@@ -278,10 +278,12 @@ class Configuration(object):
                 for clade in clades.split(','):
                     clade = clade.strip()
                     if clade not in self.geo_config["sampling_points"]:
-                        #FIXME Emit some message here!
-                        continue
-                    if clade:
-                        self.geo_config["geo_priors"][clade] = klm
+                        self.geo_config["sampling_points"].append(clade)
+                    self.geo_config["geo_priors"][clade] = klm
+        sampled_points = self.geo_config.get("sampling_points",[])
+        if [p for p in sampled_points if p.lower() != "root"] and self.sample_topology and not self.monophyly:
+            self.messages.append("[WARNING] Geographic sampling and/or prior specified for clades other than root, but tree topology is being sampled without monophyly constraints.  BEAST may crash.")
+
         # Make sure analysis is non-empty
         if not model_sections and not self.geo_config:
             raise ValueError("Config file contains no model sections and no geography section.")
@@ -327,6 +329,7 @@ class Configuration(object):
             'name': 'geography',
             'model': 'geo',
             'log_locations': True,
+            'sampling_points': [],
         }
         for key, value in p[section].items():
             if key == "log_locations":
