@@ -15,7 +15,7 @@ with the command line, which you can skip and go directly to
 accessible from your CLI, skip further to `Using BEASTling`_.
 
 Fundamentals
-------------
+~~~~~~~~~~~~
 
 While you may be used to driving applications by pointing and clicking
 with the mouse and very occasionally typing text, command-line
@@ -63,7 +63,7 @@ directory”) and then a prompt symbol (`$` or `>`), before a cursor.
 
 Type `dir` and press Enter. The shell should show you the contents of
 the directory you are in, which is probably your home directory.
-For the remainder of this tutorial, we will use the notation
+For the remainder of this tutorial, we will use the notation ::
 
     $ echo Example Command
     Example Command
@@ -77,11 +77,11 @@ Sometimes, we will abbreviate the expected output, and write `[...]`.
 
 It is important to know how to navigate the file system on the command
 line, otherwise you will be stuck running all analyses inside your
-home directory! So let us create a new directory
+home directory! So let us create a new directory ::
 
     $ mkdir example_directory
 
-and step inside with the `cd` (“change directory”) command.
+and step inside with the `cd` (“change directory”) command. ::
 
     $ cd example_directory
     $ dir
@@ -91,7 +91,7 @@ nothing, while it lists two `<DIR>`ectories `.` and `..` on
 Windows. These two directories are special: they are this directory
 `example_directory` and its parent directory, where we have just come
 from, respectively. We can use these special directories to move up
-using `cd`:
+using `cd`::
 
     $ cd ..
     $ dir
@@ -100,8 +100,8 @@ using `cd`:
     [...]
     $ cd example_directory
 
-Paths like this can be compbined using `/`, so if you are inside `example_directory`,
-
+Paths like this can be combined using `/`, so if you are inside `example_directory`, ::
+  
     $ cd ../example_directory
 
 will do nothing. This knowledge should allow you to go from any
@@ -112,7 +112,7 @@ behave like any other directory, so you change hard drives like you
 change directories.)
 
 Unfortunately, the Command Prompt and `bash` understand
-different languages. For example, while in `bash`, we might have
+different languages. For example, while in `bash`, we might have ::
 
     $ echo This text is put into a file. > file.txt
     $ dir
@@ -129,7 +129,7 @@ the content of a file.  In this tutorial, we will use the language of
 command or a way outside the CLI to achieve the same result.
 
 Installation
-============
+~~~~~~~~~~~~
 
 BEASTling is written in the `Python programming language`_, `BEAST 2`_
 is written in `Java 8`_. We will therefore first have to install these
@@ -164,7 +164,7 @@ If you want to control the details of your installation, refer to
 `installation`_ instructions here in the BEASTling
 documentation. Otherwise, BEASTling is available from the `Python
 Package Index`_, which is easily accessible using the `pip` command
-line tool, so it will be sufficient to run
+line tool, so it will be sufficient to run ::
 
     $ pip install beastling
     [...]
@@ -178,12 +178,12 @@ check the `installation` chapter for alternative installation
 instructions.
 
 Using BEASTling
-===============
+~~~~~~~~~~~~~~~
 
 First, create a new empty directory. We will collect the data and run
 the analyses inside that folder. Open a command line interface, and
 make sure its working directory is that new folder. For example,
-start terminal and execute
+start terminal and execute ::
 
     $ mkdir austronesian
     $ cd austronesian
@@ -204,7 +204,7 @@ it as `abvd.csv` in this folder.)
 
 If you look at this data, using your preferred text editor or
 importing it into Excel or however you prefer to look at csv files,
-you will see that
+you will see that ::
 
     $ cat abvd.csv
     Language_ID,Feature_ID,Value
@@ -218,16 +218,17 @@ data. Create a new file called `austronesian_vocabulary.conf` with the
 following content:
 
     ::
-           [model austronesian_vocabulary]
-           model=mk
-           data=abvd.csv
+
+       [model austronesian_vocabulary]
+       model=mk
+       data=abvd.csv
     --- austronesian_vocabulary.conf
 
 This is a minimal BEASTling file that will generate a BEAST 2 xml
 configuration file that tries to infer a tree of Austronesian
 languages from the ABVD data using a naïve `Lewis Mk model`_.
 
-Let's try it!
+Let's try it! ::
 
     $ beastling austronesian_vocabulary.conf
     $ dir
@@ -253,6 +254,7 @@ don't trust) to finish very tedious, so let's reduce the chain length
 for the time being.
 
     ::
+
            [mcmc]
            chainlength=100
            [model austronesian_vocabulary]
@@ -261,7 +263,7 @@ for the time being.
     --- austronesian_vocabulary.conf
 
 Now we can run `beastling` again (after cleaning up the previous
-output) and then run BEAST.
+output) and then run BEAST. ::
 
     $ rm beastling.xml
     $ beastling austronesian_vocabulary.conf
@@ -280,7 +282,7 @@ output) and then run BEAST.
          Sample ESS(posterior)          prior     likelihood      posterior
      [...]
      
-When BEAST has finished running, you should see two new files in your directory:
+When BEAST has finished running, you should see two new files in your directory::
 
     $ dir
     [...]
@@ -296,7 +298,7 @@ beastling.log is a tab separated value (tsv) file.  You should be able to open i
 beastling.nex is a tree log file which contains the actual 100 trees themselves.  This file is in a format knows as Nexus, which itself expresses phylogenetic trees in a format known as Newick, which uses nested brackets to represent trees.  These files can be visualised using special purpose programs.  FigTree is a popular example.  Let's take a look at our trees!
 
 More advanced modelling
-=======================
+~~~~~~~~~~~~~~~~~~~~~~~
 
 Our BEASTling analyses so far have had very short and neat configuration, but have not been based on a terribly realistic model of linguistic evolution, and so we may want to make some changes.  We will continue to use the Austronesian vocabulary example here, but everything in this section should be equally applicable to the typological analysis as well.
 
@@ -308,6 +310,7 @@ Rate variation
 You can enable rate variation by adding `rate_variation = True` to your `[model]` section, like this:
 
     ::
+
            [model austronesian_vocabulary]
            model=mk
            data=abvd.csv
@@ -330,6 +333,7 @@ Clock variation
 If you want the rate of language change to vary across different branches in the tree, you can specify your own clock model.
 
     ::
+
            [model austronesian_vocabulary]
            model=mk
            data=abvd.csv
@@ -349,11 +353,20 @@ Calibrations are added to their own section in the configuration file:
 
 (research sensible Austronesian calibrations and put some in here)
 
+Inferring multiple models at the same time
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Adding geography
 -------------------
+
+#Use a second file and show how to combine files?
 
 .. `Lexibank`: ???
 .. `ABVD`: http://language.psy.auckland.ac.nz/austronesian/
 .. 1: Greenhill, S.J., Blust. R, & Gray, R.D. (2008). The Austronesian Basic Vocabulary Database: From Bioinformatics to Lexomics. Evolutionary Bioinformatics, 4:271-283.
 .. `CC-BY`: https://creativecommons.org/licenses/by/4.0/ 
 .. `CLDF`: https://github.com/glottobank/cldf
+
+
+
+
