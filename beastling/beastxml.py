@@ -217,7 +217,8 @@ class BeastXml(object):
         p1_names = {"Normal":"mean", "LogNormal":"M","Uniform":"lower"}
         p2_names = {"Normal":"sigma", "LogNormal":"S","Uniform":"upper"}
         for clade, cal in sorted(self.config.calibrations.items()):
-
+            # BEAST's logcombiner chokes on spaces...
+            clade = clade.replace(" ","_")
             # Create MRCAPrior node
             attribs = {}
             attribs["id"] = clade + "MRCA"
@@ -429,6 +430,7 @@ class BeastXml(object):
 
         # Log calibration clade heights
         for clade in sorted(self.config.calibrations.keys()):
+            clade = clade.replace(" ","_")
             ET.SubElement(tracer_logger,"log",{"idref":"%sMRCA" % clade})
 
         # Fine-grained logging
