@@ -279,7 +279,10 @@ output) and then run BEAST.
          Sample ESS(posterior)          prior     likelihood      posterior
      [...]
      
-When BEAST has finished running, you should see two new files in your directory:
+BEAST will now spend some time sampling trees.  Because this is a simple
+analysis with a small data set, BEAST should finish in 5 or 10 minutes
+unless you are using a relatively slow computer.  When BEAST has finished
+running, you should see two new files in your directory:
 
     $ dir
     [...]
@@ -329,7 +332,7 @@ Just like tools like Tracer are used on log files to summarise all of the 10,000
 More advanced modelling
 =======================
 
-Our BEASTling analyses so far have had very short and neat configuration, but have not been based on a terribly realistic model of linguistic evolution, and so we may want to make some changes.  We will continue to use the Austronesian vocabulary example here, but everything in this section should be equally applicable to the typological analysis as well.
+The BEASTling analysis we have used so far has a very short and neat configuration, but it is not based on a terribly realistic model of linguistic evolution, and so we may want to make some changes (however, it is always a good idea when working with a new data set to try to get very simple models working first and add complexity in stages).
 
 The main oversimplification in the default analysis is the treatment of the rate at which linguistic features change.  The default analysis makes two simplifications: first, all features in the dataset change at the same rate as each other.  Secondly, it assumes that the rate of change is fixed at all points in time annd at all locations on the phylogenetic tree.  BEASTling makes it easy to relax either of these assumptions, or both.  The cost you pay is that your analysis will not run as quickly, and you may experience convergance issues.
 
@@ -339,19 +342,48 @@ Rate variation
 You can enable rate variation by adding `rate_variation = True` to your `[model]` section, like this:
 
     ::
-           [model austronesian_vocabulary]
-           model=mk
-           data=abvd.csv
+           [model ie_vocabulary]
+           model=covarion
+           data=ie_cognates..csv
            rate_variation=True
-    --- austronesian_vocabulary.conf
+    --- ie_vocabulary.conf
 
 This will assign a separate rate of evolution to each feature in the dataset (each meaning slot in the case of our cognate data).  The words for some meaning slots, such as pronouns or body parts, may change very slowly compared to the average, while the words for other meaning slots may change very slowly.  With rate variation enabled, BEAST will attempt to figure out relative rates of change for each of your features.
 
-Rebuild your XML file and run BEAST again:
+Note that BEAST now has to estimate one extra parameter for each meaning slot in the data set (110), which means the analysis will have to run longer to provide good estimates, so let's increase the chain length to 2,000,000.  Ideally, it should be longer, but this is a tutorial, not a paper for peer review, and we don't want to have to wait too long for our results:
 
-(shell output here)
+    ::
+           [mcmc]
+           chainlength=2000000
+           [model ie_vocabulary]
+           model=covarion
+           data=ie_cognates..csv
+           rate_variation=True
+    --- ie_vocabulary.conf
 
-Permitting rate variation can impact the topology of the trees which are sampled.  If two languages have different words for a meaning slot which evolves very slowly, this is evidence the the languages are only distantly related.  However, if two languages have different words for a meaning slot which evolves rapidly, then this does not necessarily mean they cannot be closely related.  This kind of nuanced inference cannot be made in a model where all features are forced to evolve at the same rate, so the tree topology which comes out of the two models can differ significantly.  Let's look at our new trees:
+BEAST will now infer some extra parameters, and we'd like to know what they are.  By default, these will not be logged, because the logfiles can become very large, eating up lots of disk space, and in some cases we may not be too interested.  We can switch logging on by adding an admin section and setting the log_params option to True:
+
+    ::
+           [admin]
+           log_params=True
+           [mcmc]
+           chainlength=2000000
+           [model ie_vocabulary]
+           model=covarion
+           data=ie_cognates..csv
+           rate_variation=True
+    --- ie_vocabulary.conf
+
+Now rebuild your XML file and run BEAST again:
+
+    $ beastling --overwrite ie_vocabulary.conf
+    $ beast beastling.xml
+
+If you look at the new beastling.log file, you will notice that many extra columns have appeared compared to our first analysis.  Many of these are the new individual rates of change for our meaning slots.  You should see columns with the following names: featureClockRate:ie_vocabulary:I, featureClockRate:ie_vocabulary:all, featureClockRate:ie_vocabulary:ashes, featureClockRate:ie_vocabulary:bark, featureClockRate:ie_vocabulary:belly, etc.  These are the rates of change for the meaning slots "I", "all", "ashes", "bark" and "belly".  They are expressed as multiples of the overall average rate.  In my run of this analysis, the mean value of featureClockRate:ie_vocabulary:I is about 0.16, meaning cognate replacement for this meaning slot happens a bit more than 6 times more slowly than the average meaning slot.  This is to be expected, as pronouns are typically very stable.  On the other hand, my mean value for featureClockRate:ie:vocabulary:belly is about 2.14, suggesting that this word evolves a little more than twice as fast as average.
+
+In addition to providing information on the relative rates of change for features, permitting rate variation can impact the topology of the trees which are sampled.  If two languages have different words for a meaning slot which evolves very slowly, this is evidence the the languages are only distantly related.  However, if two languages have different words for a meaning slot which evolves rapidly, then this does not necessarily mean they cannot be closely related.  This kind of nuanced inference cannot be made in a model where all features are forced to evolve at the same rate, so the tree topology which comes out of the two models can differ significantly.  Rate variation can also influence the relative timing of the branching events in a tree.  If two languages share cognates for most meaning slots and differ in only a few, the rates of change of those few meaning slots give us some idea of how long ago the languages diverged.
+
+Let's look at our new trees:
 
 (FigTree output here)
 
@@ -361,15 +393,25 @@ Clock variation
 If you want the rate of language change to vary across different branches in the tree, you can specify your own clock model.
 
     ::
-           [model austronesian_vocabulary]
-           model=mk
-           data=abvd.csv
+           [admin]
+           log_params=True
+           [mcmc]
+           chainlength=2000000
+           [model ie_vocabulary]
+           model=covarion
+           data=ie_cognates..csv
            rate_variation=True
            [clock default]
            type=relaxed
-    --- austronesian_vocabulary.conf
+    --- ie_vocabulary.conf
+    ::
 
-Here we have specified a relaxed clock model.  This means that every branch on the tree will have its own specific rate of change.  However, all of these rates will be sampled from one distribution, so that most branches will receive rates which are only slightly faster or slower than the average, while a small number of branches may have outlying rates.
+Here we have specified a relaxed clock model.  This means that every branch on the tree will have its own specific rate of change.  However, all of these rates will be sampled from one distribution, so that most branches will receive rates which are only slightly faster or slower than the average, while a small number of branches may have outlying rates.  By default, this distribution is lognormal, but it is possible to specify an exponential or gamma distribution instead.  Another alternative to the default "strict clock" is a random local clock.
+
+Rebuild your XML file and run BEAST again in the now-familiar manner:
+
+    $ beastling --overwrite ie_vocabulary.conf
+    $ beast beastling.xml
 
 Adding calibrations
 -------------------
