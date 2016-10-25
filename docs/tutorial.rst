@@ -408,22 +408,48 @@ If you want the rate of language change to vary across different branches in the
 
 Here we have specified a relaxed clock model.  This means that every branch on the tree will have its own specific rate of change.  However, all of these rates will be sampled from one distribution, so that most branches will receive rates which are only slightly faster or slower than the average, while a small number of branches may have outlying rates.  By default, this distribution is lognormal, but it is possible to specify an exponential or gamma distribution instead.  Another alternative to the default "strict clock" is a random local clock.
 
+Note that we have left rate variation on as well, but this is not required for using a relaxed clock.  Rate variation and non-strict clocks are two separate and independent ways of making your model more realistic.
+
 Rebuild your XML file and run BEAST again in the now-familiar manner:
 
     $ beastling --overwrite ie_vocabulary.conf
     $ beast beastling.xml
+
+Just like when we switched on rate variation, you should be able to see that using a relaxed clock added several additional columns to your beastling.log logfile.  In particular, you should see: clockRate.c:default, rate.c:default.mean, rate.c:default.variance, rate.c:default.coefficientOfVariation and ucldSdev.c:default.  clockRate.c:default and ucldSdev.c:default are the mean and standard deviation, respectively, of the log-normal distribution from which the clock rates for each branch are drawn.  In this analysis, the mean is fixed at 1.0, and this is due to the lack of calibrations.  You will see how this changes later in the tutorial.  rate.c:default.mean and rate.c:default.variance are the empirical mean and variance of the actual rates sampled for the branches.  Finally, clockRate.c:default.coefficientOfVariation is the ratio of the variance of branch rates to the mean, and provides a measure of how much variation there is in the rate of evolution over the tree.  If this value is quite low, say 0.1 or less, this suggests that there is very little variation across the branches, and using a relaxed clock instead of a strict clock will probably not have enough impact on your results to be worth the increased running time.
+
+For more details on clock models supported by BEASTling, see the :doc:`clocks` page.
 
 Adding calibrations
 -------------------
 
 The trees we have been looking at up until now have all had branch lengths expressed in units of expected number of substitutions, or "change events", per feature.  One common application of phylogenetics in linguistics is to estimate the age of language families or subfamilies.  In order to do this, we need to calibrate our tree by providing BEAST with our best estimate of the age of some points on the tree.  If we do this, the trees in our .nex output file will instead have branch lenghts in units which match the units used for our calibration.
 
-Calibrations are added to their own section in the configuration file:
+Calibrations are added to their own section in the configuration file.  Suppose we wish to calibrate the common ancestor of the Romance languages in our analysis to have an age coinciding with the collapse of the Roman empire, say 1,400 to 1,600 years BP.  We will specify our calibrations in units of millenia:
 
-(research sensible Austronesian calibrations and put some in here)
+    ::
+           [admin]
+           log_params=True
+           [mcmc]
+           chainlength=2000000
+           [model ie_vocabulary]
+           model=covarion
+           data=ie_cognates..csv
+           rate_variation=True
+           [clock default]
+           type=relaxed
+           [calibrations]
+           French,Italian,Portuguese,Romanian,Spanish=1.4-1.6
+    --- ie_vocabulary.conf
+    ::
 
-Adding geography
--------------------
+Once again we rebuild and re-run:
+
+    $ beastling --overwrite ie_vocabulary.conf
+    $ beast beastling.xml
+
+Including this calibration will have changed several things about our output.  First, let's look at the log file.  The most obvious difference will be in the treeHeight column.  Whereas previously this value was in rather abstract units of "average number of changes per meaning slot", now it is in units of millenia, matching our calibration.  Instead of a mean value of around 0.82, you should see a mean value of something like 5.72.  This is our analysis' estimate of the age of proto-Indo-European (i.e. about 5,700 years).  In addition to a point estimate like this, we can get a plausible interval, by seeing that 95% of the samples in our analysis are between 1.35 and 15.00, so the age of Indo-European could plausibly lie anywhere in this range.  This is quite a broad range, which is not unexpected here - we are using a very small data set (in terms of both languages and meaning slots) and have only one internal calibration.  Serious efforts to date protolanguages require much more care than this analysis, however it demonstrates the basics of using BEASTling for this purpose.
+
+You should also see some new columns, including one with the (somewhat unweildy) name "mrcatime(French,Italian,Portuguese,Romanian,Spanish)".  This column records the age (in millenia BP) of the most recent common ancestor of the Romance languages in our analysis.  Because we placed a calibration on this node, you should see that almost all values in this column are between 1.4 and 1.6.  In my run of this analysis, I see a mean of 1.497 and a 95% HPD interval of 1.399 to 1.6, indicating that the calibration has functioned exactly as intended.
 
 .. `Lexibank`: ???
 .. `ABVD`: http://language.psy.auckland.ac.nz/austronesian/
