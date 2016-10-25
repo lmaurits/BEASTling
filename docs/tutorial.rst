@@ -451,6 +451,66 @@ Including this calibration will have changed several things about our output.  F
 
 You should also see some new columns, including one with the (somewhat unweildy) name "mrcatime(French,Italian,Portuguese,Romanian,Spanish)".  This column records the age (in millenia BP) of the most recent common ancestor of the Romance languages in our analysis.  Because we placed a calibration on this node, you should see that almost all values in this column are between 1.4 and 1.6.  In my run of this analysis, I see a mean of 1.497 and a 95% HPD interval of 1.399 to 1.6, indicating that the calibration has functioned exactly as intended.
 
+Best practices
+==============
+
+Bayesian phylogenetic inference is a complicated subject, and this tutorial can only ever give you a quick first impression of what is involved.  We urge you to make use of the many other learning resources available for mastering the art.  However, to help you get started we offer a very brief discussion of some important "best practices" you should follow.
+
+Keep it simple
+--------------
+
+For serious linguistic studies, you will almost always end up using some model more complicated than the default provided by BEASTling, perhaps using multiple substitution models, rate variation, non-strict clocks and calibrations in either time or space.  Each complication brings an additional chance of problems, and at the very least means your analysis will take longer to run.  
+
+You should always begin a study by using the simplest model possible, even if it is not a perfect match to reality.  Make sure the model runs with a strict clock, no rate variation and without any calibrations first.  Add these details later one at a time to see what impact each one has on the results.  If you encounter any problems, at least you will know which part of the model is the cause.
+
+Sample from the prior
+---------------------
+
+Bayesian modelling is all about using prior distributions to influence your results.  Complicated models usually come with complicated priors.  All BEASTling-generated analyses feature a prior distribution over the phylogenetic tree, and depending upon your setup your analysis may add additional components to the prior such as monophyly constraints, timing calibrations and geographic constraints.
+
+Even if it is not obvious, these prior constraints can interact with one another in unexpected ways, and this can introduce biases into your results.  If your posterior tree sets suggest that some languages are related, you must not simply assume that this is due to phylogenetic signal in the data.  It may be that there are actually only a small number of ways to simultaneously satisfy all of your constraints, and most or all of these may involve your languages being related.  In this case, your results will show the languages to be related no matter what data you give your model!
+
+To guard against this, you should always sample from the prior distribution of your final analysis, i.e. do a run where the data is ignored.  You should then compare the results you get from this to the results you get from the full analysis, to make sure that the data is contributing most of the result.
+
+BEASTling makes this easy.  The easiest way to do this is to run BEASTling with the --prior option.  For our Indo-European example, instead of doing the usual:
+
+    $ beastling ie_vocabulary.conf
+
+We can do:
+
+    $ beastling --prior ie_vocabulary.conf
+
+Instead of creating a beastling.xml file, this will create a file named beastling_prior.xml.  This file will contain the configuration for a BEAST analysis which is identical to the one specified in ie_vocabulary.conf, but it will sample from the prior.  When you run it with:
+
+    $ beast beastling_prior.xml
+
+The output files will be a beastling_prior.log and beastling_prior.nex, and these can be interpreted in precisely the same way as the regular log files.
+
+How long should I run my chains?
+--------------------------------
+
+The essence of what BEAST does when it runs an analysis configured by BEASTling is to sample 10,000 trees (and 10,000 values of all parameters), and we use these samples as an estimate of the posterior distribution.  This is true regardless of the configured chain length.  If we run the chain for 10,000 iterations, then each one is kept as one of our samples.  If we run the chain for 100,000 iterations, then only every 10th sample is kept and the others are thrown out.  Since we get 10,000 samples either way, how do we know how long to set our chain length?
+
+In order for our estimate to be a "good one", we need to take a few things into account.  The MCMC sampler sets the tree and all parameters to random initial values, and then at each iteration attempts to change one or more of these values.  The state of the chain drifts away from the random initial state (which is probably a very bad fit to the data) and then one the values are a good fit, the chain wanders around the space of good fitting values, sampling values in proportion to their posterior probability.
+
+So, one thing we need to be sure of is that our chain runs for enough iterations to get out of the initial bad fit and into a region of good fit.  This is known as "getting past burn in".
+
+Another thing to consider is that we want our 10,000 samples to be roughly independent.  Suppose we have a weighted coin and we want to estimate the bias.  We can flip it 10,000 times and count the heads and tails and compute the ratio to get a good estimate of the bias.  Suppose instead of flipping the coin ourselves, we give it to a coin-flipping robot.  The robot isn't very good at its job, and it only succeeds in flipping the coin every 5 tries.  Instead of getting a sequence like this:
+
+H, T, H, T, H, H, T, T, H, T
+
+we get a sequence like this:
+
+H, H, H, H, H, T, T, T, T, T, H, H, H, H, H, T, T, T ,T, T,...
+
+Obviously, if we let the robot produce 10,000 samples for us, we will not get as good an estimate as flipping the coin ourselves.  We are getting 10,000 samples, but intuitively, there is as much information as 2,000 "real" samples, due to the duplications.
+
+A complicated MCMC analysis is kind of like this not-so-good robot.  Consecutive samples tend to be very similar to one another, so if we just took the first 10,000 samples out of the chain after burn in, there might actually only be a little information in them and our estimate would not be reliable.  Because of this, we need to run the chain for more than 10,000 iterations (sometimes much more) and only record every 10th or 100th or 1,000th sample in order to ensure good quality estimates.  The more complicated your analysis, the harder the MCMC robot's job becomes, so the longer the required chain length.
+
+So, how do we know when we have run our chain long enough to get past the burn in, and spaced our samples out enough to get a reliable estimate?  The Tracer program distributed with BEAST can help us with this task.
+
+When you load a BEAST .log file in Tracer, in addition to seeing the mean value of all the columns in the log file, you can see the ESS, or Effective Sample Size.  This tells you how many independent samples your 10,000 samples hold as much information as (in our coin-flipping robot example above, we said that the ESS of the 10,000 samples was about 2,000 because).  As a rule of thumb, an ESS of below 100 is too low for a reliable estimate, and an ESS of 200 or more is considered acceptable.  Accordingly, Tracer will colour ESSes below 100 red to let you know they are problematic, and ESSes below 100 and 200 yellow to let you know they are not quite ideal.
+
 .. `Lexibank`: ???
 .. `ABVD`: http://language.psy.auckland.ac.nz/austronesian/
 .. 1: Greenhill, S.J., Blust. R, & Gray, R.D. (2008). The Austronesian Basic Vocabulary Database: From Bioinformatics to Lexomics. Evolutionary Bioinformatics, 4:271-283.
