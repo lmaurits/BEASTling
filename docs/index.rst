@@ -16,6 +16,7 @@ Contents
 
    overview
    installation
+   tutorial
    usage
    config
    data
