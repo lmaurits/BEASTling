@@ -207,7 +207,7 @@ for a small set of Indo-European languages.  The data is stored in CLDF
 format in a csv file called `ie_cognates.csv` which can be
 downloaded as follows::
 
-    $ curl -OL https://raw.githubusercontent.com/lmaurits/BEASTling/master/docs/tutorial_data/ie_cognates.csv
+    $ curl -OL https://raw.githubusercontent.com/lmaurits/BEASTling/release-1.2/docs/tutorial_data/ie_cognates.csv
     [... Download progress]
 
 (curl is a command line tool do download files from URLs, available
@@ -220,7 +220,7 @@ importing it into Excel or however you prefer to look at csv files,
 you will see that ::
 
     $ cat ie_cognates.csv
-    Language_ID,Feature_ID,Value
+    Language_ID,Feature_ID,IPA,Value
     [...]
 
 it is a comma-separated `CLDF <http://cldf.clld.org/>`_ file, which is
@@ -229,12 +229,14 @@ supports out-of-the-box.
 
 So let us start building the most basic BEASTling analysis using this
 data. Create a new file called `ie_vocabulary.conf` with the
-following content::
+following content:
 
-           [model ie_vocabulary]
-           model=covarion
-           data=ie_cognates..csv
-    --- ie_cognates.conf
+    ::
+
+       [model ie_vocabulary]
+       model=covarion
+       data=ie_cognates.csv
+    -- ie_cognates.conf
 
 This is a minimal BEASTling file that will generate a BEAST 2 xml
 configuration file that tries to infer a tree of Indo-European
