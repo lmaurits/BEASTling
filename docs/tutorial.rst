@@ -48,7 +48,7 @@ Prompt, which you can start by looking for `cmd.exe` and running
 that. The Command Prompt is far less flexible and user-friendly than
 other available shells, but sufficient for running beastling.
 
-If you are working under windows, you will need a working Python
+If you are working under Windows, you will need a working Python
 installation to run beastling, for which you will install `Anaconda`_
 in the next section. Anaconda gives you a Command Prompt set up to
 work more cleanly with its Python installation under the name Anaconda
@@ -96,7 +96,7 @@ using `cd`::
     $ cd ..
     $ dir
     [... The same output as before, and the new directory:]
-    example
+    example_directory
     [...]
     $ cd example_directory
 
@@ -193,9 +193,10 @@ cross-linguistic data format supported by beastling. The Austronesian
 Basic Vocabulary Dataset [1]_ which Lexibank provides comes from
 Auckland's `ABVD`_ project and is licensed under a `CC-BY` 4.0 license.
 
-The first step is to download the lexical data from Lexibank.
+The first step is to download the lexical data from Lexibank. ::
 
-    $ curl -OL https://lexibank.clld.org/contributions/abvd.csv
+    $ curl -kOL https://lexibank.clld.org/contributions/abvd.csv
+    [... Download progress]
 
 (curl is a command line tool do download files from URLs, available
 under Linux and Windows. You can, of course, download the file
