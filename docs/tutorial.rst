@@ -89,10 +89,11 @@ and step inside with the `cd` (“change directory”) command. ::
 
 As you can see, this directory is empty – on the bash, `dir` outputs
 nothing, while it lists two `<DIR>`ectories `.` and `..` on
-Windows. These two directories are special: they are this directory
-`example_directory` and its parent directory, where we have just come
-from, respectively. We can use these special directories to move up
-using `cd`::
+Windows. These two directories are special (they exist under Linux as
+well, they just are not shown): they are this directory
+`example_directory` itself, and its parent directory, where we have
+just come from, respectively. We can use these special directories to
+move up using `cd`::
 
     $ cd ..
     $ dir
@@ -197,8 +198,6 @@ the analyses inside that folder. Open a command line interface, and
 make sure its working directory is that new folder. For example,
 start terminal and execute ::
 
-::
-
     $ mkdir indoeuropean
     $ cd indoeuropean
 
@@ -210,7 +209,7 @@ downloaded as follows::
     $ curl -OL https://raw.githubusercontent.com/lmaurits/BEASTling/release-1.2/docs/tutorial_data/ie_cognates.csv
     [... Download progress]
 
-(curl is a command line tool do download files from URLs, available
+(curl is a command line tool to download files from URLs, available
 under Linux and Windows. You can, of course, download the file
 yourself using whatever method you are most comfortable with, and save
 it as `ie_cognates.csv` in this folder.)
@@ -260,7 +259,7 @@ Let's try it! ::
     data = ie_cognates.csv
 
     -->
-    [...]
+    [... Many xml lines describing the model in detail]
     </beast>
 
 We would like to run this in BEAST to test it, but the default chain
@@ -275,7 +274,7 @@ length is required later), so let's reduce it for the time being
            chainlength=500000
            [model ie_vocabulary]
            model=covarion
-           data=ie_cognates..csv
+           data=ie_cognates.csv
     --- ie_vocabulary.conf
 
 Now we can run `beastling` again (after cleaning up the previous
@@ -303,9 +302,11 @@ analysis with a small data set, BEAST should finish in 5 or 10 minutes
 unless you are using a relatively slow computer.  When BEAST has finished
 running, you should see two new files in your directory::
 
-    $ dir
+    $ ls
     [...]
-    beastling.log       beastling.nex   beastling.xml
+    beastling.log
+    beastling.nex
+    beastling.xml
     [...]
 
 `beastling.log` is a log file which contains various details of each of the 10,000 trees sampled in this analysis, including their prior probability, likelihood and posterior probability, as well as the height of the tree.  In more complicated analyses, this file will contain much more information, like rates of change for different features in the dataset, details of evolutionary clock models, the ages of certain clades in the tree and more.
