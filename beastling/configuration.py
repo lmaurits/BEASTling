@@ -114,8 +114,8 @@ class Configuration(object):
         """A boolean value, controlling whether or not to log model parameters."""
         self.log_probabilities = True
         """A boolean value, controlling whether or not to log the prior, likelihood and posterior of the analysis."""
-        self.log_fine_probs = True
-        """A boolean value, controlling whether or not to log individuaal components of the prior and likelihood,."""
+        self.log_fine_probs = False
+        """A boolean value, controlling whether or not to log individual components of the prior and likelihood."""
         self.log_trees = True
         """A boolean value, controlling whether or not to log the sampled trees."""
         self.log_pure_tree = False
