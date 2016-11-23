@@ -21,7 +21,7 @@ with this and go directly to
 accessible from your CLI, skip further to `Using BEASTling`_.
 
 Fundamentals
-------------
+~~~~~~~~~~~~
 
 While you may be used to driving applications by pointing and clicking
 with the mouse and very occasionally typing text, command-line
@@ -54,7 +54,7 @@ Prompt, which you can start by looking for `cmd.exe` and running
 that. The Command Prompt is far less flexible and user-friendly than
 other available shells, but sufficient for running beastling.
 
-If you are working under windows, you will need a working Python
+If you are working under Windows, you will need a working Python
 installation to run beastling, for which you will install `Anaconda`_
 in the next section. Anaconda gives you a Command Prompt set up to
 work more cleanly with its Python installation under the name Anaconda
@@ -69,7 +69,7 @@ directory”) and then a prompt symbol (`$` or `>`), before a cursor.
 
 Type `dir` and press Enter. The shell should show you the contents of
 the directory you are in, which is probably your home directory.
-For the remainder of this tutorial, we will use the notation
+For the remainder of this tutorial, we will use the notation ::
 
     $ echo Example Command
     Example Command
@@ -83,31 +83,32 @@ Sometimes, we will abbreviate the expected output, and write `[...]`.
 
 It is important to know how to navigate the file system on the command
 line, otherwise you will be stuck running all analyses inside your
-home directory! So let us create a new directory
+home directory! So let us create a new directory ::
 
     $ mkdir example_directory
 
-and step inside with the `cd` (“change directory”) command.
+and step inside with the `cd` (“change directory”) command. ::
 
     $ cd example_directory
     $ dir
 
 As you can see, this directory is empty – on the bash, `dir` outputs
 nothing, while it lists two `<DIR>`ectories `.` and `..` on
-Windows. These two directories are special: they are this directory
-`example_directory` and its parent directory, where we have just come
-from, respectively. We can use these special directories to move up
-using `cd`:
+Windows. These two directories are special (they exist under Linux as
+well, they just are not shown): they are this directory
+`example_directory` itself, and its parent directory, where we have
+just come from, respectively. We can use these special directories to
+move up using `cd`::
 
     $ cd ..
     $ dir
     [... The same output as before, and the new directory:]
-    example
+    example_directory
     [...]
     $ cd example_directory
 
-Paths like this can be compbined using `/`, so if you are inside `example_directory`,
-
+Paths like this can be combined using `/`, so if you are inside `example_directory`, ::
+  
     $ cd ../example_directory
 
 will do nothing. This knowledge should allow you to go from any
@@ -118,7 +119,7 @@ behave like any other directory, so you change hard drives like you
 change directories.)
 
 Unfortunately, the Command Prompt and `bash` understand
-different languages. For example, while in `bash`, we might have
+different languages. For example, while in `bash`, we might have ::
 
     $ echo This text is put into a file. > file.txt
     $ dir
@@ -135,7 +136,7 @@ the content of a file.  In this tutorial, we will use the language of
 command or a way outside the CLI to achieve the same result.
 
 Installation
-============
+~~~~~~~~~~~~
 
 BEASTling is written in the `Python <http://www.python.org>`_ programming
 language, and `BEAST 2 <http://beast2.org>`_ is written in
@@ -195,14 +196,12 @@ consider upgrading your Python or check the :doc:`installation` chapter
 for alternative installation instructions.
 
 Using BEASTling
-===============
+~~~~~~~~~~~~~~~
 
 First, create a new empty directory. We will collect the data and run
 the analyses inside that folder. Open a command line interface, and
 make sure its working directory is that new folder. For example,
-start terminal and execute
-
-::
+start terminal and execute ::
 
     $ mkdir indoeuropean
     $ cd indoeuropean
@@ -210,25 +209,22 @@ start terminal and execute
 For this tutorial, we will be using lexical data, i.e. cognate judgements,
 for a small set of Indo-European languages.  The data is stored in CLDF
 format in a csv file called `ie_cognates.csv` which can be
-downloaded as follows:
+downloaded as follows::
 
-::
+    $ curl -OL https://raw.githubusercontent.com/lmaurits/BEASTling/release-1.2/docs/tutorial_data/ie_cognates.csv
+    [... Download progress]
 
-    $ curl -OL https://raw.githubusercontent.com/lmaurits/BEASTling/master/docs/tutorial_data/ie_cognates.csv
-
-(curl is a command line tool do download files from URLs, available
+(curl is a command line tool to download files from URLs, available
 under Linux and Windows. You can, of course, download the file
 yourself using whatever method you are most comfortable with, and save
 it as `ie_cognates.csv` in this folder.)
 
 If you look at this data, using your preferred text editor or
 importing it into Excel or however you prefer to look at csv files,
-you will see that
-
-::
+you will see that ::
 
     $ cat ie_cognates.csv
-    Language_ID,Feature_ID,Value
+    Language_ID,Feature_ID,IPA,Value
     [...]
 
 it is a comma-separated `CLDF <http://cldf.clld.org/>`_ file, which is
@@ -241,42 +237,41 @@ editor with the following content:
 
     ::
 
-           [model ie_vocabulary]
-           model=covarion
-           data=ie_cognates..csv
-    --- ie_cognates.conf
+       [model ie_vocabulary]
+       model = covarion
+       data = ie_cognates.csv
+    -- ie_vocabulary.conf
 
 This is a minimal BEASTling file that will generate a BEAST 2 XML
 configuration file that tries to infer a tree of Indo-European
 languages from the dataset using a binary Covarion model.
 
-Let's try it!
-
-::
+Let's try it! ::
 
     $ beastling ie_vocabulary.conf
-    $ dir
+    $ ls
     [...]
     beastling.xml
     [...]
     $ cat beastling.xml
     <?xml version='1.0' encoding='UTF-8'?>
     <beast beautistatus="" beautitemplate="Standard" namespace="beast.core:beast.evolution.alignment:beast.evolution.tree.coalescent:beast.core.util:beast.evolution.nuc:beast.evolution.operators:beast.evolution.sitemodel:beast.evolution.substitutionmodel:beast.evolution.likelihood" version="2.0">
-    <!--Generated by BEASTling [...] on [...].
+      <!--Generated by BEASTling [...] on [...].
     Original config file:
+    # -*- coding: utf-8 -*-
     [model ie_vocabulary]
-    model=covarion
-    data=ie_cognates.csv
+    model = covarion
+    data = ie_cognates.csv
 
     -->
-    [...]
+    [... Many xml lines describing the model in detail]
     </beast>
 
 We would like to run this in BEAST to test it, but the default chain
 length of 10000000 will make waiting for this analysis to finish tedious
 (over an hour on most machines).  Because this is a small data set, we can
 get away with a shorter chain length (we will discuss how to tell what chain
-length is required later), so let's reduce it for the time being:
+length is required later), so let's reduce it for the time being
 
     ::
 
@@ -284,13 +279,11 @@ length is required later), so let's reduce it for the time being:
            chainlength=500000
            [model ie_vocabulary]
            model=covarion
-           data=ie_cognates..csv
-    --- ie_cognates.conf
+           data=ie_cognates.csv
+    --- ie_vocabulary.conf
 
 Now we can run `beastling` again (after cleaning up the previous
-output) and then run BEAST.
-
-::
+output) and then run BEAST. ::
 
     $ rm beastling.xml
     $ beastling ie_vocabulary.conf
@@ -312,13 +305,13 @@ output) and then run BEAST.
 BEAST will now spend some time sampling trees.  Because this is a simple
 analysis with a small data set, BEAST should finish in 5 or 10 minutes
 unless you are using a relatively slow computer.  When BEAST has finished
-running, you should see two new files in your directory:
+running, you should see two new files in your directory::
 
-::
-
-    $ dir
+    $ ls
     [...]
-    beastling.log       beastling.nex   beastling.xml
+    beastling.log
+    beastling.nex
+    beastling.xml
     [...]
 
 `beastling.log` is a log file which contains various details of each of the 10,000 trees sampled in this analysis, including their prior probability, likelihood and posterior probability, as well as the height of the tree.  In more complicated analyses, this file will contain much more information, like rates of change for different features in the dataset, details of evolutionary clock models, the ages of certain clades in the tree and more.
@@ -380,7 +373,7 @@ Just like tools like Tracer are used on log files to summarise all of the 10,000
 In this style of consensus tree, the tree may sometimes split into more than two branches at once (i.e. the tree is not a binary tree).  For example, look at the Scandinavian languages.  Here the tree splits into four languages.  This is because the relationships among the Scandinavian languages is uncertain.  All of the 10,000 trees in our posterior sample are binary trees, but this summary tree only shows relationships which are supported by at least half the trees.  Perhaps in our 10,000 trees, Icelandic is most closely related to Norwegian 45,000 of them, to Swedish in 30,000 of them and Danish in 25,000 of them.  None of these relationships is supported at least half the time, so the summary tree shows only a polytomy.  But the posterior tree log file always contains full information about the uncertainty, i.e. by counting the relationships above we know that Icelandic is more likely to be related to Norwegian than Danish, and we know how much more likely (almost twice as likely).
 
 More advanced modelling
-=======================
+~~~~~~~~~~~~~~~~~~~~~~~
 
 The BEASTling analysis we have used so far has a very short and neat configuration, but it is not based on a terribly realistic model of linguistic evolution, and so we may want to make some changes (however, it is always a good idea when working with a new data set to try to get very simple models working first and add complexity in stages).
 
@@ -389,21 +382,17 @@ The main oversimplification in the default analysis is the treatment of the rate
 Rate variation
 --------------
 
-You can enable rate variation by adding ``rate_variation = True`` to your ``[model]`` section, like this:
-
-    ::
+You can enable rate variation by adding ``rate_variation = True`` to your ``[model]`` section, like this::
 
            [model ie_vocabulary]
            model=covarion
-           data=ie_cognates..csv
+           data=ie_cognates.csv
            rate_variation=True
     --- ie_vocabulary.conf
 
 This will assign a separate rate of evolution to each feature in the dataset (each meaning slot in the case of our cognate data).  The words for some meaning slots, such as pronouns or body parts, may change very slowly compared to the average, while the words for other meaning slots may change more quickly.  With rate variation enabled, BEAST will attempt to figure out relative rates of change for each of your features (the rates across all features are assumed to follow a `Gamma distribution <https://en.wikipedia.org/wiki/Gamma_distribution>`_).
 
-Note that BEAST now has to estimate one extra parameter for each meaning slot in the data set (110), which means the analysis will have to run longer to provide good estimates, so let's increase the chain length to 2,000,000.  Ideally, it should be longer, but this is a tutorial, not a paper for peer review, and we don't want to have to wait too long for our results:
-
-    ::
+Note that BEAST now has to estimate one extra parameter for each meaning slot in the data set (110), which means the analysis will have to run longer to provide good estimates, so let's increase the chain length to 2,000,000.  Ideally, it should be longer, but this is a tutorial, not a paper for peer review, and we don't want to have to wait too long for our results::
 
            [mcmc]
            chainlength=2000000
@@ -413,9 +402,7 @@ Note that BEAST now has to estimate one extra parameter for each meaning slot in
            rate_variation=True
     --- ie_vocabulary.conf
 
-BEAST will now infer some extra parameters, and we'd like to know what they are.  By default, these will not be logged, because the logfiles can become very large, eating up lots of disk space, and in some cases we may not be too interested.  We can switch logging on by adding an `admin` section and setting the `log_params` option to True:
-
-    ::
+BEAST will now infer some extra parameters, and we'd like to know what they are.  By default, these will not be logged, because the logfiles can become very large, eating up lots of disk space, and in some cases we may not be too interested.  We can switch logging on by adding an admin section and setting the `log_params` option to True. ::
 
            [admin]
            log_params=True
@@ -427,7 +414,7 @@ BEAST will now infer some extra parameters, and we'd like to know what they are.
            rate_variation=True
     --- ie_vocabulary.conf
 
-Now rebuild your XML file and run BEAST again:
+Now rebuild your XML file and run BEAST again::
 
     $ beastling --overwrite ie_vocabulary.conf
     $ beast beastling.xml
@@ -446,8 +433,6 @@ Clock variation
 ---------------
 
 If you want the rate of language change to vary across different branches in the tree (which correspond to different locations and times), you can specify your own clock model.
-
-    ::
 
            [admin]
            log_params=True
