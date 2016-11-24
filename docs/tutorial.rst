@@ -55,7 +55,7 @@ that. The Command Prompt is far less flexible and user-friendly than
 other available shells, but sufficient for running beastling.
 
 If you are working under Windows, you will need a working Python
-installation to run beastling, for which you will install `Anaconda`_
+installation to run beastling, for which you will install Anaconda
 in the next section. Anaconda gives you a Command Prompt set up to
 work more cleanly with its Python installation under the name Anaconda
 Prompt. For the matters of this introduction to the command line,
@@ -171,8 +171,8 @@ installation. If your python version (which you can see by running
 upgrade your Python in the way you usually install new software.
 
 If you want to run BEASTling on Windows, we recommend the Anaconda
-Python distribution.  `Download <https://www.continuum.io/downloads>`_
-it here and run the Python 3.5 installer for your system.
+Python distribution.  `Download it here <https://www.continuum.io/downloads>`_
+and run the Python 3.5 installer for your system.
 
 BEASTling and its Python dependencies
 -------------------------------------
@@ -182,7 +182,7 @@ the :doc:`installation` instructions elsewhere in the BEASTling
 documentation. Otherwise, BEASTling is available from the `Python
 Package Index <https://pypi.python.org/pypi/beastling>`_, which
 is easily accessible using the `pip` command line tool, so it will
-be sufficient to run
+be sufficient to run ::
 
     $ pip install beastling
     [...]
@@ -336,9 +336,9 @@ Let's look at the first few lines of the log file.
     400     15.039986971266185      -3337.727626512908      -3322.687639541642      0.4267277279981509      17.4339491903431        0.0
 
 
-(head is a command available in most Unix-based platforms like Linux and OS X which prints the first 10 lines of a file.  You can just look at the first ten rows of your file in Excel or similar if you don't have head available)
+(`head` is a command available in most Unix-based platforms like Linux and OS X which prints the first 10 lines of a file.  You can just look at the first ten rows of your file in Excel or similar if you don't have head available)
 
-Don't panic if you don't see exactly the same numbers in your file.  BEAST uses a technique called `Markov Chain Monte Carlo <https://en.wikipedia.org/wiki/Markov_chain_Monte_Carlo>_` (MCMC), which is based on random sampling of trees.  This means every run of a BEAST analysis will give slightly different results, but the overall statistics should be the same from run to run.  Imagine tossing a coin 100 times and writing down the result.  If two people do this and compare the first 10 lines of their results, they will not see exactly the same sequence of heads and tails, and the same is true of two BEAST runs.  But both people should see roughly 50 heads and roughly 50 tails over all 100 tosses, and two BEAST runs should be similar in the same way.
+Don't panic if you don't see exactly the same numbers in your file.  BEAST uses a technique called `Markov Chain Monte Carlo <https://en.wikipedia.org/wiki/Markov_chain_Monte_Carlo>`_ (MCMC), which is based on random sampling of trees.  This means every run of a BEAST analysis will give slightly different results, but the overall statistics should be the same from run to run.  Imagine tossing a coin 100 times and writing down the result.  If two people do this and compare the first 10 lines of their results, they will not see exactly the same sequence of heads and tails, and the same is true of two BEAST runs.  But both people should see roughly 50 heads and roughly 50 tails over all 100 tosses, and two BEAST runs should be similar in the same way.
 
 Even though you will have different numbers, you should see the same 6 columns in your file.  Just for now, we will focus on the first five.  The `sample` column simply indicates which sample each line corresponds to.  We asked BEAST to draw 500,000 samples (with the `chain_length` setting).  Usually, not every sample in an MCMC analysis is kept, because consecutive samples are too similar to one another.  Instead, some samples are thrown away, and samples are kept at some periodic interval.  By default, BEASTling asks BEAST to keep enough samples so that the log file contains 10,000 samples.  In this case, this means keeping every 50th sample, which is why we see 0, 50, 100, 150, etc in the first column.  If we'd asked BEAST to draw 50,000 samples instead, we'd haave to keep every 5th sample to get 10,000 by the end, so the first column would start with 0, 5, 10, 15, etc.
 
@@ -382,7 +382,9 @@ The main oversimplification in the default analysis is the treatment of the rate
 Rate variation
 --------------
 
-You can enable rate variation by adding ``rate_variation = True`` to your ``[model]`` section, like this::
+You can enable rate variation by adding ``rate_variation = True`` to your ``[model]`` section, like this
+
+    ::
 
            [model ie_vocabulary]
            model=covarion
@@ -392,7 +394,9 @@ You can enable rate variation by adding ``rate_variation = True`` to your ``[mod
 
 This will assign a separate rate of evolution to each feature in the dataset (each meaning slot in the case of our cognate data).  The words for some meaning slots, such as pronouns or body parts, may change very slowly compared to the average, while the words for other meaning slots may change more quickly.  With rate variation enabled, BEAST will attempt to figure out relative rates of change for each of your features (the rates across all features are assumed to follow a `Gamma distribution <https://en.wikipedia.org/wiki/Gamma_distribution>`_).
 
-Note that BEAST now has to estimate one extra parameter for each meaning slot in the data set (110), which means the analysis will have to run longer to provide good estimates, so let's increase the chain length to 2,000,000.  Ideally, it should be longer, but this is a tutorial, not a paper for peer review, and we don't want to have to wait too long for our results::
+Note that BEAST now has to estimate one extra parameter for each meaning slot in the data set (110), which means the analysis will have to run longer to provide good estimates, so let's increase the chain length to 2,000,000.  Ideally, it should be longer, but this is a tutorial, not a paper for peer review, and we don't want to have to wait too long for our results
+
+    ::
 
            [mcmc]
            chainlength=2000000
@@ -402,7 +406,9 @@ Note that BEAST now has to estimate one extra parameter for each meaning slot in
            rate_variation=True
     --- ie_vocabulary.conf
 
-BEAST will now infer some extra parameters, and we'd like to know what they are.  By default, these will not be logged, because the logfiles can become very large, eating up lots of disk space, and in some cases we may not be too interested.  We can switch logging on by adding an admin section and setting the `log_params` option to True. ::
+BEAST will now infer some extra parameters, and we'd like to know what they are.  By default, these will not be logged, because the logfiles can become very large, eating up lots of disk space, and in some cases we may not be too interested.  We can switch logging on by adding an admin section and setting the `log_params` option to True.
+
+    ::
 
            [admin]
            log_params=True
@@ -434,6 +440,8 @@ Clock variation
 
 If you want the rate of language change to vary across different branches in the tree (which correspond to different locations and times), you can specify your own clock model.
 
+    ::
+
            [admin]
            log_params=True
            [mcmc]
@@ -450,7 +458,7 @@ Here we have specified a relaxed clock model.  This means that every branch on t
 
 Note that we have left rate variation on as well, but this is not required for using a relaxed clock.  Rate variation and non-strict clocks are two separate and independent ways of making your model more realistic.
 
-Rebuild your XML file and run BEAST again in the now-familiar manner:
+Rebuild your XML file and run BEAST again in the now-familiar manner::
 
     $ beastling --overwrite ie_vocabulary.conf
     $ beast beastling.xml
@@ -506,7 +514,7 @@ As is now usual, we can build a consensus tree to summarise the results of our a
 If you compare this tree to the previous one, after we introduced the relaxed clock, you will notice that they have exactly the same topology, and the posterior support values are very similar.  This is to be expected.  Adding a single calibration point essentially does nothing but rescale the tree branch lengths.  Adding multiple calibrations, however, could potentially change the topology.
 
 Best practices
-==============
+~~~~~~~~~~~~~~
 
 Bayesian phylogenetic inference is a complicated subject, and this tutorial can only ever give you a quick first impression of what is involved.  We urge you to make use of the many other learning resources available for mastering the art.  However, to help you get started we offer a very brief discussion of some important "best practices" you should follow.
 
@@ -526,15 +534,15 @@ Even if it is not obvious, these prior constraints can interact with one another
 
 To guard against this, you should always sample from the prior distribution of your final analysis, i.e. do a run where the data is ignored.  You should then compare the results you get from this to the results you get from the full analysis, to make sure that the data is contributing most of the result.
 
-BEASTling makes this easy.  The easiest way to do this is to run BEASTling with the `--prior` option.  For our Indo-European example, instead of doing the usual:
+BEASTling makes this easy.  The easiest way to do this is to run BEASTling with the `--prior` option.  For our Indo-European example, instead of doing the usual::
 
     $ beastling ie_vocabulary.conf
 
-We can do:
+We can do::
 
     $ beastling --prior ie_vocabulary.conf
 
-Instead of creating a `beastling.xml` file, this will create a file named `beastling_prior.xml`.  This file will contain the configuration for a BEAST analysis which is identical to the one specified in `ie_vocabulary.conf`, but it will sample from the prior.  When you run it with:
+Instead of creating a `beastling.xml` file, this will create a file named `beastling_prior.xml`.  This file will contain the configuration for a BEAST analysis which is identical to the one specified in `ie_vocabulary.conf`, but it will sample from the prior.  When you run it with::
 
     $ beast beastling_prior.xml
 
