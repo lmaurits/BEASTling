@@ -288,20 +288,19 @@ output) and then run BEAST. ::
     $ rm beastling.xml
     $ beastling ie_vocabulary.conf
     $ beast beastling.xml
-    Loading package [...]
     [...]
 
-                                BEAST v2.4.3, 2002-2016
+    [...]                 BEAST v2.4[...], 2002-2016
                  Bayesian Evolutionary Analysis Sampling Trees
                            Designed and developed by
      Remco Bouckaert, Alexei J. Drummond, Andrew Rambaut & Marc A. Suchard
-     [...]
-     ===============================================================================
-     Start likelihood: [...]
-     [...]
-         Sample ESS(posterior)          prior     likelihood      posterior
-     [...]
-     
+    [...]
+    ===============================================================================
+    [...]
+    Start likelihood: [...]
+    [...]
+        Sample ESS(posterior)          prior     likelihood      posterior
+    [...]
 BEAST will now spend some time sampling trees.  Because this is a simple
 analysis with a small data set, BEAST should finish in 5 or 10 minutes
 unless you are using a relatively slow computer.  When BEAST has finished
@@ -319,21 +318,20 @@ running, you should see two new files in your directory::
 `beastling.log` is a tab separated value (tsv) file.  You should be able to open it up in a spreadsheet program like Microsoft Excel, `LibreOffice Calc <https://www.libreoffice.org/discover/calc/>`_ or
 `Gnumeric <http://www.gnumeric.org/>`_.
 
-Let's look at the first few lines of the log file.
-
-::
+Let's look at the first few lines of the log file. ::
 
     $ head beastling.log
-    Sample  prior   likelihood      posterior       treeHeight      YuleModel.t:beastlingTree       YuleBirthRatePrior.t:beastlingTree
-    0       -8.98027012415235       -5608.380912705009      -5617.361182829161      1.6496578223508276      -6.504751489982865      0.0
-    50      -8.82660343639428       -4626.223799582827      -4635.050403019221      2.4856227018065336      -6.432641217317366      0.0
-    100     -7.333592357522035      -4244.591121595498      -4251.924713953021      1.7075847960102366      -4.939630138445121      0.0
-    150     -3.4357217516230563     -4023.480891489457      -4026.91661324108       1.6559813844895233      -1.0417595325461422     0.0
-    200     5.415801393056513       -3921.446533036334      -3916.0307316432777     0.85850188293608        7.809763612133427       0.0
-    250     3.7952776836081137      -3907.6460566063784     -3903.85077892277       0.9697813606913859      6.189239902685028       0.0
-    300     8.322120011155945       -3608.78640895754       -3600.464288946384      0.8648651865647997      10.716082230232859      0.0
-    350     9.76865513833624        -3374.804298810213      -3365.0356436718766     0.5743386655139796      12.162617357413152      0.0
-    400     15.039986971266185      -3337.727626512908      -3322.687639541642      0.4267277279981509      17.4339491903431        0.0
+    [... Numbers are stochastic and may vary 
+    Sample	prior	likelihood	posterior	treeHeight
+    0	-11.466785941356303     -5434.4533277100645     -5445.920113651421      2.930099025192108
+    50  -14.507387085439145     -4948.559786139161      -4963.0671732246        2.8632651425342983
+    100 -13.715625758051573     -4588.294198523788      -4602.009824281839      2.8235811961563644
+    150 -14.455572518334662     -4353.763156917764      -4368.218729436098      2.720387319308833
+    200 -10.719230155244194     -4219.189086103397      -4229.908316258641      2.0137609414490942
+    250 -2.906983109341201      -4176.574925532654      -4179.481908641995      1.4462030568578153
+    300 -2.9491105164545837     -4027.5833312195637     -4030.5324417360184     1.4462030568578153
+    350 5.795184249496499       -3866.294505320323      -3860.4993210708267     0.6592039530882482
+    400 8.927313730401623       -3757.008703631417      -3748.0813899010154     0.5651416164402189]
 
 
 (`head` is a command available in most Unix-based platforms like Linux and OS X which prints the first 10 lines of a file.  You can just look at the first ten rows of your file in Excel or similar if you don't have head available)
@@ -366,7 +364,7 @@ Once again, you should not expect to see the exact same tree in your file, becau
 
 Here the Germanic, Romance and Slavic subfamilies have been correctly separated out, and the Germanic family is correctly divided into North and West Germanic.  You should see similar good agreement in your final tree, although the details may differ from here, and the fit might not be quite as good or may be a little better.  Bayesian MCMC does not sample trees which strictly improve on the fit to data one after the other.  Instead, well-fitting trees are sampled more often than ill-fitting trees, with a sampling ratio proportional to how well they fit.  So there is no guarantee that the last tree in the file is the best fit, but it will almost certainly be a better fit than the first tree.
 
-Just like tools like Tracer are used on log files to summarise all of the 10,000 samples into a useful form, like the mean of a parameter, there are tools to summarise all of the 10,000 trees to produce a so-callled "summary tree".  One tool for doing this is distributed with BEAST and is called `treeannotator <http://beast2.org/treeannotator/>`_.  If you are an advanced command line user you may like to use the tool `phyltr <https://github.com/lmaurits/phyltr>`_, which is also written by a BEASTling developer and uses the idea of a `Unix pipeline <https://en.wikipedia.org/wiki/Pipeline_%28Unix%29>`_.  The image below shows a "majority rules consensus tree", produced using `phyltr`.  This shows all splits between languages which are present in at least 5,000 of the 10,000 trees.  The numbers at each branching point show the proportion of trees in the sample compatible with each branching.
+Just like tools like Tracer are used on log files to summarise all of the 10,000 samples into a useful form, like the mean of a parameter, there are tools to summarise all of the 10,000 trees to produce a so-called "summary tree".  One tool for doing this is distributed with BEAST and is called `treeannotator <http://beast2.org/treeannotator/>`_.  If you are an advanced command line user you may like to use the tool `phyltr <https://github.com/lmaurits/phyltr>`_, which is also written by a BEASTling developer and uses the idea of a `Unix pipeline <https://en.wikipedia.org/wiki/Pipeline_%28Unix%29>`_.  The image below shows a "majority rules consensus tree", produced using `phyltr`.  This shows all splits between languages which are present in at least 5,000 of the 10,000 trees.  The numbers at each branching point show the proportion of trees in the sample compatible with each branching.
 
 .. image:: images/tutorial_tree_03.png
 
@@ -382,7 +380,7 @@ The main oversimplification in the default analysis is the treatment of the rate
 Rate variation
 --------------
 
-You can enable rate variation by adding ``rate_variation = True`` to your ``[model]`` section, like this
+You can enable rate variation by adding ``rate_variation = True`` to your ``[model]`` section, like this:
 
     ::
 
@@ -394,7 +392,7 @@ You can enable rate variation by adding ``rate_variation = True`` to your ``[mod
 
 This will assign a separate rate of evolution to each feature in the dataset (each meaning slot in the case of our cognate data).  The words for some meaning slots, such as pronouns or body parts, may change very slowly compared to the average, while the words for other meaning slots may change more quickly.  With rate variation enabled, BEAST will attempt to figure out relative rates of change for each of your features (the rates across all features are assumed to follow a `Gamma distribution <https://en.wikipedia.org/wiki/Gamma_distribution>`_).
 
-Note that BEAST now has to estimate one extra parameter for each meaning slot in the data set (110), which means the analysis will have to run longer to provide good estimates, so let's increase the chain length to 2,000,000.  Ideally, it should be longer, but this is a tutorial, not a paper for peer review, and we don't want to have to wait too long for our results
+Note that BEAST now has to estimate one extra parameter for each meaning slot in the data set (110), which means the analysis will have to run longer to provide good estimates, so let's increase the chain length to 2,000,000.  Ideally, it should be longer, but this is a tutorial, not a paper for peer review, and we don't want to have to wait too long for our results.
 
     ::
 
@@ -402,7 +400,7 @@ Note that BEAST now has to estimate one extra parameter for each meaning slot in
            chainlength=2000000
            [model ie_vocabulary]
            model=covarion
-           data=ie_cognates..csv
+           data=ie_cognates.csv
            rate_variation=True
     --- ie_vocabulary.conf
 
@@ -416,7 +414,7 @@ BEAST will now infer some extra parameters, and we'd like to know what they are.
            chainlength=2000000
            [model ie_vocabulary]
            model=covarion
-           data=ie_cognates..csv
+           data=ie_cognates.csv
            rate_variation=True
     --- ie_vocabulary.conf
 
@@ -424,6 +422,9 @@ Now rebuild your XML file and run BEAST again::
 
     $ beastling --overwrite ie_vocabulary.conf
     $ beast beastling.xml
+    [...]
+                 Bayesian Evolutionary Analysis Sampling Trees
+    [...]
 
 If you look at the new `beastling.log` file, you will notice that many extra columns have appeared compared to our first analysis.  Many of these are the new individual rates of change for our meaning slots.  You should see columns with the following names: `featureClockRate:ie_vocabulary:I`, `featureClockRate:ie_vocabulary:all`, `featureClockRate:ie_vocabulary:ashes`, `featureClockRate:ie_vocabulary:bark`, `featureClockRate:ie_vocabulary:belly`, etc.  These are the rates of change for the meaning slots "I", "all", "ashes", "bark" and "belly".  They are expressed as multiples of the overall average rate.  In my run of this analysis, the mean value of `featureClockRate:ie_vocabulary:I` is about 0.16, meaning cognate replacement for this meaning slot happens a bit more than 6 times more slowly than the average meaning slot.  This is to be expected, as pronouns are typically very stable.  On the other hand, my mean value for `featureClockRate:ie:vocabulary:belly` is about 2.14, suggesting that this word evolves a little more than twice as fast as average.  Features with a mean value of around 1.0 are evolving at the average rate.
 
@@ -442,13 +443,15 @@ If you want the rate of language change to vary across different branches in the
 
     ::
 
+    ::
+
            [admin]
            log_params=True
            [mcmc]
            chainlength=2000000
            [model ie_vocabulary]
            model=covarion
-           data=ie_cognates..csv
+           data=ie_cognates.csv
            rate_variation=True
            [clock default]
            type=relaxed
@@ -462,6 +465,7 @@ Rebuild your XML file and run BEAST again in the now-familiar manner::
 
     $ beastling --overwrite ie_vocabulary.conf
     $ beast beastling.xml
+    [...]
 
 Just like when we switched on rate variation, you should be able to see that using a relaxed clock added several additional columns to your beastling.log logfile.  In particular, you should see: `clockRate.c:default`, `rate.c:default.mean`, `rate.c:default.variance`, `rate.c:default.coefficientOfVariation` and `ucldSdev.c:default`.  The first two new columns, `clockRate.c:default` and `ucldSdev.c:default`, are the mean and standard deviation respectively of the log-normal distribution from which the clock rates for each branch are drawn.  In this analysis, the mean is fixed at 1.0, and this is due to the lack of calibrations.  You will see how this changes later in the tutorial.  The next two, `rate.c:default.mean` and `rate.c:default.variance`, are the empirical mean and variance of the actual rates sampled for the branches, which may differ slightly from the distribution parameters.  Finally, `clockRate.c:default.coefficientOfVariation` is the ratio of the variance of branch rates to the mean, and provides a measure of how much variation there is in the rate of evolution over the tree.  If this value is quite low, say 0.1 or less, this suggests that there is very little variation across the branches, and using a relaxed clock instead of a strict clock will probably not have enough impact on your results to be worth the increased running time.  High values mean the data is strongly incompatible with a strict clock.
 
@@ -488,7 +492,7 @@ Calibrations are added to their own section in the configuration file.  Suppose 
            chainlength=2000000
            [model ie_vocabulary]
            model=covarion
-           data=ie_cognates..csv
+           data=ie_cognates.csv
            rate_variation=True
            [clock default]
            type=relaxed
@@ -502,6 +506,9 @@ Once again we rebuild and re-run:
 
     $ beastling --overwrite ie_vocabulary.conf
     $ beast beastling.xml
+    [...]
+                 Bayesian Evolutionary Analysis Sampling Trees
+    [...]
 
 Including this calibration will have changed several things about our output.  First, let's look at the log file.  The most obvious difference will be in the `treeHeight` column.  Whereas previously this value was in rather abstract units of "average number of changes per meaning slot", now it is in units of millenia, matching our calibration.  Instead of a mean value of around 0.82, you should see a mean value of something like 5.72.  This is our analysis' estimate of the age of proto-Indo-European (i.e. about 5,700 years).  In addition to a point estimate like this, we can get a plausible interval, by seeing that 95% of the samples in our analysis are between 1.35 and 15.00, so the age of Indo-European could plausibly lie anywhere in this range.  This is quite a broad range, which is not unexpected here - we are using a very small data set (in terms of both languages and meaning slots) and have only one internal calibration.  Serious efforts to date protolanguages require much more care than this analysis, however it demonstrates the basics of using BEASTling for this purpose.
 
@@ -534,17 +541,14 @@ Even if it is not obvious, these prior constraints can interact with one another
 
 To guard against this, you should always sample from the prior distribution of your final analysis, i.e. do a run where the data is ignored.  You should then compare the results you get from this to the results you get from the full analysis, to make sure that the data is contributing most of the result.
 
-BEASTling makes this easy.  The easiest way to do this is to run BEASTling with the `--prior` option.  For our Indo-European example, instead of doing the usual::
-
-    $ beastling ie_vocabulary.conf
-
-We can do::
+BEASTling makes this easy.  The easiest way to do this is to run BEASTling with the `--prior` option.  For our Indo-European example, instead of doing the usual ``$ beastling ie_vocabulary.conf``, we can do
 
     $ beastling --prior ie_vocabulary.conf
 
 Instead of creating a `beastling.xml` file, this will create a file named `beastling_prior.xml`.  This file will contain the configuration for a BEAST analysis which is identical to the one specified in `ie_vocabulary.conf`, but it will sample from the prior.  When you run it with::
 
     $ beast beastling_prior.xml
+    [...]
 
 The output files will be `beastling_prior.log` and `beastling_prior.nex`, and these can be interpreted in precisely the same way as the regular log files.
 
