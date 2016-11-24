@@ -465,6 +465,7 @@ Rebuild your XML file and run BEAST again in the now-familiar manner::
 
     $ beastling --overwrite ie_vocabulary.conf
     $ beast beastling.xml
+    [...]
 
 Just like when we switched on rate variation, you should be able to see that using a relaxed clock added several additional columns to your beastling.log logfile.  In particular, you should see: `clockRate.c:default`, `rate.c:default.mean`, `rate.c:default.variance`, `rate.c:default.coefficientOfVariation` and `ucldSdev.c:default`.  The first two new columns, `clockRate.c:default` and `ucldSdev.c:default`, are the mean and standard deviation respectively of the log-normal distribution from which the clock rates for each branch are drawn.  In this analysis, the mean is fixed at 1.0, and this is due to the lack of calibrations.  You will see how this changes later in the tutorial.  The next two, `rate.c:default.mean` and `rate.c:default.variance`, are the empirical mean and variance of the actual rates sampled for the branches, which may differ slightly from the distribution parameters.  Finally, `clockRate.c:default.coefficientOfVariation` is the ratio of the variance of branch rates to the mean, and provides a measure of how much variation there is in the rate of evolution over the tree.  If this value is quite low, say 0.1 or less, this suggests that there is very little variation across the branches, and using a relaxed clock instead of a strict clock will probably not have enough impact on your results to be worth the increased running time.  High values mean the data is strongly incompatible with a strict clock.
 
@@ -540,17 +541,14 @@ Even if it is not obvious, these prior constraints can interact with one another
 
 To guard against this, you should always sample from the prior distribution of your final analysis, i.e. do a run where the data is ignored.  You should then compare the results you get from this to the results you get from the full analysis, to make sure that the data is contributing most of the result.
 
-BEASTling makes this easy.  The easiest way to do this is to run BEASTling with the `--prior` option.  For our Indo-European example, instead of doing the usual::
-
-    $ beastling ie_vocabulary.conf
-
-We can do::
+BEASTling makes this easy.  The easiest way to do this is to run BEASTling with the `--prior` option.  For our Indo-European example, instead of doing the usual ``$ beastling ie_vocabulary.conf``, we can do
 
     $ beastling --prior ie_vocabulary.conf
 
 Instead of creating a `beastling.xml` file, this will create a file named `beastling_prior.xml`.  This file will contain the configuration for a BEAST analysis which is identical to the one specified in `ie_vocabulary.conf`, but it will sample from the prior.  When you run it with::
 
     $ beast beastling_prior.xml
+    [...]
 
 The output files will be `beastling_prior.log` and `beastling_prior.nex`, and these can be interpreted in precisely the same way as the regular log files.
 
