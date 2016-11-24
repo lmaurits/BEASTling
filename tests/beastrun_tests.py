@@ -53,6 +53,7 @@ def test_basic():
         ("admin", "mk", "union"),
         ("admin", "mk", "intersection"),
         ("admin", "mk", "relaxed"),
+        ("admin", "mk", "relaxed_params"),
         ("admin", "mk", "relaxed_expon"),
         ("admin", "mk", "relaxed_gamma"),
         ("admin", "mk", "random"),

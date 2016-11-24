@@ -12,11 +12,9 @@ class BaseClock(object):
         default_estimate_rate = None
         # But if the user specifies a rate, we assume they do not want it
         # estimated...
-        if "mean" in clock_config:
-            self.initial_mean = clock_config["mean"]
-            default_estimate_rate = False
-        elif "rate" in clock_config:
-            self.initial_mean = clock_config["rate"]
+        if any([k in clock_config for k in ("mean", "rate")]):
+            k = "mean" if "mean" in clock_config else "rate"
+            self.initial_mean = clock_config[k]
             default_estimate_rate = False
         else:
             self.initial_mean = 1.0
