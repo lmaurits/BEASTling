@@ -2,11 +2,12 @@ import os
 from subprocess import check_call, PIPE
 from xml.etree import ElementTree as et
 
+from clldutils.path import copytree
 from nose.plugins.attrib import attr
 
 import beastling.configuration
 import beastling.beastxml
-from .util import WithConfigAndTempDir, config_path
+from .util import WithConfigAndTempDir, config_path, tests_path
 
 
 # To reuse the setup/teardown functionality of WithConfigAndTempDir, we keep a module
@@ -52,10 +53,12 @@ def test_basic():
         ("admin", "mk", "union"),
         ("admin", "mk", "intersection"),
         ("admin", "mk", "relaxed"),
+        ("admin", "mk", "relaxed_params"),
         ("admin", "mk", "relaxed_expon"),
         ("admin", "mk", "relaxed_gamma"),
         ("admin", "mk", "random"),
         ("admin", "mk", "calibration"),
+        ("admin", "mk", "calibration_by_iso"),
         ("admin", "mk", "calibration_nested"),
         ("admin", "mk", "calibration_disjoint"),
         ("admin", "mk", "calibration_nested_root"),
@@ -90,6 +93,8 @@ def _do_test(config_files):
     if os.environ.get('TRAVIS'):
         et.parse(temp_filename)
     else:
+        if not TEST_CASE.tmp_path('tests').exists():
+            copytree(tests_path(), TEST_CASE.tmp_path('tests'))
         check_call(
             ['beast', '-overwrite', temp_filename],
             cwd=TEST_CASE.tmp.as_posix(),
