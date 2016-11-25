@@ -324,7 +324,10 @@ class BaseModel(object):
                 "value":value_string})
 
     def format_datapoint(self, feature, point):
-        return str(point)
+        if point == "?":
+            return point
+        else:
+            return str(self.unique_values[feature].index(point))
 
     def add_feature_data(self, distribution, index, feature, fname):
         """
