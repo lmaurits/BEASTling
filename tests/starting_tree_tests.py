@@ -1,18 +1,15 @@
 # coding: utf8
-from unittest import TestCase
-import os
-
 from nose.tools import *
 
-from beastling.configuration import Configuration
+from .util import WithConfigAndTempDir, config_path, tests_path
 
 
-class Tests(TestCase):
+class Tests(WithConfigAndTempDir):
 
     def _make_tree_cfg(self, tree_file):
-        cfg = Configuration(configfile=os.path.join(
-            os.path.dirname(__file__), 'configs/starting_tree.conf'))
-        cfg.starting_tree = "tests/trees/%s.nex" % tree_file
+        config_files = [config_path(cf).as_posix() for cf in ["admin", "mk", tree_file]]
+        cfg = self.make_cfg(config_files)
+        cfg.starting_tree = tests_path('trees', "%s.nex" % tree_file).as_posix()
         return cfg
 
     def test_basic_starting_tree(self):
@@ -33,6 +30,6 @@ class Tests(TestCase):
         cfg.process()
 
     @raises(ValueError)
-    def test_subset_tree(self):
+    def test_duplicate_taxa_tree(self):
         cfg = self._make_tree_cfg("duplicates")
         cfg.process()

@@ -16,9 +16,11 @@ Contents
 
    overview
    installation
+   tutorial
    usage
    config
    data
    modelling
+   clocks
    substitution
    scripting

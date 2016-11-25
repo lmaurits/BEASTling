@@ -1,10 +1,12 @@
-from nose.tools import *
+from __future__ import unicode_literals
 
 import beastling.beastxml
 import beastling.configuration
+from .util import WithConfigAndTempDir, capture, config_path
 
-def test_extractor():
-    config = beastling.configuration.Configuration(configfile="tests/configs/basic.conf")
-    config.process()
-    xml = beastling.beastxml.BeastXml(config)
-    xml.write_file("stdout")
+
+class Tests(WithConfigAndTempDir):
+    def test_stdout(self):
+        xml = beastling.beastxml.BeastXml(self.make_cfg(config_path("basic").as_posix()))
+        with capture(xml.write_file, 'stdout') as output:
+            self.assertIn('<?xml version=', output[0].decode('utf8'))

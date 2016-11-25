@@ -1,48 +1,49 @@
 # coding: utf8
 from __future__ import unicode_literals
-from unittest import TestCase
 import os
-from tempfile import mktemp
-from shutil import rmtree
 import io
 
 from nose.tools import *
 from mock import patch, Mock
+import newick
+from clldutils.path import Path
 
-from beastling.configuration import Configuration, get_glottolog_newick
+from beastling.configuration import (
+    Configuration, get_glottolog_data, _BEAST_MAX_LENGTH,
+)
 from beastling.beastxml import BeastXml
+from .util import WithConfigAndTempDir, config_path
 
 
-class Tests(TestCase):
-    def setUp(self):
-        self.tmp = mktemp()
-        os.mkdir(self.tmp)
-
-    def tearDown(self):
-        rmtree(self.tmp)
-
-    def _make_cfg(self, name):
-        return Configuration(configfile=os.path.join(
-            os.path.dirname(__file__), 'configs', '%s.conf' % name))
+class Tests(WithConfigAndTempDir):
+    def _make_cfg(self, *names):
+        return self.make_cfg([config_path(name).as_posix() for name in names])
 
     def _make_bad_cfg(self, name):
-        return Configuration(configfile=os.path.join(
-            os.path.dirname(__file__), 'configs/bad_configs/',
-            '%s.conf' % name))
+        return self.make_cfg(config_path(name, bad=True).as_posix())
+
+    def test_get_glottolog_geo(self):
+        geodata = self.tmp.joinpath('glottolog-2.5-geo.csv')
+        with geodata.open('w', encoding='utf8') as fp:
+            fp.write('x')
+
+        with patch(
+                'beastling.configuration.user_data_dir',
+                new=Mock(return_value=self.tmp.as_posix())):
+            self.assertEqual(Path(get_glottolog_data('geo', '2.5')), geodata)
 
     def test_get_glottolog_newick(self):
-        with io.open(
-            os.path.join(self.tmp, 'glottolog-2.5.newick'), 'w', encoding='utf8'
-        ) as fp:
+        with self.tmp.joinpath('glottolog-2.5.newick').open('w', encoding='utf8') as fp:
             fp.write('(B [abcd1234],C [abcd1234])A [abcd1234];')
 
         with patch(
-                'beastling.configuration.user_data_dir', new=Mock(return_value=self.tmp)):
-            trees = get_glottolog_newick('2.5')
+                'beastling.configuration.user_data_dir',
+                new=Mock(return_value=self.tmp.as_posix())):
+            trees = newick.read(get_glottolog_data('newick', '2.5'))
             self.assertEqual(trees[0].name, 'A [abcd1234]')
 
-    def test_get_glottolog_newick_download(self):
-        data_dir = os.path.join(self.tmp, 'data')
+    def test_get_glottolog_data_download(self):
+        data_dir = os.path.join(self.tmp.as_posix(), 'data')
 
         class URLopener(object):
             def retrieve(self, url, fname):
@@ -59,23 +60,21 @@ class Tests(TestCase):
             URLopener=URLopenerError,
         ):
             with self.assertRaises(ValueError):
-                get_glottolog_newick('2.5')
+                get_glottolog_data('newick', '2.5')
 
         with patch.multiple(
             'beastling.configuration',
             user_data_dir=Mock(return_value=data_dir),
             URLopener=URLopener,
         ):
-            trees = get_glottolog_newick('2.5')
-            self.assertEqual(trees[0].name, 'A [abcd1234]')
+            assert get_glottolog_data('newick', '2.5')
 
     def test_families(self):
         cfg1 = self._make_cfg('glottolog_families')
         cfg2 = self._make_cfg('glottolog_families_from_file')
         cfg1.process()
         cfg2.process()
-        self.assertEqual(cfg1.lang_filter, cfg2.lang_filter)
-        self.assertEqual(len(cfg1.lang_filter), 6107)
+        self.assertEqual(cfg1.languages, cfg2.languages)
 
     def test_config(self):
         cfg = Configuration(configfile={
@@ -99,11 +98,8 @@ class Tests(TestCase):
                 'binarized': True,
             },
         })
-        self.assertTrue(cfg.tree_logging_pointless)
-        self.assertAlmostEqual(cfg.calibrations['abcd1234'][1], 20)
-        #self.assertAlmostEqual(cfg.model_configs[0]['minimum_data'], 4.5)
+        self.assertAlmostEqual(cfg.calibration_configs['abcd1234, efgh5678'], "10-20")
         self.assertTrue(cfg.model_configs[1]['binarised'])
-        self.assertEqual(len(cfg.calibrations), 2)
 
         with self.assertRaisesRegexp(ValueError, 'Value for overlap') as e:
             Configuration(configfile={'languages': {'overlap': 'invalid'}, 'models': {}})
@@ -142,20 +138,78 @@ class Tests(TestCase):
         cfg.process()
 
     def test_calibration(self):
-        config = self._make_cfg('calibration')
+        config = self._make_cfg('basic', 'calibration')
         config.process()
-        self.assertIn('austronesian', config.calibrations)
-        v = config.calibrations['austronesian']
+        self.assertIn('Austronesian', config.calibrations)
+        v = config.calibrations['Austronesian']
         xml1 = BeastXml(config).tostring().decode('utf8')
 
         # Now remove one calibration point ...
-        del config.calibrations['austronesian']
+        del config.calibrations['Austronesian']
         xml2 = BeastXml(config).tostring().decode('utf8')
         self.assertNotEqual(
-            len(xml1.split('CalibrationNormal.')), len(xml2.split('CalibrationNormal.')))
+            len(xml1.split('CalibrationDistribution.')), len(xml2.split('CalibrationDistribution.')))
 
         # ... and add it back in with using the glottocode:
         config.calibrations['aust1307'] = v
         xml2 = BeastXml(config).tostring().decode('utf8')
         self.assertEqual(
-            len(xml1.split('CalibrationNormal.')), len(xml2.split('CalibrationNormal.')))
+            len(xml1.split('CalibrationDistribution.')), len(xml2.split('CalibrationDistribution.')))
+
+    def test_calibration_string_formats(self):
+        # Test lower bound format
+        config = self._make_cfg('basic', 'calibration_lower_bound')
+        config.process()
+        self.assertEqual(list(config.calibrations.values())[0].dist, "uniform")
+        self.assertEqual(list(config.calibrations.values())[0].param2, "Infinity")
+        # Test upper bound format
+        config = self._make_cfg('basic', 'calibration_upper_bound')
+        config.process()
+        self.assertEqual(list(config.calibrations.values())[0].dist, "uniform")
+        self.assertEqual(list(config.calibrations.values())[0].param1, 0.0)
+
+        # Test range and param formats for all three distributions
+        for dist in ('normal', 'lognormal', 'uniform'):
+            for style in ('range', 'params'):
+                config = self._make_cfg('basic', 'calibration_%s_%s' % (dist, style))
+                config.process()
+            self.assertEqual(list(config.calibrations.values())[0].dist, dist)
+
+
+    def test_overlong_chain(self):
+        config = self._make_cfg('basic')
+        config.chainlength = 9e999
+        config.process()
+        self.assertEqual(config.chainlength, _BEAST_MAX_LENGTH)
+
+    def test_file_embedding(self):
+        config = self._make_cfg('glottolog_families_from_file','embed_data')
+        xml = BeastXml(config).tostring().decode('utf8')
+        # Check for evidence of data
+        self.assertTrue("aari1239,1,1,1,1,1,1,?,1,?,1" in xml)
+        # Check for evidence of families
+        self.assertTrue("Malayo-Polynesian" in xml)
+
+    def test_minimum_data(self):
+        # f8 has 60% missing data.  By default it should be included...
+        config = self._make_cfg('basic')
+        config.process()
+        self.assertTrue("f8" in config.models[0].features)
+        # ...but if we insist on 75% data or more it should be excluded...
+        config = self._make_cfg('basic', 'minimum_data')
+        config.process()
+        self.assertEqual(config.models[0].minimum_data, 75.0)
+        self.assertTrue("f8" not in config.models[0].features)
+
+    def test_pruned_rlc(self):
+        # Make sure pruned trees are disabled if used in conjunction with RLC
+        config = self._make_cfg('basic', 'pruned', 'random')
+        self.assertTrue(config.model_configs[0]["pruned"])
+        config.process()
+        self.assertFalse(config.models[0].pruned)
+
+    def test_no_monophyly_geo(self):
+        # Make sure that geographic sampling without monophyly constraints emits a warning
+        config = self._make_cfg('basic', 'geo', 'geo_sampled')
+        config.process
+        self.assertTrue(any(["[WARNING] Geographic sampling" in m for m in config.messages]))
