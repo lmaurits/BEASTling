@@ -58,6 +58,7 @@ def test_basic():
         ("admin", "mk", "relaxed_gamma"),
         ("admin", "mk", "random"),
         ("admin", "mk", "calibration"),
+        ("admin", "mk", "calibration_by_iso"),
         ("admin", "mk", "calibration_nested"),
         ("admin", "mk", "calibration_disjoint"),
         ("admin", "mk", "calibration_nested_root"),
