@@ -508,7 +508,7 @@ class Configuration(object):
             fp.readline()
             for line in fp:
                 iso, lat, lon = line.split(",")
-                self.locations[iso.strip().lower()] = map(float, (lat, lon))
+                self.locations[iso.strip().lower()] = float(lat), float(lon)
 
     def build_language_filter(self):
         """
