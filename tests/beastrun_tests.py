@@ -55,6 +55,8 @@ def test_basic():
         ("admin", "mk", "relaxed_expon"),
         ("admin", "mk", "relaxed_gamma"),
         ("admin", "mk", "random"),
+        ("admin", "mk", "feature_with_comma"),
+        ("admin", "mk", "cldf_data_with_comma"),
         ("admin", "mk", "calibration"),
         ("admin", "mk", "calibration_nested"),
         ("admin", "mk", "calibration_disjoint"),
