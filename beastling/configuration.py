@@ -508,7 +508,7 @@ class Configuration(object):
             fp.readline()
             for line in fp:
                 iso, lat, lon = line.split(",")
-                self.locations[iso.strip().lower()] = map(float, (lat, lon))
+                self.locations[iso.strip().lower()] = float(lat), float(lon)
 
     def build_language_filter(self):
         """
@@ -937,9 +937,13 @@ class Configuration(object):
 
     def get_languages_by_glottolog_clade(self, clade):
         langs = []
+        clade = [c.strip() for c in clade.split(",")]
         for l in self.languages:
+            if l in clade:
+                langs.append(l)
+                continue
             for name, glottocode in self.classifications.get(l.lower(),""):
-                if clade.lower() == name.lower() or clade.lower() == glottocode:
+                if any([c.lower() == name.lower() or c.lower() == glottocode for c in clade]):
                     langs.append(l)
                     break
         return langs

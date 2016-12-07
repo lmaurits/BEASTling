@@ -208,7 +208,7 @@ class BaseModel(object):
         """
         N = len(unique_values)
         codemapbits = []
-        codemapbits.append(",".join(["%s=%d" % (v,n) for (n,v) in enumerate(unique_values)]))
+        codemapbits.append(",".join(["%d=%d" % (n,n) for n in range(0,len(unique_values))]))
         codemapbits.append("?=" + " ".join([str(n) for n in range(0,N)]))
         codemapbits.append("-=" + " ".join([str(n) for n in range(0,N)]))
         return ",".join(codemapbits)
@@ -324,7 +324,10 @@ class BaseModel(object):
                 "value":value_string})
 
     def format_datapoint(self, feature, point):
-        return str(point)
+        if point == "?":
+            return point
+        else:
+            return str(self.unique_values[feature].index(point))
 
     def add_feature_data(self, distribution, index, feature, fname):
         """

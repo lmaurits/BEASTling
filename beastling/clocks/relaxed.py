@@ -52,8 +52,13 @@ class LogNormalRelaxedClock(RelaxedClock):
 
     def __init__(self, clock_config, global_config):
         RelaxedClock.__init__(self, clock_config, global_config)
-        self.estimate_variance = clock_config.get("estimate_variance",True)
-        self.initial_variance = clock_config.get("variance",0.1)
+        default_estimate_variance = True
+        if "variance" in clock_config:
+            self.initial_variance = clock_config["variance"]
+            default_estimate_variance = False
+        else:
+            self.initial_variance = 0.1
+        self.estimate_variance = clock_config.get("estimate_variance",default_estimate_variance)
 
     def add_state(self, state):
         RelaxedClock.add_state(self, state)
