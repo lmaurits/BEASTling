@@ -258,7 +258,7 @@ class BeastXml(object):
         # Refer to any previous TaxonSet with the same languages
         for idref, taxa in self._taxon_sets.items():
             if set(langs) == taxa:
-                ET.SubElement(parent, "taxonset", {"idref" : idref, "spec":"TaxonSet"})
+                ET.SubElement(parent, "taxonset", {"idref" : idref})
                 return
         # Otherwise, create and register a new TaxonSet
         taxonset = ET.SubElement(parent, "taxonset", {"id" : label, "spec":"TaxonSet"})
