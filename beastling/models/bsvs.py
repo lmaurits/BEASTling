@@ -111,6 +111,10 @@ class BSVSModel(BaseModel):
                     freqs = [0.1/self.valuecounts[feature] + 0.9*f for f in freqs]
                 norm = float(sum(freqs))
                 freq_string = " ".join([str(c/norm) for c in freqs])
+            else:
+                raise ValueError(
+                    "Model BSVS does not recognize frequencies %r, "
+                    "should be 'uniform' or 'empirical'." % self.frequencies)
             ET.SubElement(freq,"parameter",{
                 "dimension":str(self.valuecounts[feature]),
                 "id":"feature_frequencies.s:%s"%fname,
