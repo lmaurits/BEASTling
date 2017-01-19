@@ -103,7 +103,10 @@ class BSVSModel(BaseModel):
             if self.frequencies == "uniform":
                 freq_string = str(1.0/self.valuecounts[feature])
             elif self.frequencies == "empirical":
-                freqs = [self.counts[feature].get(str(v),0) for v in range(1,self.valuecounts[feature]+1)]
+                freqs = [
+                    self.counts[feature].get(
+                        self.unique_values[feature][v], 0)
+                    for v in range(self.valuecounts[feature])]
                 norm = float(sum(freqs))
                 freqs = [f/norm for f in freqs]
                 # Sometimes, due to WALS oddities, there's a zero frequency, and that makes BEAST sad.  So do some smoothing in these cases:
