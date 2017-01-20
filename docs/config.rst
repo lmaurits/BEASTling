@@ -29,6 +29,8 @@ BEASTling configuration files can range from very simple (the only section which
 
 *It is your responsibility to know what the defaults are and to make sure that they truly are sensible for your application*.
 
+You can build incremental or modular analyses from multiple config files in beastling. When you specify more than one config file on the command line, options specified in later config files overwrite options in earlier files. The :ref:`multifile` section below gives more details.
+
 The recognised config file sections are as follows:
 
 admin section
@@ -324,3 +326,50 @@ geo_priors section
 In the same way that a ``[calibration]`` section is used to add temporal calibrations to an analysis, a ``[geo_priors]`` section can be used to add spatial calibrations to an analysis.  This only makes sense for analyses which include a phylogeographic component, and if your configuration file contains a ``[geo_priors]`` section but not a ``[geography]`` section, BEASTling will complain loudly.
 
 The name of each parameter should be a comma-separated list of family names or Glottocodes, exactly as per temporal calibrations.  The value should be a path to a `KML <https://en.wikipedia.org/wiki/Keyhole_Markup_Language>`_ file specifying a polygon which represents the region you believe the MRCA of the listed family/families should be confined to.  Note that, unlike data files, the contents of the KML file will not end up included in the BEAST XML.  This means the XML and KML file(s) will need to be distributed together for the analysis to be reproducable.
+
+.. _multifile:
+===========================
+Working with multiple files
+===========================
+
+You specify separate configuration files on the command line (or when using beastling as a scripting tool), which you can use can build incremental or modular analyses.
+
+For example, you might construct a basic analysis using ``austronesian.ini`` containing
+::
+
+	[admin]
+        basename = austronesian
+	[model lexicon]
+        model = covarion
+        data = austronesian.csv
+        rate_variation = False
+
+and have a second configuration file for adding rate variation (``plus_rate_var.ini``) containing just
+::
+
+	[admin]
+        basename = %(basename)s_rate_var
+	[model lexicon]
+        rate_variation = True
+
+In this case, running ``beastling austronesian.ini plus_rate_var.ini`` will give you the same result as if you had used
+::
+
+	[admin]
+        basename = austronesian_rate_var
+	[model lexicon]
+        model = covarion
+        data = austronesian.csv
+        rate_variation = True
+
+Interpolation
+-------------
+
+In the ``plus_rate_var.ini`` above, you see ``basename = %(basename)s_rate_var``. The ``%(basename)s`` is special interpolation syntax: At the time that a ``%(name)s`` is read, it is immediately replaced by the value that the ``name`` property of the current section has at that time.
+
+.. NOT IMPLEMENTED YET You can also create a ``[DEFAULT]`` section, which is ignored by beastling except for interpolation. It must be capitalized for interpolation from it to work. The values from this section are available in all other sections, so you can do ``[DEFAULT] family = austronesian [admin] basename = %(family)s [model] data = %(family)s.csv`` and so on.
+
+
+
+
+
