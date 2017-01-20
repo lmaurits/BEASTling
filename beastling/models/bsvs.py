@@ -103,7 +103,10 @@ class BSVSModel(BaseModel):
             if self.frequencies == "uniform":
                 freq_string = str(1.0/self.valuecounts[feature])
             elif self.frequencies == "empirical":
-                freqs = [self.counts[feature].get(str(v),0) for v in range(1,self.valuecounts[feature]+1)]
+                freqs = [
+                    self.counts[feature].get(
+                        self.unique_values[feature][v], 0)
+                    for v in range(self.valuecounts[feature])]
                 norm = float(sum(freqs))
                 freqs = [f/norm for f in freqs]
                 # Sometimes, due to WALS oddities, there's a zero frequency, and that makes BEAST sad.  So do some smoothing in these cases:
@@ -111,6 +114,10 @@ class BSVSModel(BaseModel):
                     freqs = [0.1/self.valuecounts[feature] + 0.9*f for f in freqs]
                 norm = float(sum(freqs))
                 freq_string = " ".join([str(c/norm) for c in freqs])
+            else:
+                raise ValueError(
+                    "Model BSVS does not recognize frequencies %r, "
+                    "should be 'uniform' or 'empirical'." % self.frequencies)
             ET.SubElement(freq,"parameter",{
                 "dimension":str(self.valuecounts[feature]),
                 "id":"feature_frequencies.s:%s"%fname,

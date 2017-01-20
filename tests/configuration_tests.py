@@ -137,6 +137,11 @@ class Tests(WithConfigAndTempDir):
         cfg = self._make_bad_cfg("bad_overlap")
         cfg.process()
 
+    @raises(ValueError)
+    def bad_overlap(self):
+        cfg = self._make_bad_cfg("bad_frequencies")
+        cfg.process()
+
     def test_calibration(self):
         config = self._make_cfg('basic', 'calibration')
         config.process()
