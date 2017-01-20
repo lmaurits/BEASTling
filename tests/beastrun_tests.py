@@ -1,5 +1,5 @@
 import os
-from subprocess import check_call, PIPE
+from subprocess import check_call, PIPE, CalledProcessError
 from xml.etree import ElementTree as et
 
 from clldutils.path import copytree
@@ -97,8 +97,14 @@ def _do_test(config_files):
     else:
         if not TEST_CASE.tmp_path('tests').exists():
             copytree(tests_path(), TEST_CASE.tmp_path('tests'))
-        check_call(
-            ['beast', '-overwrite', temp_filename],
-            cwd=TEST_CASE.tmp.as_posix(),
-            stdout=PIPE,
-            stderr=PIPE)
+        try:
+            check_call(
+                ['beast', '-overwrite', temp_filename],
+                cwd=TEST_CASE.tmp.as_posix(),
+                stdout=PIPE,
+                stderr=PIPE)
+        except CalledProcessError as e:
+            raise AssertionError(
+                "Beast run on {:} returned non-zero exit status "
+                "{:d}".format(
+                    config_files, e.returncode))
