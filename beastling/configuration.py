@@ -181,10 +181,7 @@ class Configuration(object):
         if isinstance(configfile, dict):
             self.configfile.read_dict(configfile)
         else:
-            if isinstance(configfile, six.string_types):
-                configfile = (configfile,)
-            for conf in configfile:
-                self.configfile.read(conf)
+            self.configfile.read(configfile)
         p = self.configfile
 
         for sec, opts in {
