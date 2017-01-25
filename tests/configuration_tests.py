@@ -141,6 +141,9 @@ class Tests(WithConfigAndTempDir):
     def test_bad_frequencies(self):
         cfg = self._make_bad_cfg("bad_frequencies")
         cfg.process()
+        # This is an error in a model section, which is only raised
+        # when the model is constructed as XML.
+        BeastXml(cfg)
 
     def test_calibration(self):
         config = self._make_cfg('basic', 'calibration')
