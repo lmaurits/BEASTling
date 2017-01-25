@@ -133,12 +133,12 @@ class Tests(WithConfigAndTempDir):
         cfg.process()
 
     @raises(ValueError)
-    def bad_overlap(self):
+    def test_bad_overlap(self):
         cfg = self._make_bad_cfg("bad_overlap")
         cfg.process()
 
     @raises(ValueError)
-    def bad_overlap(self):
+    def test_bad_frequencies(self):
         cfg = self._make_bad_cfg("bad_frequencies")
         cfg.process()
 
