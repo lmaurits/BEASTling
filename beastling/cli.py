@@ -42,7 +42,7 @@ def main(*args):
         help="Save a list of languages in the analysis as a plain text file.")
     parser.add_argument(
         "-o", "--output",
-        help="Output filename, no extension",
+        help="Output filename, for example `-o analysis.xml`",
         default=None)
     parser.add_argument(
         "--overwrite",
