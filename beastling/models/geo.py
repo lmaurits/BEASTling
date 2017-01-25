@@ -6,11 +6,15 @@ from ..fileio.datareaders import load_data, _language_column_names
 
 
 class GeoModel(object):
+    """A geographical substitution model.
+
+    GeoModel uses the spherical geometry Beast package for
+    phylogeographic inference.
+
     """
-    Base class from which all substitution model classes are descended.
-    Implements generic functionality which is common to all substitution
-    models, such as rate variation.
-    """
+
+    package_notice = '[DEPENDENCY]: The SphericalGeo model is '\
+                     'implemented in the BEAST package "GEO_SPHERE".'
 
     def __init__(self, model_config, global_config):
         """
