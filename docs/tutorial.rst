@@ -282,15 +282,30 @@ length is required later), so let's reduce it for the time being.
            data=ie_cognates.csv
     --- ie_vocabulary.conf
 
-While we are at it, we might as well give the output a more useful name than ``beastling``. Right now, 
+While we are at it, we might as well give the output a more useful
+name than ``beastling``. The analysis we construct is only about the
+Indo-European vocabulary, so we might as well name our output files
+accordingly.
 
+    ::
+
+           [admin]
+           basename=ie_vocabulary
+           [MCMC]
+           chainlength=500000
+           [model ie_vocabulary]
+           model=covarion
+           data=ie_cognates.csv
+    --- ie_vocabulary.conf
+
+While we are at it, we might as well give the output a more useful
     
 Now we can run ``beastling`` again (after cleaning up the previous
 output) and then run BEAST. ::
 
     $ rm beastling.xml
     $ beastling ie_vocabulary.conf
-    $ beast beastling.xml
+    $ beast ie_vocabulary.xml
     [...]
 
     [...]                 BEAST v2.4[...], 2002-2016
@@ -311,19 +326,19 @@ running, you should see two new files in your directory::
 
     $ ls
     [...]
-    beastling.log
-    beastling.nex
-    beastling.xml
+    ie_vocabulary.log
+    ie_vocabulary.nex
+    ie_vocabulary.xml
     [...]
 
-``beastling.log`` is a log file which contains various details of each of the 10,000 trees sampled in this analysis, including their prior probability, likelihood and posterior probability, as well as the height of the tree.  In more complicated analyses, this file will contain much more information, like rates of change for different features in the dataset, details of evolutionary clock models, the ages of certain clades in the tree and more.
+``ie_vocabulary.log`` is a log file which contains various details of each of the 10,000 trees sampled in this analysis, including their prior probability, likelihood and posterior probability, as well as the height of the tree.  In more complicated analyses, this file will contain much more information, like rates of change for different features in the dataset, details of evolutionary clock models, the ages of certain clades in the tree and more.
 
-``beastling.log`` is a tab separated value (tsv) file.  You should be able to open it up in a spreadsheet program like Microsoft Excel, `LibreOffice Calc <https://www.libreoffice.org/discover/calc/>`_ or
+``ie_vocabulary.log`` is a tab separated value (tsv) file.  You should be able to open it up in a spreadsheet program like Microsoft Excel, `LibreOffice Calc <https://www.libreoffice.org/discover/calc/>`_ or
 `Gnumeric <http://www.gnumeric.org/>`_.
 
 Let's look at the first few lines of the log file. ::
 
-    $ head beastling.log
+    $ head ie_vocabulary.log
     [... Numbers are stochastic and may vary 
     Sample	prior	likelihood	posterior	treeHeight
     0	-11.466785941356303     -5434.4533277100645     -5445.920113651421      2.930099025192108
@@ -337,7 +352,7 @@ Let's look at the first few lines of the log file. ::
     400 8.927313730401623       -3757.008703631417      -3748.0813899010154     0.5651416164402189]
 
 
-(``head`` is a command available in most Unix-based platforms like Linux and OS X which prints the first 10 lines of a file.  You can just look at the first ten rows of your file in Excel or similar if you don't have head available)
+(``head`` is a command available in most Unix-based platforms like Linux and OS X which prints the first 10 lines of a file.  You can just look at the first ten rows of your file in Excel or similar if you don't have ``head`` available)
 
 Don't panic if you don't see exactly the same numbers in your file.  BEAST uses a technique called `Markov Chain Monte Carlo <https://en.wikipedia.org/wiki/Markov_chain_Monte_Carlo>`_ (MCMC), which is based on random sampling of trees.  This means every run of a BEAST analysis will give slightly different results, but the overall statistics should be the same from run to run.  Imagine tossing a coin 100 times and writing down the result.  If two people do this and compare the first 10 lines of their results, they will not see exactly the same sequence of heads and tails, and the same is true of two BEAST runs.  But both people should see roughly 50 heads and roughly 50 tails over all 100 tosses, and two BEAST runs should be similar in the same way.
 
@@ -373,6 +388,41 @@ Just like tools like Tracer are used on log files to summarise all of the 10,000
 
 In this style of consensus tree, the tree may sometimes split into more than two branches at once (i.e. the tree is not a binary tree).  For example, look at the Scandinavian languages.  Here the tree splits into four languages.  This is because the relationships among the Scandinavian languages is uncertain.  All of the 10,000 trees in our posterior sample are binary trees, but this summary tree only shows relationships which are supported by at least half the trees.  Perhaps in our 10,000 trees, Icelandic is most closely related to Norwegian 45,000 of them, to Swedish in 30,000 of them and Danish in 25,000 of them.  None of these relationships is supported at least half the time, so the summary tree shows only a polytomy.  But the posterior tree log file always contains full information about the uncertainty, i.e. by counting the relationships above we know that Icelandic is more likely to be related to Norwegian than Danish, and we know how much more likely (almost twice as likely).
 
+Now, how much of this information is actually due to the cognate data,
+and not already in the model? For this simple model without clade
+constraints, age calibrations, interfering other models, and so on,
+the answer is easy: Nearly all of what we see (apart from the very
+rough shape of the tree, which is difficult to imagine generically) is
+generated from the data.
+
+However, for more complicated analyses it is crucial to compare the
+posterior distributions of the analysis *with* the data to the prior,
+which is the same analysis *without* the data and tells us what we –
+according to the mathematical model we specified – actually believe
+before learning about the data.
+
+BEASTling makes it very easy to sample the prior: Just specify
+``--sample-from-prior`` (or its even more concise synonym ``-p``) on
+the command line, and you get a beast XML file that can be used to
+sample from the prior distribution of your model::
+
+
+    $ beastling -p ie_vocabulary.conf
+    $ beast ie_vocabulary_prior.xml
+    [...]
+
+    [...]                 BEAST v2.4[...], 2002-2016
+                 Bayesian Evolutionary Analysis Sampling Trees
+                           Designed and developed by
+     Remco Bouckaert, Alexei J. Drummond, Andrew Rambaut & Marc A. Suchard
+    [...]
+    ===============================================================================
+    [...]
+    Start likelihood: [...]
+  
+During the next steps of the tutorial, we will always sample from the
+prior *prior to* the posterior.
+
 More advanced modelling
 ~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -387,6 +437,10 @@ You can enable rate variation by adding ``rate_variation = True`` to your ``[mod
 
     ::
 
+           [admin]
+           basename=ie_vocabulary
+           [MCMC]
+           chainlength=500000
            [model ie_vocabulary]
            model=covarion
            data=ie_cognates.csv
@@ -399,7 +453,9 @@ Note that BEAST now has to estimate one extra parameter for each meaning slot in
 
     ::
 
-           [mcmc]
+           [admin]
+           basename=ie_vocabulary
+           [MCMC]
            chainlength=2000000
            [model ie_vocabulary]
            model=covarion
@@ -407,13 +463,14 @@ Note that BEAST now has to estimate one extra parameter for each meaning slot in
            rate_variation=True
     --- ie_vocabulary.conf
 
-BEAST will now infer some extra parameters, and we'd like to know what they are.  By default, these will not be logged, because the logfiles can become very large, eating up lots of disk space, and in some cases we may not be too interested.  We can switch logging on by adding an admin section and setting the ``log_params`` option to True.
+BEAST will now infer some extra parameters, and we'd like to know what they are.  By default, these will not be logged, because the logfiles can become very large, eating up lots of disk space, and in some cases we may not be too interested.  We can switch logging on by adding an admin section and setting the ``log_params`` option to ``True``.
 
     ::
 
            [admin]
+           basename=ie_vocabulary
            log_params=True
-           [mcmc]
+           [MCMC]
            chainlength=2000000
            [model ie_vocabulary]
            model=covarion
@@ -421,15 +478,47 @@ BEAST will now infer some extra parameters, and we'd like to know what they are.
            rate_variation=True
     --- ie_vocabulary.conf
 
-Now rebuild your XML file and run BEAST again::
+Now rebuild your XML file and run BEAST again, first sampling from the prior::
 
-    $ beastling --overwrite ie_vocabulary.conf
-    $ beast beastling.xml
+    $ beastling -p --overwrite ie_vocabulary.conf
+    $ beast ie_vocabulary_prior.xml
     [...]
                  Bayesian Evolutionary Analysis Sampling Trees
     [...]
 
-If you look at the new ``beastling.log`` file, you will notice that many extra columns have appeared compared to our first analysis.  Many of these are the new individual rates of change for our meaning slots.  You should see columns with the following names: ``featureClockRate:ie_vocabulary:I``, ``featureClockRate:ie_vocabulary:all``, ``featureClockRate:ie_vocabulary:ashes``, ``featureClockRate:ie_vocabulary:bark``, ``featureClockRate:ie_vocabulary:belly``, etc.  These are the rates of change for the meaning slots "I", "all", "ashes", "bark" and "belly".  They are expressed as multiples of the overall average rate.  In my run of this analysis, the mean value of ``featureClockRate:ie_vocabulary:I`` is about 0.16, meaning cognate replacement for this meaning slot happens a bit more than 6 times more slowly than the average meaning slot.  This is to be expected, as pronouns are typically very stable.  On the other hand, my mean value for ``featureClockRate:ie:vocabulary:belly`` is about 2.14, suggesting that this word evolves a little more than twice as fast as average.  Features with a mean value of around 1.0 are evolving at the average rate.
+If you look at the new ``ie_vocabulary_prior.log`` file, you will
+notice that many extra columns have appeared compared to our first
+analysis.  Many of these are the new individual rates of change for
+our meaning slots.  You should see columns with the following names:
+``featureClockRate:ie_vocabulary:I``,
+``featureClockRate:ie_vocabulary:all``,
+``featureClockRate:ie_vocabulary:ashes``,
+``featureClockRate:ie_vocabulary:bark``,
+``featureClockRate:ie_vocabulary:belly``, etc.  These are the rates of
+change for the meaning slots "I", "all", "ashes", "bark" and "belly".
+They are expressed as multiples of the overall average rate.
+
+In the prior log file, these values should be all over the place, and
+have an average of one. This means that the model we specified is
+aware that some features may change faster than others, but it is not
+aware of which cognaters are less or more stable. Let us now see what
+the data adds to the picture::
+
+    $ beastling --overwrite ie_vocabulary.conf
+    $ beast ie_vocabulary.xml
+    [...]
+                 Bayesian Evolutionary Analysis Sampling Trees
+    [...]
+    
+In my run of this analysis, the mean value of
+``featureClockRate:ie_vocabulary:I`` is about 0.16, meaning cognate
+replacement for this meaning slot happens a bit more than 6 times more
+slowly than the average meaning slot.  This is to be expected, as
+pronouns are typically very stable.  On the other hand, my mean value
+for ``featureClockRate:ie:vocabulary:belly`` is about 2.14, suggesting
+that this word evolves a little more than twice as fast as average.
+Features with a mean value of around 1.0 are evolving at the average
+rate.
 
 In addition to providing information on the relative rates of change for features, permitting rate variation can impact the topology of the trees which are sampled.  If two languages have different words for a meaning slot which evolves very slowly, this is evidence the the languages are only distantly related.  However, if two languages have different words for a meaning slot which evolves rapidly, then this does not necessarily mean they cannot be closely related.  This kind of nuanced inference cannot be made in a model where all features are forced to evolve at the same rate, so the tree topology which comes out of the two models can differ significantly.  Rate variation can also influence the relative timing of the branching events in a tree.  If two languages share cognates for most meaning slots and differ in only a few, the rates of change of those few meaning slots give us some idea of how long ago the languages diverged.
 
@@ -439,6 +528,22 @@ Let's look at our new trees, or rather, at a consensus tree:
 
 Notice that the Scandinavian languages are now a little bit better resolved - Swedish and Danish are directly related in about 6,310 of our 10,000 posterior trees, so the tree splits in two here now!  This may be due to the rate variation (maybe some the cognates Swedish and Danish share belong to very stable meaning slots but BEAST could not use this information previously), or it might just be because we ran our chain for longer and got better samples (we are working a little "off the cuff" in this tutorial).  Also notice that the Romance languages are a little less well resolved!  Rate variation can cause this too.  Perhaps the cognates shared by Romanian and French turned out to be for quickly changing meaning slots.
 
+Like sampling from the prior, this incremental construction of the
+model is also a very useful strategy for phylogenetics. By comparing
+each level of added complexity to the previous one we see where a
+different model might be more or less compatible with our
+expectation. In this example we see minor, but present, changes in the
+tree topology and vast differences in rates, with in some cases quite
+tight confidence intervals. This means that it is well worth studying
+this model to consider whether it increases or decreases the overall
+realism of the analysis. Because Gamma rate variation appears
+compatible with our mental model and linguistic experience that there
+are words that are replaced faster or slower, and that pronouns belong
+to the slower class, we have a good justification for saying that our
+rate variation model adds realism and makes enough difference to
+justify the added model complexity – our data seems to be sufficiently
+informative about the different rates.
+
 Clock variation
 ---------------
 
@@ -447,6 +552,7 @@ If you want the rate of language change to vary across different branches in the
     ::
 
            [admin]
+           basename=ie_vocabulary
            log_params=True
            [mcmc]
            chainlength=2000000
@@ -464,11 +570,44 @@ Note that we have left rate variation on as well, but this is not required for u
 
 Rebuild your XML file and run BEAST again in the now-familiar manner::
 
+    $ beastling -p --overwrite ie_vocabulary.conf
+    $ beast ie_vocabulary_prior.xml
+    [...]
     $ beastling --overwrite ie_vocabulary.conf
-    $ beast beastling.xml
+    $ beast ie_vocabulary.xml
     [...]
 
-Just like when we switched on rate variation, you should be able to see that using a relaxed clock added several additional columns to your beastling.log logfile.  In particular, you should see: ``clockRate.c:default``, ``rate.c:default.mean``, ``rate.c:default.variance``, ``rate.c:default.coefficientOfVariation`` and ``ucldSdev.c:default``.  The first two new columns, ``clockRate.c:default`` and ``ucldSdev.c:default``, are the mean and standard deviation respectively of the log-normal distribution from which the clock rates for each branch are drawn.  In this analysis, the mean is fixed at 1.0, and this is due to the lack of calibrations.  You will see how this changes later in the tutorial.  The next two, ``rate.c:default.mean`` and ``rate.c:default.variance``, are the empirical mean and variance of the actual rates sampled for the branches, which may differ slightly from the distribution parameters.  Finally, ``clockRate.c:default.coefficientOfVariation`` is the ratio of the variance of branch rates to the mean, and provides a measure of how much variation there is in the rate of evolution over the tree.  If this value is quite low, say 0.1 or less, this suggests that there is very little variation across the branches, and using a relaxed clock instead of a strict clock will probably not have enough impact on your results to be worth the increased running time.  High values mean the data is strongly incompatible with a strict clock.
+Just like when we switched on rate variation, you should be able to
+see that using a relaxed clock added several additional columns to
+your beastling.log logfile.  In particular, you should see:
+``clockRate.c:default``, ``rate.c:default.mean``,
+``rate.c:default.variance``, ``rate.c:default.coefficientOfVariation``
+and ``ucldSdev.c:default``.  The first two new columns,
+``clockRate.c:default`` and ``ucldSdev.c:default``, are the mean and
+standard deviation respectively of the log-normal distribution from
+which the clock rates for each branch are drawn.  In this analysis,
+the mean is fixed at 1.0, and this is due to the lack of calibrations.
+You will see how this changes later in the tutorial.  The next two,
+``rate.c:default.mean`` and ``rate.c:default.variance``, are the
+empirical mean and variance of the actual rates sampled for the
+branches, which may differ slightly from the distribution parameters.
+Finally, ``clockRate.c:default.coefficientOfVariation`` is the ratio
+of the variance of branch rates to the mean, and provides a measure of
+how much variation there is in the rate of evolution over the tree.
+If this value is quite low, say 0.1 or less, this suggests that there
+is very little variation across the branches, and using a relaxed
+clock instead of a strict clock will probably not have enough impact
+on your results to be worth the increased running time.  High values
+mean the data is strongly incompatible with a strict clock.
+
+In my run of the prior, the
+``clockRate.c:default.coefficientOfVariation`` goes down to about
+
+    $ python -c 'import pandas; pandas.read_csv("ie_vocabulary_prior.log", sep="\t")["clockRate.c:default.coefficientOfVariation"]'
+    0
+
+so we know that the other parts of the model are not interfering with
+the random clock.
 
 Once again, we can look at a consensus tree to see how this change has affected our analysis.
 
@@ -488,6 +627,7 @@ Calibrations are added to their own section in the configuration file.  Suppose 
     ::
 
            [admin]
+           basename=ie_vocabulary
            log_params=True
            [mcmc]
            chainlength=2000000
@@ -505,13 +645,40 @@ Once again we rebuild and re-run:
 
 ::
 
+    $ beastling -p --overwrite ie_vocabulary.conf
+    $ beast ie_vocabulary_prior.xml
+    [...]
+                 Bayesian Evolutionary Analysis Sampling Trees
+    [...]
     $ beastling --overwrite ie_vocabulary.conf
-    $ beast beastling.xml
+    $ beast ie_vocabulary.xml
     [...]
                  Bayesian Evolutionary Analysis Sampling Trees
     [...]
 
-Including this calibration will have changed several things about our output.  First, let's look at the log file.  The most obvious difference will be in the ``treeHeight`` column.  Whereas previously this value was in rather abstract units of "average number of changes per meaning slot", now it is in units of millenia, matching our calibration.  Instead of a mean value of around 0.82, you should see a mean value of something like 5.72.  This is our analysis' estimate of the age of proto-Indo-European (i.e. about 5,700 years).  In addition to a point estimate like this, we can get a plausible interval, by seeing that 95% of the samples in our analysis are between 1.35 and 15.00, so the age of Indo-European could plausibly lie anywhere in this range.  This is quite a broad range, which is not unexpected here - we are using a very small data set (in terms of both languages and meaning slots) and have only one internal calibration.  Serious efforts to date protolanguages require much more care than this analysis, however it demonstrates the basics of using BEASTling for this purpose.
+Including this calibration will have changed several things about our
+output.  First, let's look at the prior log file.  The most obvious
+difference will be in the ``treeHeight`` column.  Whereas previously
+this value was in rather abstract units of "average number of changes
+per meaning slot", now it is in units of millenia, matching our
+calibration.
+
+HOW THIS AFFECTS THE PRIOR:
+SUMMARY TREE
+TREE HEIGHT
+
+In the posterior log, instead of a mean value of around 0.82, you
+should see a mean value of something like 5.72.  This is our analysis'
+estimate of the age of proto-Indo-European (i.e. about 5,700 years).
+In addition to a point estimate like this, we can get a plausible
+interval, by seeing that 95% of the samples in our analysis are
+between 1.35 and 15.00, so the age of Indo-European could plausibly
+lie anywhere in this range.  This is quite a broad range, which is not
+unexpected here -- we are using a very small data set (in terms of
+both languages and meaning slots) and have only one internal
+calibration.  Serious efforts to date protolanguages require much more
+care than this analysis, however it demonstrates the basics of using
+BEASTling for this purpose.
 
 You should also see some new columns, including one with the (somewhat unweildy) name ``mrcatime(French,Italian,Portuguese,Romanian,Spanish)``.  This column records the age (in millenia BP) of the most recent common ancestor of the Romance languages in our analysis.  Because we placed a calibration on this node, you should see that almost all values in this column are between 1.4 and 1.6.  In my run of this analysis, I see a mean of 1.497 and a 95% HPD interval of 1.399 to 1.6, indicating that the calibration has functioned exactly as intended.
 
@@ -532,26 +699,6 @@ Keep it simple
 For serious linguistic studies, you will almost always end up using some model more complicated than the default provided by BEASTling, perhaps using multiple substitution models, rate variation, non-strict clocks and multiple calibrations in either time or space.  Each complication brings an additional chance of problems, and at the very least means your analysis will take longer to run.  
 
 You should always begin a study by using the simplest model possible, even if it is not a perfect match to reality.  Make sure the model runs with a strict clock, no rate variation and without any calibrations first.  Add these details later one at a time to see what impact each one has on the results.  If you encounter any problems, at least you will know which part of the model is the cause.
-
-Sample from the prior
----------------------
-
-An essential part of Bayesian modelling is using prior distributions to influence your results.  Complicated models usually come with complicated priors.  All BEASTling-generated analyses feature a prior distribution over the phylogenetic tree, and depending upon your setup your analysis may add additional components to the prior such as monophyly constraints, timing calibrations and geographic constraints.
-
-Even if it is not obvious, these prior constraints can interact with one another in unexpected ways, and this can introduce biases into your results.  If your posterior tree sets suggest that some languages are related, you must not simply assume that this is due to phylogenetic signal in the data.  It may be that there are actually only a small number of ways to simultaneously satisfy all of your constraints, and most or all of these may involve your languages being related.  In this case, your results will show the languages to be related no matter what data you give your model!
-
-To guard against this, you should always sample from the prior distribution of your final analysis, i.e. do a run where the data is ignored.  You should then compare the results you get from this to the results you get from the full analysis, to make sure that the data is contributing most of the result.
-
-BEASTling makes this easy.  The easiest way to do this is to run BEASTling with the ``--prior`` option.  For our Indo-European example, instead of doing the usual ``$ beastling ie_vocabulary.conf``, we can do ::
-
-    $ beastling --prior ie_vocabulary.conf
-
-Instead of creating a ``beastling.xml`` file, this will create a file named ``beastling_prior.xml``.  This file will contain the configuration for a BEAST analysis which is identical to the one specified in ``ie_vocabulary.conf``, but it will sample from the prior.  When you run it with::
-
-    $ beast beastling_prior.xml
-    [...]
-
-The output files will be ``beastling_prior.log`` and ``beastling_prior.nex``, and these can be interpreted in precisely the same way as the regular log files.
 
 How long should I run my chains?
 --------------------------------
