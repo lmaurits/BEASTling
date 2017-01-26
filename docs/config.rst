@@ -6,6 +6,7 @@ Understanding BEASTling is, mostly, a matter of understanding the configuration 
 
 ::
 
+	default1 = value1
 	[section1]
 	param1a = value1a
 	param2a = value2a
@@ -24,6 +25,8 @@ Understanding BEASTling is, mostly, a matter of understanding the configuration 
 	...
 
 i.e. they are divided into *sections*, which are indicated by names enclosed in square brackets (in the above, the section names are ``section1``, ``section2``, etc.), and each section consists of some number of *parameters* and assigned *values*.  Each line of each section corresponds to assigning one value to one parameter, the the parameter name on the left of the equals sign and the value on the right.
+
+Values defined before the first section are ignored for all purposes except `parameter interpolation`_.
 
 BEASTling configuration files can range from very simple (the only section which is compulsory is one or more ``model`` sections) to relatively complicated - although in all cases they are vastly simpler than any BEAST XML file.  If you provide minimal configuration information, "sensible defaults" will be used for all settings. 
 
@@ -327,6 +330,52 @@ In the same way that a ``[calibration]`` section is used to add temporal calibra
 
 The name of each parameter should be a comma-separated list of family names or Glottocodes, exactly as per temporal calibrations.  The value should be a path to a `KML <https://en.wikipedia.org/wiki/Keyhole_Markup_Language>`_ file specifying a polygon which represents the region you believe the MRCA of the listed family/families should be confined to.  Note that, unlike data files, the contents of the KML file will not end up included in the BEAST XML.  This means the XML and KML file(s) will need to be distributed together for the analysis to be reproducable.
 
+.. _parameter interpolation:
+=============
+Interpolation
+=============
+
+Sometimes it is useful to re-use the same value in a configuration
+file several times.  You might have qualitatively different data in a
+data file, which you want to use in different models like this::
+
+  [admin]
+  basename = austronesian
+  [model non_exclusive]
+  data = austronesian.csv
+  features = PF1,PF2,PF3,PF4
+  model = covarion
+  [model sparse_connections]
+  data = austronesian.csv
+  features = ME1,ME2,ME3
+  model = bsvs
+
+In such a case, you can use *interpolation* to define such a value
+once and use it several times. If a value is shared between different
+sections, you have to define it outside all sections to make it
+available in each section, otherwise you can also define it within a
+section. For example, the file above might also be described as ::
+  
+  name = austronesian
+  file = %(name)s.csv
+  [admin]
+  basename = %(name)s
+  [model non_exclusive]
+  data = %(file)s
+  special_features = PF1,PF2
+  features = %(special_features)s,PF3,PF4
+  model = covarion
+  [model sparse_connections]
+  data = %(file)s
+  features = ME1,ME2,ME3
+  model = bsvs
+
+Interpolation is of particular interest when working with multiple
+files, as described below. When a configuration line is read,
+interpolation is immediately executed with all already-read values
+available, this includes values read from another configuration file
+of the present BEASTling run.
+
 .. _multifile:
 ===========================
 Working with multiple files
@@ -352,6 +401,12 @@ and have a second configuration file for adding rate variation (``plus_rate_var.
 	[model lexicon]
         rate_variation = True
 
+In the ``plus_rate_var.ini`` above, you see ``basename =
+%(basename)s_rate_var``. This line makes use of `parameter
+interpolation`_: At the time that a ``%(basename)s`` is read, it is
+immediately replaced by the value that the ``basename`` property of
+the current (or default) section has at that time.
+
 In this case, running ``beastling austronesian.ini plus_rate_var.ini`` will give you the same result as if you had used
 ::
 
@@ -361,15 +416,3 @@ In this case, running ``beastling austronesian.ini plus_rate_var.ini`` will give
         model = covarion
         data = austronesian.csv
         rate_variation = True
-
-Interpolation
--------------
-
-In the ``plus_rate_var.ini`` above, you see ``basename = %(basename)s_rate_var``. The ``%(basename)s`` is special interpolation syntax: At the time that a ``%(name)s`` is read, it is immediately replaced by the value that the ``name`` property of the current section has at that time.
-
-.. NOT IMPLEMENTED YET You can also create a ``[DEFAULT]`` section, which is ignored by beastling except for interpolation. It must be capitalized for interpolation from it to work. The values from this section are available in all other sections, so you can do ``[DEFAULT] family = austronesian [admin] basename = %(family)s [model] data = %(family)s.csv`` and so on.
-
-
-
-
-

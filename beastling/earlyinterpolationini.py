@@ -11,9 +11,7 @@ class BasicReadInterpolation (BasicInterpolation):
     """Interpolation as implemented in the classic ConfigParser.
 
     The option values can contain format strings which refer to other values in
-    the same section.
-
-    Note this class does not support interpolation from a default section.
+    the same section or the parser's default section.
 
     For example:
 
@@ -29,7 +27,8 @@ class BasicReadInterpolation (BasicInterpolation):
 
     def before_read(self, parser, section, option, value):
         L = []
-        interpolations = parser[section]
+        interpolations = dict(parser[parser.default_section])
+        interpolations.update(parser[section])
         self._interpolate_some(
             parser, option, L, value, section, interpolations, 1)
         return ''.join(L)
