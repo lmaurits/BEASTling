@@ -217,7 +217,22 @@ class Tests(WithConfigAndTempDir):
         self.assertFalse(config.models[0].pruned)
 
     def test_no_monophyly_geo(self):
-        # Make sure that geographic sampling without monophyly constraints emits a warning
+        """Make sure that geographic sampling without monophyly constraints
+        emits a warning"""
         config = self._make_cfg('basic', 'geo', 'geo_sampled')
-        config.process
+        config.process()
         self.assertTrue(any(["[WARNING] Geographic sampling" in m for m in config.messages]))
+
+    def test_interpolate(self):
+        config = self._make_cfg('basic', 'interpolate')
+        config.process()
+        self.assertEqual(
+            config["admin"]["basename_plus"],
+            "beastling_test_plus")
+
+    def test_recursive_interpolate(self):
+        config = self._make_cfg('basic', 'recursive_interpolate')
+        config.process()
+        self.assertEqual(
+            config["admin"]["basename"],
+            "beastling_test_plus")
