@@ -221,7 +221,8 @@ class Tests(WithConfigAndTempDir):
         self.assertFalse(config.models[0].pruned)
 
     def test_no_monophyly_geo(self):
-        # Make sure that geographic sampling without monophyly constraints emits a warning
+        """Make sure that geographic sampling without monophyly constraints
+        emits a warning"""
         config = self._make_cfg('basic', 'geo', 'geo_sampled')
         config.process()
         self.assertTrue(any(["[WARNING] Geographic sampling" in m for m in config.messages]))
