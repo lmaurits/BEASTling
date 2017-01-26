@@ -6,7 +6,6 @@ Understanding BEASTling is, mostly, a matter of understanding the configuration 
 
 ::
 
-	default1 = value1
 	[section1]
 	param1a = value1a
 	param2a = value2a
@@ -26,8 +25,6 @@ Understanding BEASTling is, mostly, a matter of understanding the configuration 
 
 i.e. they are divided into *sections*, which are indicated by names enclosed in square brackets (in the above, the section names are ``section1``, ``section2``, etc.), and each section consists of some number of *parameters* and assigned *values*.  Each line of each section corresponds to assigning one value to one parameter, the the parameter name on the left of the equals sign and the value on the right.
 
-Values defined before the first section are ignored for all purposes except `parameter interpolation`_.
-
 BEASTling configuration files can range from very simple (the only section which is compulsory is one or more ``model`` sections) to relatively complicated - although in all cases they are vastly simpler than any BEAST XML file.  If you provide minimal configuration information, "sensible defaults" will be used for all settings. 
 
 *It is your responsibility to know what the defaults are and to make sure that they truly are sensible for your application*.
@@ -35,6 +32,14 @@ BEASTling configuration files can range from very simple (the only section which
 You can build incremental or modular analyses from multiple config files in beastling. When you specify more than one config file on the command line, options specified in later config files overwrite options in earlier files. The :ref:`multifile` section below gives more details.
 
 The recognised config file sections are as follows:
+
+DEFAULT section
+---------------
+
+Values defined in the DEFAULT section are ignored for all purposes
+except `parameter interpolation`_. For interpolation purposes, they
+are available in all other sections, and overwritten by local
+parameter definitions.
 
 admin section
 -------------
@@ -258,10 +263,11 @@ data file, which you want to use in different models like this::
 
 In such a case, you can use *interpolation* to define such a value
 once and use it several times. If a value is shared between different
-sections, you have to define it outside all sections to make it
-available in each section, otherwise you can also define it within a
-section. For example, the file above might also be described as ::
+sections, you have to define it in a ``[DEFAULT]`` sections to make it
+available in each section, otherwise you can also define it within its
+local section. For example, the file above is equivalent to::
   
+  [DEFAULT]
   name = austronesian
   file = %(name)s.csv
   [admin]

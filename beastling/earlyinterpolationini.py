@@ -23,6 +23,22 @@ class BasicReadInterpolation (BasicInterpolation):
     %%. Other % usage is considered a user error and raises
     `InterpolationSyntaxError'.
 
+    This class, together with INI, handles multiline interpolation
+    line by line, so
+    
+        val: line1
+          line2
+          %(val)s
+          line4
+
+    would be expanded at read-time of line 3, therefore to
+
+        val: line1
+          line2
+          line1
+          line2
+          line4
+
     """
 
     def before_read(self, parser, section, option, value):
@@ -31,8 +47,15 @@ class BasicReadInterpolation (BasicInterpolation):
         interpolations.update(parser[section])
         self._interpolate_some(
             parser, option, L, value, section, interpolations, 1)
-        return ''.join(L)
-    
+
+        # Because we expect work with the raw data up to here, we may
+        # have substituted a list. A list would come from parsing a
+        # multi-line option.
+
+        return "".join([
+            "\n".join(l) if isinstance(l, list) else l
+            for l in L])
+
     def before_get(self, parser, section, option, value, defaults):
         return value
 
