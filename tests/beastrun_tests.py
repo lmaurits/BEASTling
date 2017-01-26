@@ -60,6 +60,7 @@ def test_basic():
         ("admin", "mk", "random"),
         ("admin", "mk", "feature_with_comma"),
         ("admin", "mk", "cldf_data_with_comma"),
+        ("admin", "mk", "cldf_data_with_comma", "rate_var"),
         ("admin", "mk", "calibration"),
         ("admin", "mk", "calibration_by_iso"),
         ("admin", "mk", "calibration_nested"),

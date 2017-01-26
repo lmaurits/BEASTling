@@ -1,5 +1,5 @@
 Language_ID,Feature_ID,Value
-aal,"f0, 1",1
+aal,"f1, 1",1
 aal,f1,1
 aal,f2,1
 aal,f3,1
@@ -9,7 +9,7 @@ aal,f6,?
 aal,f7,1
 aal,f8,?
 aal,f9,1
-aas,"f0, 1",2
+aas,"f1, 1",2
 aas,f1,2
 aas,f2,2
 aas,f3,1
@@ -19,7 +19,7 @@ aas,f6,?
 aas,f7,?
 aas,f8,1
 aas,f9,3
-kbt,"f0, 1",3
+kbt,"f1, 1",3
 kbt,f1,3
 kbt,f2,1
 kbt,f3,1
@@ -29,7 +29,7 @@ kbt,f6,?
 kbt,f7,2
 kbt,f8,?
 kbt,f9,5
-abg,"f0, 1",4
+abg,"f1, 1",4
 abg,f1,2
 abg,f2,2
 abg,f3,1
@@ -39,7 +39,7 @@ abg,f6,?
 abg,f7,?
 abg,f8,3
 abg,f9,4
-abf,"f0, 1",5
+abf,"f1, 1",5
 abf,f1,1
 abf,f2,1
 abf,f3,1
