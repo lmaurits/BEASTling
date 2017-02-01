@@ -889,7 +889,7 @@ class Configuration(object):
                     originate = True
                     clade = clade[10:-1]
                 langs = self.get_languages_by_glottolog_clade(clade)
-            if len(langs) < 2 and not originate:
+            if not langs or (len(langs) == 1 and not originate):
                 self.messages.append("[INFO] Calibration on clade %s MRCA ignored as one or zero matching languages in analysis." % clade)
                 continue
             
