@@ -125,7 +125,6 @@ class BaseModel(object):
         self.unique_values = {}
         self.missing_ratios = {}
         self.counts = {}
-        self.dimensions = {}
         self.codemaps = {}
         for f in self.features:
             # Compute various things
@@ -154,7 +153,6 @@ class BaseModel(object):
             self.valuecounts[f] = N
             self.missing_ratios[f] = missing_data_ratio
             self.counts[f] = counts
-            self.dimensions[f] = N*(N-1) // 2
             self.codemaps[f] = self.build_codemap(unique_values)
 
     def remove_unwanted_features(self):
