@@ -19,6 +19,8 @@ class BSVSModel(BaseModel):
         else:
             raise ValueError("Invalid setting of 'symmetric' (%s) for model %s: use for BSVS model must be set to True or False, " % (symm, self.name))
         self.svsprior = model_config.get("svsprior", "poisson")
+        # Keep this around for later...
+        self.global_config = global_config
 
     def add_state(self, state):
 
@@ -128,11 +130,18 @@ class BSVSModel(BaseModel):
             fname = "%s:%s" % (self.name, f)
             ET.SubElement(run, "operator", {"id":"onGeorateScaler.s:%s"% fname,"spec":"ScaleOperator","parameter":"@relativeGeoRates.s:%s"%fname, "indicator":"@rateIndicator.s:%s" % fname, "scaleAllIndependently":"true","scaleFactor":"0.5","weight":"10.0"})
 
-            ET.SubElement(run, "operator", {"id":"indicatorFlip.s:%s"%fname,"spec":"BitFlipOperator","parameter":"@rateIndicator.s:%s"%fname, "weight":"30.0"})
             if self.rate_variation:
                 ET.SubElement(run, "operator", {"id":"BSSVSoperator.c:%s"%fname,"spec":"BitFlipBSSVSOperator","indicator":"@rateIndicator.s:%s"%fname, "mu":"@featureClockRate:%s" % fname,"weight":"30.0"})
-            else:
+                bssvs_bitflip = True
+            elif not self.global_config.arbitrary_tree:
+                # Don't scale the clock of a tree with arbitrary branch
+                # lengths, as birthRate is also scaled and one or the other
+                # will run away to infinity.
                 ET.SubElement(run, "operator", {"id":"BSSVSoperator.c:%s"%fname,"spec":"BitFlipBSSVSOperator","indicator":"@rateIndicator.s:%s"%fname, "mu":self.clock.mean_rate_idref,"weight":"30.0"})
+                bssvs_bitflip = True
+            else:
+                bssvs_bitflip = False
+            ET.SubElement(run, "operator", {"id":"indicatorFlip.s:%s"%fname,"spec":"BitFlipOperator","parameter":"@rateIndicator.s:%s"%fname, "weight":"30.0" if bssvs_bitflip else "60.0"})
             sampoffop = ET.SubElement(run, "operator", {"id":"offGeorateSampler:%s" % fname,"spec":"SampleOffValues","all":"false","values":"@relativeGeoRates.s:%s"%fname, "indicators":"@rateIndicator.s:%s" % fname, "weight":"30.0"})
             ET.SubElement(sampoffop, "dist", {"idref":"Gamma:%s.%d.0" % (fname, n)})
 
