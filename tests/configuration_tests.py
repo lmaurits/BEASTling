@@ -217,7 +217,38 @@ class Tests(WithConfigAndTempDir):
         self.assertFalse(config.models[0].pruned)
 
     def test_no_monophyly_geo(self):
-        # Make sure that geographic sampling without monophyly constraints emits a warning
+        """Make sure that geographic sampling without monophyly constraints
+        emits a warning"""
         config = self._make_cfg('basic', 'geo', 'geo_sampled')
-        config.process
+        config.process()
         self.assertTrue(any(["[WARNING] Geographic sampling" in m for m in config.messages]))
+
+    def test_interpolate(self):
+        config = self._make_cfg('basic', 'interpolate')
+        config.process()
+        self.assertEqual(
+            config.configfile["admin"]["basename_plus"],
+            "beastling_test_plus")
+
+    def test_recursive_interpolate(self):
+        config = self._make_cfg('basic', 'recursive_interpolate')
+        config.process()
+        self.assertEqual(
+            config.configfile["admin"]["basename"],
+            "beastling_test_plus")
+
+    def test_multiline_interpolate(self):
+        config = self._make_cfg('basic', 'multiline_interpolate')
+        config.process()
+        self.assertEqual(
+            config.configfile["DEFAULT"]["val"],
+            "line1\nline2\nline3")
+        self.assertEqual(
+            config.configfile["DEFAULT"]["val_inter1"],
+            "line1\nline2\nline3\nline4")
+        self.assertEqual(
+            config.configfile["DEFAULT"]["val_inter2"],
+            "line0\nline1\nline2\nline3\nline4")
+        self.assertEqual(
+            config.configfile["DEFAULT"]["val_self_inter"],
+            "a\nn\na\nn\na\ns")
