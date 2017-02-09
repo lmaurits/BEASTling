@@ -29,17 +29,17 @@ BEASTling configuration files can range from very simple (the only section which
 
 *It is your responsibility to know what the defaults are and to make sure that they truly are sensible for your application*.
 
-You can build incremental or modular analyses from multiple config files in beastling. When you specify more than one config file on the command line, options specified in later config files overwrite options in earlier files. The :ref:`multifile` section below gives more details.
+You can build incremental or modular analyses from multiple (partial) beastling config files using ``configalchemy``.
+This is a separate command line tool packaged with ``beastling``.
+The :ref:`multifile` section below gives more details.
 
 The recognised config file sections are as follows:
 
 DEFAULT section
 ---------------
 
-Values defined in the DEFAULT section are ignored for all purposes
-except `parameter interpolation`_. For interpolation purposes, they
-are available in all other sections, and overwritten by local
-parameter definitions.
+Values defined in the DEFAULT section are ignored, but may be useful
+for `parameter interpolation`_ with ``configalchemy``.
 
 admin section
 -------------
@@ -315,6 +315,7 @@ Each clock section *must* contain the following parameters, i.e. they are mandat
 
 For more information on the available models, see :doc:`clocks`.
 
+
 geography section
 -----------------
 
@@ -336,7 +337,15 @@ In the same way that a ``[calibration]`` section is used to add temporal calibra
 The name of each parameter should be a comma-separated list of family names or Glottocodes, exactly as per temporal calibrations.  The value should be a path to a `KML <https://en.wikipedia.org/wiki/Keyhole_Markup_Language>`_ file specifying a polygon which represents the region you believe the MRCA of the listed family/families should be confined to.  Note that, unlike data files, the contents of the KML file will not end up included in the BEAST XML.  This means the XML and KML file(s) will need to be distributed together for the analysis to be reproducable.
 
 .. _parameter interpolation:
-=============
+=========================================
+Working with multiple configuration files
+=========================================
+
+There is a separate tool called ``configalchemy`` included in the
+``beastling`` distribution. ``configalchemy`` allows you to re-use
+analysis definitions you have written my activating *interpolation*
+and *aggregating multiple configuration files*.
+
 Interpolation
 =============
 
@@ -359,7 +368,8 @@ In such a case, you can use *interpolation* to define such a value
 once and use it several times. If a value is shared between different
 sections, you have to define it in a ``[DEFAULT]`` sections to make it
 available in each section, otherwise you can also define it within its
-local section. For example, the file above is equivalent to::
+local section. The ``[DEFAULT]`` section is ignored by ``beastling``,
+so from ``beastling``'s perspective, the file above is equivalent to::
   
   [DEFAULT]
   name = austronesian
@@ -376,6 +386,47 @@ local section. For example, the file above is equivalent to::
   features = ME1,ME2,ME3
   model = bsvs
 
+The ``configalchemy`` tool will naturally output a file that includes
+the ignored features::
+
+  $ cat | configalchemy - << EXAMPLE_FILE_END
+  [DEFAULT]
+  name = austronesian
+  file = %(name)s.csv
+  [admin]
+  basename = %(name)s
+  [model non_exclusive]
+  data = %(file)s
+  special_features = PF1,PF2
+  features = %(special_features)s,PF3,PF4
+  model = covarion
+  [model sparse_connections]
+  data = %(file)s
+  features = ME1,ME2,ME3
+  EXAMPLE_FILE_END
+  # -*- coding: utf-8 -*-
+  [DEFAULT]
+  name = austronesian
+  file = austronesian.csv
+
+  [admin]
+  basename = austronesian
+
+  [model non_exclusive]
+  data = austronesian.csv
+  special_features = PF1,PF2
+  features = PF1,PF2,PF3,PF4
+  model = covarion
+
+  [model sparse_connections]
+  data = austronesian.csv
+  features = ME1,ME2,ME3
+
+The ``configalchemy`` tool will naturally output a file that includes
+
+The ``configalchemy`` tool will naturally output a file that includes
+
+
 Interpolation is of particular interest when working with multiple
 files, as described below. When a configuration line is read,
 interpolation is immediately executed with all already-read values
@@ -387,7 +438,12 @@ of the present BEASTling run.
 Working with multiple files
 ===========================
 
-You specify separate configuration files on the command line (or when using beastling as a scripting tool), which you can use can build incremental or modular analyses.
+You specify separate configuration files on the ``configalchemy``
+command line, which you can use can build incremental or modular
+analyses. You can use similar tricks – without interpolation – when
+using beastling as a scripting tool. (The the developers use this
+feature very much for internal tests of ``beastling``'s
+functionality.)
 
 For example, you might construct a basic analysis using ``austronesian.ini`` containing
 ::
@@ -407,14 +463,14 @@ and have a second configuration file for adding rate variation (``plus_rate_var.
 	[model lexicon]
         rate_variation = True
 
-In the ``plus_rate_var.ini`` above, you see ``basename =
-%(basename)s_rate_var``. This line makes use of `parameter
-interpolation`_: At the time that a ``%(basename)s`` is read, it is
+In the ``plus_rate_var.ini`` above, you see
+``basename = %(basename)s_rate_var``. This line makes use of
+`parameter interpolation`_: At the time that a ``%(basename)s`` is read, it is
 immediately replaced by the value that the ``basename`` property of
 the current (or default) section has at that time.
 
-In this case, running ``beastling austronesian.ini plus_rate_var.ini`` will give you the same result as if you had used
-::
+In this case, running ``configalchemy austronesian.ini
+plus_rate_var.ini`` will generate the combined configuration file ::
 
 	[admin]
         basename = austronesian_rate_var
