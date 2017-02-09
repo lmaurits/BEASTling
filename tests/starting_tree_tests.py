@@ -7,7 +7,7 @@ from .util import WithConfigAndTempDir, config_path, tests_path
 class Tests(WithConfigAndTempDir):
 
     def _make_tree_cfg(self, tree_file):
-        config_files = [config_path(cf).as_posix() for cf in ["admin", "mk", tree_file]]
+        config_files = [config_path(cf).as_posix() for cf in ["admin", "mk"]]
         cfg = self.make_cfg(config_files)
         cfg.starting_tree = tests_path('trees', "%s.nex" % tree_file).as_posix()
         return cfg

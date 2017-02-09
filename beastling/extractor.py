@@ -43,20 +43,23 @@ else:  # pragma: no cover
             return ET.XMLParser(target=cls())
 
 
-def read_comments(filename):
+def read_comments(file):
     parser = CommentParser.get_parser()
-    with open(as_posix(filename), "rb") as fp:
-        parser.feed(fp.read())
+    try:
+        parser.feed(file.read())
+    except AttributeError:
+        with open(as_posix(file), "rb") as fp:
+            parser.feed(fp.read())
     return [e for e in parser.close() if e.tag == ET.Comment]
 
 
-def extract(filename, overwrite=False):
+def extract(file, overwrite=False):
     messages = []
-    comments = read_comments(filename)
+    comments = read_comments(file)
     beastling_confs = [c for c in comments if c.text.startswith(_generated_str)]
     if not len(beastling_confs) == 1:
         # Zero or several embedded configs - is this one of our files?!
-        raise ValueError("%s doesn't look like a BEASTling-generated XML file" % filename)
+        raise ValueError("%s doesn't look like a BEASTling-generated XML file" % file.name)
     messages.append(write_config(beastling_confs[0].text, overwrite))
     
     data_files = [c for c in comments if c.text.startswith(_data_file_str)]

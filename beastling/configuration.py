@@ -13,7 +13,7 @@ import sys
 import newick
 from appdirs import user_data_dir
 from six.moves.urllib.request import FancyURLopener
-from beastling.earlyinterpolationini import INI, BasicReadInterpolation
+from clldutils.inifile import INI
 from clldutils.dsv import reader
 from clldutils.path import Path
 
@@ -222,12 +222,18 @@ class Configuration(object):
         Read one or several INI-style configuration files and overwrite
         default option settings accordingly.
         """
-        self.configfile = INI(interpolation=BasicReadInterpolation())
+        self.configfile = INI(interpolation=None)
         self.configfile.optionxform = str
         if isinstance(configfile, dict):
             self.configfile.read_dict(configfile)
         else:
-            self.configfile.read(configfile)
+            if not isinstance(configfile, list):
+                configfile = [configfile]
+            for conf in configfile:
+                if isinstance(conf, six.string_types):
+                    conf = open(conf, 'r')
+                self.configfile.read_file(conf)
+
         p = self.configfile
 
         # Set some logging options according to log_all

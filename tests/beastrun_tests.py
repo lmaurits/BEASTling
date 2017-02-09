@@ -93,7 +93,7 @@ def test_basic():
         ("admin", "mk", "calibration_nested_root"),
         # Test below has calibration on Austronesian, but macroareas=Africa,
         # resulting in an emtpy calibration, which is the point of the test
-        ("admin", "mk", "calibration", "macroareas"),
+        ("admin", "mk", "calibration", "macroarea"),
         ("admin", "mk", "calibration_originate"),
         ("admin", "mk", "calibration_uniform_params"),
         ("admin", "mk", "calibration_normal_params"),

@@ -22,6 +22,7 @@ def main(*args):
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "config",
+        type=argparse.FileType("r"),
         help="Beastling configuration file(s) (or XML file if --extract is used)",
         default=None,
         nargs="+")
@@ -73,14 +74,8 @@ def main(*args):
 
 
 def do_extract(args):
-    if len(args.config) != 1:
-        errmsg("Can only extract from exactly one BEAST XML file")
-        sys.exit(1)
-    if not os.path.exists(args.config[0]):
-        errmsg("No such BEAST XML file: %s\n" % args.config)
-        sys.exit(2)
     try:
-        messages = extract(args.config[0], args.overwrite)
+        messages = extract(args.config, args.overwrite)
     except Exception as e:
         errmsg("Error encountered while extracting BEASTling config and/or data files:\n")
         traceback.print_exc()
@@ -90,7 +85,6 @@ def do_extract(args):
 
 
 def do_generate(args):
-
     # Make sure the requested configuration file exists
     for conf in args.config:
         if not os.path.exists(conf):
@@ -98,7 +92,6 @@ def do_generate(args):
             sys.exit(1)
 
     # Build but DON'T PROCESS the Config object
-    # This is fast, and gives us enough information to check whether or not
     try:
         config = beastling.configuration.Configuration(
             configfile=args.config, stdin_data=args.stdin, prior=args.prior)

@@ -48,20 +48,27 @@ class Tests(WithTempDir):
         self._run_main('--help')
         self.assertTrue(self.stdout.strip().lower().startswith('usage:'))
 
-    def test_extract_errors(self):
-        self._run_main('--extract abcd cdef', status=1)
+    def test_extract_multiple_error(self):
+        self._run_main('--extract abcd cdef', status=2)
+
+    def test_extract_notfound_error(self):
         self._run_main('--extract abcd', status=2)
+
+    def test_extract_notbeastling_error(self):
         xml = self.tmp_path('test.xml')
         with xml.open('w') as fp:
             fp.write('<xml>')
         self._run_main('--extract {0}'.format(xml.as_posix()), status=3)
         self.assertTrue('error', self.stderr.lower())
 
-    def test_generate_errors(self):
-        self._run_main('abcd', status=1)
+    def test_generate_notfound_errors(self):
+        self._run_main('abcd', status=2)
+
+    def test_generate_badconfig_error(self):
         self._run_main(config_path('no_data', bad=True), status=2)
         self.assertTrue('error', self.stderr.lower())
 
+    def test_generate_error(self):
         with patch('beastling.cli.BeastXml', Mock(side_effect=ValueError())):
             self._run_main(config_path('basic'), status=3)
 
