@@ -24,8 +24,7 @@ def main(*args):
         "config",
         type=argparse.FileType("r"),
         help="Beastling configuration file(s) (or XML file if --extract is used)",
-        default=None,
-        nargs="+")
+        default=None)
     parser.add_argument(
         "--extract",
         default=False,
