@@ -40,3 +40,27 @@ setup(
     },
     package_data={'beastling': ['data/*']},
 )
+
+setup(
+    name='configalchemy',
+    version='develop',
+    description='Command line tool for aggregating and interpolating configuration files',
+    author='Gereon Kaiping',
+    author_email='gereon.kaiping+python@gmail.com',
+    license="BSD (3 clause)",
+    classifiers=[
+        'Programming Language :: Python',
+        "Programming Language :: Python :: 2",
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
+        'License :: OSI Approved :: BSD License',
+    ],
+    packages=["configalchemy"],
+    install_requires=requires,
+    tests_require=['nose'],
+    entry_points={
+        'console_scripts': ['configalchemy=configalchemy.cli:main'],
+    },
+)

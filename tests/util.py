@@ -4,10 +4,12 @@ import unittest
 from tempfile import mkdtemp
 import sys
 from contextlib import contextmanager
+import unittest
 
 from six import BytesIO, StringIO
 
 from clldutils.path import Path, rmtree
+from clldutils.testing import WithTempDirMixin
 from clldutils.misc import nfilter
 
 from beastling.configuration import Configuration
@@ -60,7 +62,7 @@ def capture_all(func, *args, **kw):
 
 #### End of clldutils/testing.py code
 
-class WithConfigAndTempDir(WithTempDir):
+class WithConfigAndTempDir(WithTempDirMixin, unittest.TestCase):
     def make_cfg(self, configfile, from_cache=True):
         config = Configuration(configfile=configfile)
         if from_cache:
