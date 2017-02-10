@@ -343,7 +343,7 @@ Working with multiple configuration files
 
 There is a separate tool called ``configalchemy`` included in the
 ``beastling`` distribution. ``configalchemy`` allows you to re-use
-analysis definitions you have written my activating *interpolation*
+analysis definitions you have written by activating *interpolation*
 and *aggregating multiple configuration files*.
 
 Interpolation
