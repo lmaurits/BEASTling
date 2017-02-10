@@ -82,8 +82,6 @@ class Tests(WithTempDir):
         self._run_main('--overwrite -o {0} {1}'.format(
             xml.as_posix(), config_path('basic')), status=0)
         tcfg = Path('beastling_test.conf')
-        import pdb
-        pdb.set_trace()
         self._run_main('--extract {0}'.format(xml.as_posix()))
         self.assertTrue(tcfg.exists())
         remove(tcfg)
