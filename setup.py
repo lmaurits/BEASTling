@@ -57,10 +57,10 @@ setup(
         'Programming Language :: Python :: 3.5',
         'License :: OSI Approved :: BSD License',
     ],
-    packages=["configalchemy"],
+    py_modules=["configalchemy"],
     install_requires=requires,
     tests_require=['nose'],
     entry_points={
-        'console_scripts': ['configalchemy=configalchemy.cli:main'],
+        'console_scripts': ['configalchemy=configalchemy:main'],
     },
 )
