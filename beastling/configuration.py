@@ -929,7 +929,7 @@ class Configuration(object):
                     p2 = float(bound.strip())
                 else:
                     p1 = float(bound.strip())
-                    p2 = "Infinity"
+                    p2 = str(sys.maxsize)
             else:
                 raise ValueError("Could not parse calibration \"%s\" for clade %s" % (orig_cs, orig_clade))
             clade_identifier = "%s_originate" % clade if originate else clade
