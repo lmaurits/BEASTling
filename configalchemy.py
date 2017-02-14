@@ -31,7 +31,7 @@ class BasicReadInterpolation (BasicInterpolation):
 
     This class, together with INI, handles multiline interpolation
     line by line, so
-    
+
         val: line1
           line2
           %(val)s
@@ -48,11 +48,11 @@ class BasicReadInterpolation (BasicInterpolation):
     """
 
     def before_read(self, parser, section, option, value):
-        L = []
+        lines = []
         interpolations = dict(parser[parser.default_section])
         interpolations.update(parser[section])
         self._interpolate_some(
-            parser, option, L, value, section, interpolations, 1)
+            parser, option, lines, value, section, interpolations, 1)
 
         # Because we expect work with the raw data up to here, we may
         # have substituted a list. A list would come from parsing a
@@ -60,7 +60,7 @@ class BasicReadInterpolation (BasicInterpolation):
 
         return "".join([
             "\n".join(l) if isinstance(l, list) else l
-            for l in L])
+            for l in lines])
 
     def before_get(self, parser, section, option, value, defaults):
         return value
@@ -98,11 +98,11 @@ class INI (ClldIni):
             while comment_start == sys.maxsize and inline_prefixes:
                 next_prefixes = {}
                 for prefix, index in inline_prefixes.items():
-                    index = line.find(prefix, index+1)
+                    index = line.find(prefix, index + 1)
                     if index == -1:
                         continue
                     next_prefixes[prefix] = index
-                    if index == 0 or (index > 0 and line[index-1].isspace()):
+                    if index == 0 or (index > 0 and line[index - 1].isspace()):
                         comment_start = min(comment_start, index)
                 inline_prefixes = next_prefixes
             # strip full line comments
@@ -133,7 +133,7 @@ class INI (ClldIni):
             cur_indent_level = first_nonspace.start() if first_nonspace else 0
             if ((cursect is not None and
                  optname and cur_indent_level > indent_level)):
-                
+
                 # ====================================================
                 # This is the thing that makes this different from the
                 # basic ConfigParser: Do the before_read interpolation
@@ -185,7 +185,7 @@ class INI (ClldIni):
                         # match if it would set optval to None
                         if optval is not None:
                             optval = optval.strip()
-                            
+
                             # =========================================
                             # This is the thing that makes this
                             # different from the basic ConfigParser:
@@ -222,7 +222,7 @@ class INI (ClldIni):
 
 
 def main(*args):
-    """Execute CLI functionality
+    """Execute CLI functionality.
 
     Parse command line arguments to find config files and distill a an
     aggregated, interpolated configuration from them.
@@ -243,7 +243,7 @@ def main(*args):
         help="Output filename, for example `-o gold.ini`",
         default=sys.stdout)
     args = parser.parse_args(args or None)
-    
+
     config = INI(interpolation=BasicReadInterpolation())
     for file in args.config:
         config.read_file(file)
@@ -251,8 +251,9 @@ def main(*args):
     # We would like to use clldutils.INI.write directly, but it does
     # not support file objects.
     args.output.write(config.write_string())
-    
+
     sys.exit(0)
+
 
 if __name__ == "__main__":
     main(sys.argv)
