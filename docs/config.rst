@@ -186,11 +186,17 @@ Each model section *must* contain the following parameters, i.e. they are mandat
 
 Additionally, each model section *may* contain the following parameters, i.e.  they are optional:
 
-* ``binarised`` or ``binarized``: "True" or "False".  This option is only relevant if the binary covarion model is being used (see :ref:`covarion`).  If unspecified, BEASTling will try to guess whether the supplied data has already been binarised, and will automatically translate multistate features into multiple binary features if not.  If BEASTling is guessing wrong, you can use this option to explicitly inform it whether or not your data has already been binarised.
+* ``ascertained``: "True" or "False".  Controls whether or not to perform ascertainment correction for the absence of non-constant features in the data.  This will have no effect on the sampled tree topology but will influence estimates of branch lengths and the age the tree and clades.  By default, this will be set to true if you provided any calibrations (because in this case you most likely care about estimated ages) and to false if you have not (on the assumption that in this case you are more interested in topology).  Use this parameter to make your intention explicit.  Note that if you have set ``remove_constant_features = False`` in a binary covarion analysis (see below) and your analysis does indeed contain constant features, you cannot set this parameter to "True".
+
+* ``binarised`` or ``binarized``: "True" or "False".  This option is only relevant if the binary covarion model is being used (see :ref:`covarion`).  If your data set only contains features with two possible values, in some situations BEASTling needs to know whether this represents "true" binary data (e.g. presense or absence of some syntactic trait) or whether your data is a "binarisation" of some multistate data (such as cognate class assignments).  Set this to False for true binary data and True for binarised cognate data.
 
 * ``clock``: Assigns the clock to use for this model.  See :ref:`clock_sections` below for details.
 
-* ``file_format``: Can be used to explicitly set which of the two supported .csv file formats the data for this model is supplied in, to be used if BEASTling is mistakenly trying to parse one format as the other (which should be very rare).  Should be one of:
+* ``features``: Is used to select a subset of the features in the given data file.  Should be one of:
+   * A comma-separated list of feature names (as they are given in the data CSV's header line)
+   * A path to a file which contains one feature name per line
+
+   * ``file_format``: Can be used to explicitly set which of the two supported .csv file formats the data for this model is supplied in, to be used if BEASTling is mistakenly trying to parse one format as the other (which should be very rare).  Should be one of:
    * "beastling"
    * "cldf"
 
@@ -200,13 +206,9 @@ Additionally, each model section *may* contain the following parameters, i.e.  t
 
 * ``rate_variation``: "True" or "False".  Estimate a separate substitution rate for each feature (using a Gamma prior).
 
-* ``remove_constant_features``: "True" or "False".  By default, this is set to "True", which means that if your data set contains any features which have the same value for all of the languages in your analysis (which is not necessarily all of the languages in your data file, if you are using the "families" parameter in your "languages" section!), BEASTling will automatically remove that feature from the analysis (since it cannot possibly provide any phylogenetic information).  If you want to keep these constant features in for some reason, you must explicitly set this parameter to False.
+* ``remove_constant_features``: "True" or "False".  This option is only relevant if the binary covarion model is being used (see :ref:`covarion`).  Your setting will be ignored if you are using the Lewis Mk or BSVS models, as these models cannot sensible accommodate constant features.  By default, this is set to "True", which means that if your data set contains any features which have the same value for all of the languages in your analysis (which is not necessarily all of the languages in your data file, if you are using the "families" parameter in your "languages" section!), BEASTling will automatically remove that feature from the analysis (since it cannot possibly provide any phylogenetic information).  If you want to keep these constant features in, you must explicitly set this parameter to False.  You may want to do this if you have rate variation enabled to help estimate the distribution of rates across features, but if your data set contains many constant features you should be careful about interpreting the results.
 
 * ``minimum_data``: Indicates the minimum percentage of languages that a feature should have data present for to be included in an analysis.  E.g, if set to 50, any feature in the dataset which has more question marks than actual values for the selected languages will be excluded.
-
-* ``features``: Is used to select a subset of the features in the given data file.  Should be one of:
-   * A comma-separated list of feature names (as they are given in the data CSV's header line)
-   * A path to a file which contains one feature name per line
 
 .. _clock_sections:
 

@@ -315,7 +315,7 @@ class Configuration(object):
                 key = 'binarised'
             if key in ("features", "exclusions"):
                 value = self.handle_file_or_list(value)
-            if key in ['pruned','rate_variation', 'remove_constant_features']:
+            if key in ['ascertained','pruned','rate_variation', 'remove_constant_features']:
                 value = p.getboolean(section, key)
 
             if key in ['minimum_data']:
@@ -381,6 +381,12 @@ class Configuration(object):
         # At this point, we can tell whether or not the tree's length units
         # can be treated as arbitrary
         self.arbitrary_tree = self.sample_branch_lengths and not self.calibrations
+        # Now we can set the value of the ascertained attribute of each model
+        # Ideally this would happen during process_models, but this is impossible
+        # as set_ascertained() relies upon the value of arbitrary_tree defined above,
+        # which itself depends on process_models().  Ugly...
+        for m in self.models:
+            m.set_ascertained()
         self.instantiate_clocks()
         self.link_clocks_to_models()
         self.starting_tree = self.handle_user_supplied_tree(self.starting_tree, "starting")

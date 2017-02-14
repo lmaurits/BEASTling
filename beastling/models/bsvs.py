@@ -19,8 +19,6 @@ class BSVSModel(BaseModel):
         else:
             raise ValueError("Invalid setting of 'symmetric' (%s) for model %s: use for BSVS model must be set to True or False, " % (symm, self.name))
         self.svsprior = model_config.get("svsprior", "poisson")
-        # Keep this around for later...
-        self.global_config = global_config
 
     def add_state(self, state):
 
