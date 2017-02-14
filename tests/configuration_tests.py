@@ -220,5 +220,46 @@ class Tests(WithConfigAndTempDir):
     def test_no_monophyly_geo(self):
         # Make sure that geographic sampling without monophyly constraints emits a warning
         config = self._make_cfg('basic', 'geo', 'geo_sampled')
-        config.process
+        config.process()
         self.assertTrue(any(["[WARNING] Geographic sampling" in m for m in config.messages]))
+
+    def test_ascertainment_auto_setting(self):
+        # Without calibration, there should be no ascertainment...
+        config = self._make_cfg('basic')
+        config.process()
+        self.assertFalse(config.models[0].ascertained)
+        # But with it there should...
+        config = self._make_cfg('basic', 'calibration')
+        config.process()
+        self.assertTrue(config.models[0].ascertained)
+        # Unless, of course, we have constant data...
+        config = self._make_cfg('covarion_multistate', 'calibration')
+        config.model_configs[0]["remove_constant_features"] = False
+        config.process()
+        self.assertFalse(config.models[0].ascertained)
+
+    def test_ascertainment_override(self):
+        # Make sure we can override the above automagic
+        config = self._make_cfg('basic', 'ascertainment_true')
+        config.process()
+        self.assertTrue(config.models[0].ascertained)
+        # And with calibrations...
+        config = self._make_cfg('basic', 'calibration', 'ascertainment_false')
+        config.process()
+        self.assertFalse(config.models[0].ascertained)
+
+    def test_bad_ascertainment(self):
+        # Make sure we refuse to produce a misspecified model
+        config = self._make_cfg('covarion_multistate','ascertainment_true')
+        config.model_configs[0]["remove_constant_features"] = False
+        with self.assertRaises(ValueError):
+            config.process()
+
+    def test_binarisation_ascertainment(self):
+        # Even with ascertainment = False, ascertainment should still
+        # be done for recoded data
+        config = self._make_cfg('covarion_binarised','ascertainment_false')
+        config.process()
+        xml = BeastXml(config).tostring().decode('utf8')
+        self.assertTrue("ascertained=\"true\"" in xml)
+        self.assertTrue("excludeto=\"1\"" in xml)
