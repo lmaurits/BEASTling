@@ -104,6 +104,9 @@ class BSVSModel(BaseModel):
                 substmodel = ET.SubElement(sitemodel, "substModel",{"id":"svs.s:%s"%fname,"rateIndicator":"@rateIndicator.s:%s"%fname,"rates":"@relativeGeoRates.s:%s"%fname,"spec":"SVSGeneralSubstitutionModel"})
             else:
                 substmodel = ET.SubElement(sitemodel, "substModel",{"id":"svs.s:%s"%fname,"rateIndicator":"@rateIndicator.s:%s"%fname,"rates":"@relativeGeoRates.s:%s"%fname,"spec":"SVSGeneralSubstitutionModel", "symmetric":"false"})
+            if self.use_robust_eigensystem:
+                substmodel.set("eigenSystem","beast.evolution.substitutionmodel.RobustEigenSystem")
+
             freq = ET.SubElement(substmodel,"frequencies",{"id":"feature_freqs.s:%s"%fname,"spec":"Frequencies"})
             if self.frequencies == "uniform":
                 freq_string = str(1.0/self.valuecounts[feature])

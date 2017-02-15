@@ -41,6 +41,8 @@ def test_basic():
         ("admin", "covarion_multistate"),
         ("admin", "covarion_true_binary"),
         ("admin", "covarion_binarised"),
+        ("admin", "bsvs", "robust_eigen"),
+        ("admin", "covarion_multistate", "robust_eigen"),
         ("admin", "mk", "families"),
         ("admin", "mk", "features"),
         ("admin", "mk", "rate_var"),

@@ -36,6 +36,7 @@ class BaseModel(object):
         self.minimum_data = float(model_config.get("minimum_data", 0))
         self.substitution_name = self.__class__.__name__
         self.data_separator = ","
+        self.use_robust_eigensystem = model_config.get("use_robust_eigensystem", False)
 
         # Load the entire dataset from the file
         self.data = load_data(self.data_filename, file_format=model_config.get("file_format",None), lang_column=model_config.get("language_column",None))

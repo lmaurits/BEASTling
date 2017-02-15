@@ -315,7 +315,7 @@ class Configuration(object):
                 key = 'binarised'
             if key in ("features", "exclusions"):
                 value = self.handle_file_or_list(value)
-            if key in ['ascertained','pruned','rate_variation', 'remove_constant_features']:
+            if key in ['ascertained','pruned','rate_variation', 'remove_constant_features', 'use_robust_eigensystem']:
                 value = p.getboolean(section, key)
 
             if key in ['minimum_data']:
