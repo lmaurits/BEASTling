@@ -87,7 +87,7 @@ class BinaryModel(BaseModel):
                 if self.ascertained:
                     valuestring[1] = "1"
                 # Set the appropriate data column to 1
-                valuestring[self.unique_values[feature].index(point)] = "1"
+                valuestring[extra_columns + self.unique_values[feature].index(point)] = "1"
                 valuestring = "".join(valuestring)
             # Record the appropriate weight to use for computing mean mutation rate
             self.weights[feature] = self.valuecounts[feature]
