@@ -472,6 +472,10 @@ class BeastXml(object):
         if self.config.geo_config["log_locations"] or not self.config.geo_model.clock.is_strict:
             self.add_tree_logger("_geography", self.config.geo_model.clock.branchrate_model_id, True)
 
+        # Log reconstructed traits
+        if any([model.metadata for model in self.config.models]):
+            self.add_trait_tree_logger("_reconstructed")
+
     def add_tree_logger(self, suffix="", branchrate_model_id=None, locations=False):
         tree_logger = ET.SubElement(self.run, "logger", {"mode":"tree", "fileName":self.config.basename + suffix + ".nex", "logEvery":str(self.config.log_every),"id":"treeLogger" + suffix})
         log = ET.SubElement(tree_logger, "log", attrib={"id":"TreeLoggerWithMetaData"+suffix,"spec":"beast.evolution.tree.TreeWithMetaDataLogger","tree":"@Tree.t:beastlingTree", "dp":str(self.config.log_dp)})
@@ -482,6 +486,13 @@ class BeastXml(object):
                 "id":"location",
                 "spec":"sphericalGeo.TraitFunction",
                 "likelihood":"@sphericalGeographyLikelihood"}).text = "0.0"
+
+    def add_trait_tree_logger(self, suffix=""):
+        tree_logger = ET.SubElement(self.run, "logger", {"mode":"tree", "fileName":self.config.basename + suffix + ".nex", "logEvery":str(self.config.log_every),"id":"treeLogger" + suffix})
+        log = ET.SubElement(tree_logger, "log", attrib={"id":"ReconstructedStateTreeLogger","spec":"beast.evolution.tree.TreeWithTraitLogger","tree":"@Tree.t:beastlingTree"})
+        for model in self.config.models:
+            for md in model.metadata:
+                ET.SubElement(log, "metadata", {"idref":md})
 
     def tostring(self):
         """

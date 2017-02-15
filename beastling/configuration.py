@@ -313,7 +313,7 @@ class Configuration(object):
             if key in ('binarised', 'binarized'):
                 value = p.getboolean(section, key)
                 key = 'binarised'
-            if key in ("features", "exclusions"):
+            if key in ("features", "reconstruct", "exclusions"):
                 value = self.handle_file_or_list(value)
             if key in ['ascertained','pruned','rate_variation', 'remove_constant_features']:
                 value = p.getboolean(section, key)
