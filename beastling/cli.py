@@ -22,9 +22,10 @@ def main(*args):
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "config",
+        nargs="?",
         type=argparse.FileType("r"),
         help="Beastling configuration file(s) (or XML file if --extract is used)",
-        default=None)
+        default=sys.stdin)
     parser.add_argument(
         "--extract",
         default=False,
