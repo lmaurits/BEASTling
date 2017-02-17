@@ -24,21 +24,28 @@ class BaseModel(object):
         self.features = model_config.get("features",["*"])
         self.exclusions = model_config.get("exclusions",None)
         self.constant_feature = False
+        self.constant_feature_removed = False
         self.frequencies = model_config.get("frequencies", "empirical")
         self.pruned = model_config.get("pruned", False)
         self.rate_variation = model_config.get("rate_variation", False)
         self.feature_rates = model_config.get("feature_rates", None)
-
-        self.remove_constant_features = model_config.get("remove_constant_features", True)
+        self.ascertained = model_config.get("ascertained", None)
+        # Force removal of constant features here
+        # This can be set by the user in BinaryModel only
+        self.remove_constant_features = True
         self.minimum_data = float(model_config.get("minimum_data", 0))
         self.substitution_name = self.__class__.__name__
         self.data_separator = ","
+        self.use_robust_eigensystem = model_config.get("use_robust_eigensystem", False)
 
         # Load the entire dataset from the file
         self.data = load_data(self.data_filename, file_format=model_config.get("file_format",None), lang_column=model_config.get("language_column",None))
         # Remove features not wanted in this analysis
         self.build_feature_filter()
         self.apply_feature_filter()
+
+        # Keep this around for later...
+        self.global_config = global_config
 
     def build_feature_filter(self):
         """
@@ -125,7 +132,6 @@ class BaseModel(object):
         self.unique_values = {}
         self.missing_ratios = {}
         self.counts = {}
-        self.dimensions = {}
         self.codemaps = {}
         for f in self.features:
             # Compute various things
@@ -154,7 +160,6 @@ class BaseModel(object):
             self.valuecounts[f] = N
             self.missing_ratios[f] = missing_data_ratio
             self.counts[f] = counts
-            self.dimensions[f] = N*(N-1) // 2
             self.codemaps[f] = self.build_codemap(unique_values)
 
     def remove_unwanted_features(self):
@@ -182,6 +187,7 @@ class BaseModel(object):
             # Exclude constant features
             if self.valuecounts[f] == 1:
                 if self.remove_constant_features:
+                    self.constant_feature_removed = True
                     self.messages.append("""[INFO] Model "%s": Feature %s excluded because its value is constant across selected languages.  Set "remove_constant_features=False" in config to stop this.""" % (self.name, f))
                     bad_feats.append(f)
                     continue
@@ -200,7 +206,18 @@ class BaseModel(object):
         self.features.sort()
         self.messages.append("""[INFO] Model "%s": Using %d features from data source %s""" % (self.name, len(self.features), self.data_filename))
         if self.constant_feature and self.rate_variation:
-            self.messages.append("""[WARNING] Model "%s": Rate variation enabled with constant features retained in data.  This may skew rate estimates for non-constant features.""" % self.name)
+            self.messages.append("""[WARNING] Model "%s": Rate variation enabled with constant features retained in data.  This *may* skew rate estimates for non-constant features.""" % self.name)
+
+    def set_ascertained(self):
+        """
+        Decide whether or not to do ascertainment correction for non-constant
+        data, unless the user has provided an explicit setting.
+        """
+
+        # Do the correction if the tree is calibrated, as ascertainment
+        # correction influences timing estimates
+        if self.ascertained == None:
+            self.ascertained = not self.global_config.arbitrary_tree
 
     def build_codemap(self, unique_values):
         """
@@ -306,13 +323,11 @@ class BaseModel(object):
             if not self.filters:
                 n = 1
                 for f, x in zip(self.features, formatted_points):
-                    # Find out how many sites in the sequence correspond to this feature
+                    # Format the FilteredAlignment filter appropriately
                     if self.data_separator:
                         length = len(x.split(self.data_separator))
                     else:
                         length = len(x)
-                    self.weights[f] = length
-                    # Format the FilteredAlignment filter appropriately
                     if length == 1:
                         self.filters[f] = str(n)
                     else:
@@ -324,10 +339,26 @@ class BaseModel(object):
                 "value":value_string})
 
     def format_datapoint(self, feature, point):
+        self.weights[feature] = 1
+        if self.ascertained:
+            return self._ascertained_format_datapoint(feature, point)
+        else:
+            return self._standard_format_datapoint(feature, point)
+
+    def _standard_format_datapoint(self, feature, point):
         if point == "?":
             return point
         else:
             return str(self.unique_values[feature].index(point))
+
+    def _ascertained_format_datapoint(self, feature, point):
+        extra_cols = self.valuecounts[feature]
+        if point == "?":
+            return self.data_separator.join(["?" for i in range(0, extra_cols + 1)])
+        else:
+            cols = list(range(0, extra_cols))
+            cols.append(self.unique_values[feature].index(point))
+            return self.data_separator.join(map(str, cols))
 
     def add_feature_data(self, distribution, index, feature, fname):
         """
@@ -346,6 +377,10 @@ class BaseModel(object):
             "spec":"FilteredAlignment",
             "data":"@data_%s" % self.name,
             "filter":self.filters[feature]})
+        if self.ascertained:
+            data.set("ascertained", "true")
+            data.set("excludefrom", "0")
+            data.set("excludeto", str(self.valuecounts[feature]))
         data.append(self.get_userdatatype(feature, fname))
         return data
 

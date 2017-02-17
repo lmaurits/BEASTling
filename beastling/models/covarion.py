@@ -61,6 +61,8 @@ class CovarionModel(BinaryModel):
         # be based on the data (if we are doing an empirical
         # analysis)
         substmodel = ET.SubElement(beast, "substModel",{"id":"%s:covarion.s" % self.name,"spec":"BinaryCovarion","alpha":"@%s:covarion_alpha.s" % self.name, "switchRate":"@%s:covarion_s.s" % self.name, "vfrequencies":"@%s:visiblefrequencies.s" % self.name})
+        if self.use_robust_eigensystem:
+            substmodel.set("eigenSystem","beast.evolution.substitutionmodel.RobustEigenSystem")
         # These are the frequencies of the *hidden* states
         # (fast / slow), and are just set to 50:50 
         hfreq = ET.SubElement(substmodel, "parameter", {"id":"%s:hiddenfrequencies.s" % self.name,"dimension":"2","lower":"0.0","name":"hfrequencies","upper":"1.0"})

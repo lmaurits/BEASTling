@@ -11,13 +11,13 @@ class BSVSModel(BaseModel):
     def __init__(self, model_config, global_config):
 
         BaseModel.__init__(self, model_config, global_config)
-        self.symmetric = model_config.get("symmetric", True)
-        # This is pretty ugly!
-        # It happens because we don't (right here) have access to the
-        # ConfigParser which read the BEASTling config, so we caan't use
-        # getBoolean, and self.symmetric is a string which always tests True
-        if str(self.symmetric).lower() == "false":
+        symm = model_config.get("symmetric", "True")
+        if symm.lower().strip() == "true":
+            self.symmetric = True
+        elif symm.lower().strip() == "false":
             self.symmetric = False
+        else:
+            raise ValueError("Invalid setting of 'symmetric' (%s) for model %s: use for BSVS model must be set to True or False, " % (symm, self.name))
         self.svsprior = model_config.get("svsprior", "poisson")
 
     def add_state(self, state):
@@ -26,15 +26,20 @@ class BSVSModel(BaseModel):
         for f in self.features:
             fname = "%s:%s" % (self.name, f)
 
+            N = self.valuecounts[f]
+            dimension = N*(N-1)
+            if self.symmetric:
+                dimension = int(dimension/2)
+
             attribs = {}
-            attribs["dimension"] = str(self.dimensions[f])
             attribs["id"] = "rateIndicator.s:%s" % fname
             attribs["spec"] = "parameter.BooleanParameter"
+            attribs["dimension"] = str(dimension)
             statenode = ET.SubElement(state, "stateNode", attribs)
             statenode.text="true"
 
             attribs = {}
-            attribs["dimension"] = str(self.dimensions[f])
+            attribs["dimension"] = str(dimension)
             attribs["id"] = "relativeGeoRates.s:%s" % fname
             attribs["name"] = "stateNode"
             parameter = ET.SubElement(state, "parameter", attribs)
@@ -52,28 +57,28 @@ class BSVSModel(BaseModel):
             N = self.valuecounts[f]
             if self.symmetric:
                 offset = N-1
-                maxx = N*(N-1)/2
+                dim = N*(N-1)/2
             else:
                 offset = N
-                maxx = N*(N-1)
-            if maxx == offset:
+                dim = N*(N-1)
+            if dim == offset:
                 # In this situation (e.g. N=2, symmetric), we have no real
                 # freedom in the number of non-zero rates.  So just set a
                 # uniform prior
                 distr  = ET.SubElement(sub_prior, "distr", {"id":"Poisson:%s.%d" % (fname, n), "offset":str(offset),"spec":"beast.math.distributions.Uniform", "lower":"0.0","upper":"Infinity"})
             elif self.svsprior == "poisson":
-                distr  = ET.SubElement(sub_prior, "distr", {"id":"Poisson:%s.%d" % (fname, n), "offset":str(self.valuecounts[f]-1),"spec":"beast.math.distributions.Poisson"})
+                distr  = ET.SubElement(sub_prior, "distr", {"id":"Poisson:%s.%d" % (fname, n), "offset":str(offset),"spec":"beast.math.distributions.Poisson"})
                 param = ET.SubElement(distr, "parameter", {"id":"RealParameter:%s.%d.0" % (fname, n),"lower":"0.0","name":"lambda","upper":"0.0"})
                 # Set Poisson mean equal to the midpoint of therange of
                 # sensible values
-                poisson_mean = (maxx - offset)/2.0
+                poisson_mean = (dim - offset)/2.0
                 param.text = str(poisson_mean)
             elif self.svsprior == "exponential":
                 # Set Exponential mean so that 99% of probability density
                 # lies inside the sensible range
                 # Exponential quantile function is
                 # F(p,lambda) = -ln(1-p) / lambda
-                exponential_mean = math.log(100.0) / (maxx - offset)
+                exponential_mean = math.log(100.0) / (dim - offset)
                 distr  = ET.SubElement(sub_prior, "distr", {"id":"Exponential:%s.%d" % (fname, n), "offset":str(offset),"spec":"beast.math.distributions.Exponential"})
                 param = ET.SubElement(distr, "parameter", {"id":"RealParameter:%s.%d.0" % (fname, n),"lower":"0.0","name":"mean","upper":"0.0"})
                 param.text = str(exponential_mean)
@@ -99,11 +104,17 @@ class BSVSModel(BaseModel):
                 substmodel = ET.SubElement(sitemodel, "substModel",{"id":"svs.s:%s"%fname,"rateIndicator":"@rateIndicator.s:%s"%fname,"rates":"@relativeGeoRates.s:%s"%fname,"spec":"SVSGeneralSubstitutionModel"})
             else:
                 substmodel = ET.SubElement(sitemodel, "substModel",{"id":"svs.s:%s"%fname,"rateIndicator":"@rateIndicator.s:%s"%fname,"rates":"@relativeGeoRates.s:%s"%fname,"spec":"SVSGeneralSubstitutionModel", "symmetric":"false"})
+            if self.use_robust_eigensystem:
+                substmodel.set("eigenSystem","beast.evolution.substitutionmodel.RobustEigenSystem")
+
             freq = ET.SubElement(substmodel,"frequencies",{"id":"feature_freqs.s:%s"%fname,"spec":"Frequencies"})
             if self.frequencies == "uniform":
                 freq_string = str(1.0/self.valuecounts[feature])
             elif self.frequencies == "empirical":
-                freqs = [self.counts[feature].get(str(v),0) for v in range(1,self.valuecounts[feature]+1)]
+                freqs = [
+                    self.counts[feature].get(
+                        self.unique_values[feature][v], 0)
+                    for v in range(self.valuecounts[feature])]
                 norm = float(sum(freqs))
                 freqs = [f/norm for f in freqs]
                 # Sometimes, due to WALS oddities, there's a zero frequency, and that makes BEAST sad.  So do some smoothing in these cases:
@@ -111,6 +122,10 @@ class BSVSModel(BaseModel):
                     freqs = [0.1/self.valuecounts[feature] + 0.9*f for f in freqs]
                 norm = float(sum(freqs))
                 freq_string = " ".join([str(c/norm) for c in freqs])
+            else:
+                raise ValueError(
+                    "Model BSVS does not recognize frequencies %r, "
+                    "should be 'uniform' or 'empirical'." % self.frequencies)
             ET.SubElement(freq,"parameter",{
                 "dimension":str(self.valuecounts[feature]),
                 "id":"feature_frequencies.s:%s"%fname,
@@ -123,11 +138,18 @@ class BSVSModel(BaseModel):
             fname = "%s:%s" % (self.name, f)
             ET.SubElement(run, "operator", {"id":"onGeorateScaler.s:%s"% fname,"spec":"ScaleOperator","parameter":"@relativeGeoRates.s:%s"%fname, "indicator":"@rateIndicator.s:%s" % fname, "scaleAllIndependently":"true","scaleFactor":"0.5","weight":"10.0"})
 
-            ET.SubElement(run, "operator", {"id":"indicatorFlip.s:%s"%fname,"spec":"BitFlipOperator","parameter":"@rateIndicator.s:%s"%fname, "weight":"30.0"})
             if self.rate_variation:
                 ET.SubElement(run, "operator", {"id":"BSSVSoperator.c:%s"%fname,"spec":"BitFlipBSSVSOperator","indicator":"@rateIndicator.s:%s"%fname, "mu":"@featureClockRate:%s" % fname,"weight":"30.0"})
-            else:
+                bssvs_bitflip = True
+            elif not self.global_config.arbitrary_tree:
+                # Don't scale the clock of a tree with arbitrary branch
+                # lengths, as birthRate is also scaled and one or the other
+                # will run away to infinity.
                 ET.SubElement(run, "operator", {"id":"BSSVSoperator.c:%s"%fname,"spec":"BitFlipBSSVSOperator","indicator":"@rateIndicator.s:%s"%fname, "mu":self.clock.mean_rate_idref,"weight":"30.0"})
+                bssvs_bitflip = True
+            else:
+                bssvs_bitflip = False
+            ET.SubElement(run, "operator", {"id":"indicatorFlip.s:%s"%fname,"spec":"BitFlipOperator","parameter":"@rateIndicator.s:%s"%fname, "weight":"30.0" if bssvs_bitflip else "60.0"})
             sampoffop = ET.SubElement(run, "operator", {"id":"offGeorateSampler:%s" % fname,"spec":"SampleOffValues","all":"false","values":"@relativeGeoRates.s:%s"%fname, "indicators":"@rateIndicator.s:%s" % fname, "weight":"30.0"})
             ET.SubElement(sampoffop, "dist", {"idref":"Gamma:%s.%d.0" % (fname, n)})
 

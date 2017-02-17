@@ -24,9 +24,7 @@ The binary Covarion model is defined for binary datasets, i.e. sets where every 
 
 When the binary Covarion model is used, if the specified datafile contains multistate data, BEASTling will automatically translate this into the appropriate number of binary features.  This approach means that you can have a single data file which can be used to generate binary and multistate analyses, and also lets BEASTling share mutation rates across binary features corresponding to a single multistate feature.  This is the recommended way to use the binary Covarion model.
 
-However, if you have pre-binarised data you wish to use, BEASTling should recognise this (by seeing that all features in the dataset have only two possible values) and will avoid binarising it a second time.  Note that when used this way, BEASTling will assign separate mutation rates to each binary feature, as it has no way to know which groups of binary features originally corresponded to a single multistate feature.
-
-If BEASTling decides to treat your data as pre-binarised, a notification will be emitted in ``--verbose`` mode.  You can use the ``binarised`` (or ``binarized``) option in your config's ``[model]`` section to tell BEASTling explicitly whether or not your data has been binarised, and this will disable the automatic detection.
+If the datafile only contains features with two values, you should explicitly tell BEASTling what kind of data it is.  If you have pre-binarised multistate data such as cognate class assignments, you should include ``binarised=True`` (or ``binarized=True``) in your config's ``[model]`` section.  If your data is genuinely binary in nature (e.g. absence/presence structural data) you should set ``binarised=False`` instead.  This lets BEASTling perform ascertainment correction correctly (even if constant features are retained, ascertainment correction must be performed for the impossibility of all zero features when multistate data has been recoded into binary form).
 
 BSVS
 ----
