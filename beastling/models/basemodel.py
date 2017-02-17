@@ -242,9 +242,11 @@ class BaseModel(object):
         pass
 
     def add_state(self, state):
-        """
+        """Construct the model's state nodes.
+
         Add parameters for Gamma-distributed rate heterogenetiy, if
         configured.
+
         """
         if self.rate_variation:
             if not self.feature_rates:
