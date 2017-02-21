@@ -67,7 +67,10 @@ class BaseModel(object):
         if self.reconstruct == ["*"]:
             self.reconstruct = self.features[:]
         elif self.reconstruct:
-            self.reconstruct = [f for f in self.reconstruct if f not in self.exclusions]
+            if self.exclusions:
+                self.reconstruct = [f for f in self.reconstruct if f not in self.exclusions]
+            else:
+                pass
         else:
             self.reconstruct = []
 
