@@ -104,7 +104,7 @@ class BaseModel(object):
                 feature, rate = line.split(",")
                 rate = float(rate.strip())
                 self.feature_rates[feature] = rate
-        norm = sum(self.feature_rates.values())
+        norm = sum(self.feature_rates.values()) / len(self.feature_rates.values())
         for f in self.feature_rates:
             self.feature_rates[f] /= norm
 
