@@ -58,7 +58,7 @@ class RandomLocalClock(BaseClock):
         # Operate on indicators
         ET.SubElement(run, "operator", {"id":"IndicatorsBitFlip.c:%s" % self.name, "spec":"BitFlipOperator", "parameter":"@Indicators.c:%s" % self.name, "weight":"15.0"})
         # Operate on branch rates
-        ET.SubElement(run, "operator", {"id":"ClockRateScaler.c:%s" % self.name, "spec":"ScaleOperator", "parameter":"@clockrates.c:%s" % self.name, "weight":"15.0"})
+        ET.SubElement(run, "operator", {"id":"ClockRateScaler.c:%s" % self.name, "spec":"ScaleOperator", "parameter":"@clockrates.c:%s" % self.name, "scaleFactor": "0.5", "weight":"15.0"})
         # Up/down for Gamma params
         if self.estimate_variance:
             updown = ET.SubElement(run, "operator", {"id":"randomClockGammaUpDown:%s" % self.name, "spec":"UpDownOperator", "scaleFactor":"0.5","weight":"1.0"})
