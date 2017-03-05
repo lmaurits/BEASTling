@@ -256,7 +256,7 @@ class BaseModel(object):
                         "name":"stateNode"})
                     param.text=str(self.feature_rates.get(f,1.0))
 
-            parameter = ET.SubElement(state, "parameter", {"id":"featureClockRateGammaShape:%s" % self.name, "lower":"0.0","upper":"100.0","name":"stateNode"})
+            parameter = ET.SubElement(state, "parameter", {"id":"featureClockRateGammaShape:%s" % self.name, "lower":"1.0","upper":"100.0","name":"stateNode"})
             parameter.text="2.0"
             parameter = ET.SubElement(state, "parameter", {"id":"featureClockRateGammaScale:%s" % self.name, "name":"stateNode"})
             parameter.text="0.5"
