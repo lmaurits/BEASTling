@@ -426,7 +426,7 @@ class BaseModel(object):
                 "idref":"featureLikelihood:%s:$(feature)" % self.name})
             if self.rate_variation:
                 ET.SubElement(logger,"log",{"idref":"featureClockRatePrior.s:%s" % self.name})
-                ET.SubElement(logger,"log",{"idref":"featureClockRateGammaShapePrior.s:%s" % self.name})
+                ET.SubElement(logger,"log",{"idref":"featureClockRateGammaScalePrior.s:%s" % self.name})
 
         if self.rate_variation:
             plate = ET.SubElement(logger, "plate", {
@@ -434,5 +434,6 @@ class BaseModel(object):
                 "range":",".join(self.features)})
             ET.SubElement(plate, "log", {
                 "idref":"featureClockRate:%s:$(feature)" % self.name})
-            # Log the shape, but not the scale, as it is always 1 / shape
-            ET.SubElement(logger,"log",{"idref":"featureClockRateGammaShape:%s" % self.name})
+            # Log the scale, but not the shape, as it is always 1 / scale
+            # We prefer the scale because it is positively correlated with extent of variation
+            ET.SubElement(logger,"log",{"idref":"featureClockRateGammaScale:%s" % self.name})
