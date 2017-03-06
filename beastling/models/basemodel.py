@@ -260,7 +260,7 @@ class BaseModel(object):
             # Must be > 1.0 for the distribution to be bell-shaped,
             # rather than L-shaped.  The domain [1.1,1000] limits feature
             # rate variation to the realms of vague plausibity
-            parameter = ET.SubElement(state, "parameter", {"id":"featureClockRateGammaShape:%s" % self.name, "lower":"1.1","upper":"1000.0","name":"stateNode"})
+            parameter = ET.SubElement(state, "parameter", {"id":"featureClockRateGammaShape:%s" % self.name, "lower":"1.1","upper":"100.0","name":"stateNode"})
             parameter.text="5.0"
             # Gamma scale parameter's domain is defined *implicilty*
             # by the fact that the operators maintain shape*scale = 1.0
