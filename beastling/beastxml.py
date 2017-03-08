@@ -428,8 +428,8 @@ class BeastXml(object):
         # Log tree height
         if not self.config.tree_logging_pointless:
             ET.SubElement(tracer_logger,"log",{
-                "id":"treeHeight",
-                "spec":"beast.evolution.tree.TreeHeightLogger",
+                "id":"treeStats",
+                "spec":"beast.evolution.tree.TreeStatLogger",
                 "tree":"@Tree.t:beastlingTree"})
 
         # Log calibration clade heights
