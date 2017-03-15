@@ -69,10 +69,13 @@ class BaseModel(object):
         if self.reconstruct == ["*"]:
             self.reconstruct = self.features[:]
         elif self.reconstruct:
-            if self.exclusions:
-                self.reconstruct = [f for f in self.reconstruct if f not in self.exclusions]
-            else:
-                pass
+            fail_to_find = [f for f in self.reconstruct if f not in self.features]
+            if fail_to_find:
+                self.messages.append(
+                    "[WARNING] Model {:s}:"
+                    "Features {:} not found, cannot be reconstructed.""".format(
+                        self.name, fail_to_find))
+            self.reconstruct = [f for f in self.reconstruct if f in self.features]
         else:
             self.reconstruct = []
 
