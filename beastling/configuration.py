@@ -178,12 +178,18 @@ class Configuration(object):
         """
         self.configfile = INI(interpolation=None)
         self.configfile.optionxform = str
+        config_dir = None
         if isinstance(configfile, dict):
             self.configfile.read_dict(configfile)
         else:
             if isinstance(configfile, six.string_types):
                 configfile = (configfile,)
             for conf in configfile:
+                # Since we want to be able to resolve relative paths in the configuration,
+                # we try to determine the configuration directory. Note that this
+                # mechanism isn't perfect, since in the case of config files from
+                # different directories, only the last would be picked up.
+                config_dir = os.path.abspath(os.path.dirname(conf))
                 self.configfile.read(conf)
         p = self.configfile
 
@@ -274,12 +280,15 @@ class Configuration(object):
             if not p.has_section("geography"):
                 raise ValueError("Config file contains geo_priors section but no geography section.")
             self.geo_config["geo_priors"] = {}
-            for clades, klm in p.items("geo_priors"):
+            for clades, kml in p.items("geo_priors"):
+                if config_dir and os.path.exists(os.path.join(config_dir, kml)):
+                    # Resolve relative paths in config file:
+                    kml = os.path.join(config_dir, kml)
                 for clade in clades.split(','):
                     clade = clade.strip()
                     if clade not in self.geo_config["sampling_points"]:
                         self.geo_config["sampling_points"].append(clade)
-                    self.geo_config["geo_priors"][clade] = klm
+                    self.geo_config["geo_priors"][clade] = kml
         sampled_points = self.geo_config.get("sampling_points",[])
         if [p for p in sampled_points if p.lower() != "root"] and self.sample_topology and not self.monophyly:
             self.messages.append("[WARNING] Geographic sampling and/or prior specified for clades other than root, but tree topology is being sampled without monophyly constraints.  BEAST may crash.")
