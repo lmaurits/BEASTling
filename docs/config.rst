@@ -146,13 +146,14 @@ or
 
 With this kind of calibration, BEASTling will set a uniform distribution prior on the age of the family indicated.  The upper or lower bound will be set to the provided age, and the other bound will be set to zero or infinity as appropriate.
 
-If you require more control over your priors, you can explicitly provide the type of distribution (either normal, lognormal or uniform) and the parameters as follows:
+If you require more control over your priors, you can explicitly provide the type of distribution (either normal, lognormal or uniform) and the parameters, as well as specify an offset, as follows:
 
 ::
 
 	Austronesian = normal(5275, 535.71)           # First param is mean, second is standard deviation
-	Austronesian = lognormal(8.57, 0.05)          # First param is mean, second is standard deviation, both are in logspace
-	Austronesian = uniform(4.75, 5.80)            # First param is lower bound, second is upper bound
+	Austronesian = lognormal(8.57, 0.05)          # First param is mean (in log space), second is standard deviation
+	Austronesian = rognormal(5275, 0.05)          # First param is mean (in real space), second is standard deviation
+	Iranian = 2600 + rlognormal(400, 0.8)         # As per above but with an offset
 
 Finally, it is possible to specify an age range and ask for a lognormal distribution to be fitted to it, as follows:
 
