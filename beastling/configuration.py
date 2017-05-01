@@ -27,7 +27,7 @@ import beastling.models.mk as mk
 
 _BEAST_MAX_LENGTH = 2147483647
 GLOTTOLOG_NODE_LABEL = re.compile(
-    "'(?P<name>[^\[]+)\[(?P<glottocode>[a-z0-9]{8})\](\[(?P<isocode>[a-z]{3})\])?'")
+    "'(?P<name>[^\[]+)\[(?P<glottocode>[a-z0-9]{8})\](\[(?P<isocode>[a-z]{3})\])?(?P<appendix>-l-)?'")
 
 Calibration = collections.namedtuple("Calibration", ["langs", "originate", "offset", "dist", "param1", "param2"])
 
@@ -99,7 +99,7 @@ class Configuration(object):
         """List of families to filter down to, or name of a file containing such a list."""
         self.geo_config = {}
         """A dictionary with keys and values corresponding to a [geography] section in a configuration file."""
-        self.glottolog_release = '2.7'
+        self.glottolog_release = '3.0'
         """A string representing a Glottolog release number."""
         self.languages = []
         """List of languages to filter down to, or name of a file containing such a list."""
@@ -449,7 +449,6 @@ class Configuration(object):
                 if isocode:
                     self.classifications[isocode] = classification
                 glottocode2node[glottocode] = node
-
         # Load geographic metadata
         for t in reader(
                 get_glottolog_data('geo', self.glottolog_release), namedtuples=True):
@@ -475,6 +474,8 @@ class Configuration(object):
                 get_glottolog_data('geo', self.glottolog_release), namedtuples=True):
             if t.level == "dialect":
                 failed = False
+                if node not in glottocode2node:
+                    continue
                 node = glottocode2node[t.glottocode]
                 ancestor = node.ancestor
                 while label2name[ancestor.name][1] not in self.locations:
