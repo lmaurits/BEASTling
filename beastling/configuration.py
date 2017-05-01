@@ -29,7 +29,8 @@ _BEAST_MAX_LENGTH = 2147483647
 GLOTTOLOG_NODE_LABEL = re.compile(
     "'(?P<name>[^\[]+)\[(?P<glottocode>[a-z0-9]{8})\](\[(?P<isocode>[a-z]{3})\])?'")
 
-Calibration = collections.namedtuple("Calibration", ["langs", "originate", "dist", "param1", "param2"])
+Calibration = collections.namedtuple("Calibration", ["langs", "originate", "offset", "dist", "param1", "param2"])
+
 class URLopener(FancyURLopener):
     def http_error_default(self, url, fp, errcode, errmsg, headers):
         raise ValueError()  # pragma: no cover
@@ -900,46 +901,67 @@ class Configuration(object):
                 continue
             
             # Next parse the calibration string
-            if cs.count("(") == 1 and cs.count(")") == 1:
-                dist_type, cs = cs.split("(", 1)
-                dist_type = dist_type.lower()
-                cs = cs[0:-1]
-            else:
-                # Default to normal
-                dist_type = "normal"
-
-            if cs.count(",") == 1 and not any([x in cs for x in ("<", ">")]):
-                # We've got explicit params
-                p1, p2 = map(float,cs.split(","))
-            elif cs.count("-") == 1 and not any([x in cs for x in (",", "<", ">")]):
-                # We've got a 95% HPD range
-                lower, upper = map(float, cs.split("-"))
-                mid = (lower+upper) / 2.0
-                if dist_type == "normal":
-                    p1 = (upper + lower) / 2.0
-                    p2 = (upper - mid) / 1.96
-                elif dist_type == "lognormal":
-                    p1 = math.log(mid)
-                    p2a = (p1 - math.log(lower)) / 1.96
-                    p2b = (math.log(upper) - p1) / 1.96
-                    p2 = (p2a+p2b)/2.0
-                elif dist_type == "uniform":
-                    p1 = lower
-                    p2 = upper
-            elif (cs.count("<") == 1 or cs.count(">") == 1) and not any([x in cs for x in (",", "-")]):
-                # We've got a single bound
-                dist_type = "uniform"
-                sign, bound = cs.split()
-                if sign.strip() == "<":
-                    p1 = 0.0
-                    p2 = float(bound.strip())
-                else:
-                    p1 = float(bound.strip())
-                    p2 = str(sys.maxsize)
-            else:
-                raise ValueError("Could not parse calibration \"%s\" for clade %s" % (orig_cs, orig_clade))
+            offset, dist_type, p1, p2 = self.parse_calibration_string(cs)
             clade_identifier = "%s_originate" % clade if originate else clade
-            self.calibrations[clade_identifier] = Calibration(langs, originate, dist_type, p1, p2)
+            self.calibrations[clade_identifier] = Calibration(langs, originate, offset, dist_type, p1, p2)
+
+    def parse_calibration_string(self, cs):
+        # Find offset
+        if cs.count("+") == 1:
+            os, dist = cs.split("+")
+            offset = float(os.strip())
+            cs = dist.strip()
+        else:
+            offset = 0.0
+
+        # Parse distribution
+        if cs.count("(") == 1 and cs.count(")") == 1:
+            dist_type, cs = cs.split("(", 1)
+            dist_type = dist_type.lower()
+            cs = cs[0:-1]
+        else:
+            # Default to normal
+            dist_type = "normal"
+
+        # Parse / infer params
+        if cs.count(",") == 1 and not any([x in cs for x in ("<", ">")]):
+            # We've got explicit params
+            p1, p2 = map(float,cs.split(","))
+        elif cs.count("-") == 1 and not any([x in cs for x in (",", "<", ">")]):
+            # We've got a 95% HPD range
+            lower, upper = map(float, cs.split("-"))
+            mid = (lower+upper) / 2.0
+            if dist_type == "normal":
+                p1 = (upper + lower) / 2.0
+                p2 = (upper - mid) / 1.96
+            elif dist_type == "lognormal":
+                p1 = math.log(mid)
+                p2a = (p1 - math.log(lower)) / 1.96
+                p2b = (math.log(upper) - p1) / 1.96
+                p2 = (p2a+p2b)/2.0
+            elif dist_type == "uniform":
+                p1 = lower
+                p2 = upper
+        elif (cs.count("<") == 1 or cs.count(">") == 1) and not any([x in cs for x in (",", "-")]):
+            # We've got a single bound
+            dist_type = "uniform"
+            sign, bound = cs.split()
+            if sign.strip() == "<":
+                p1 = 0.0
+                p2 = float(bound.strip())
+            else:
+                p1 = float(bound.strip())
+                p2 = str(sys.maxsize)
+        else:
+            raise ValueError("Could not parse calibration \"%s\" for clade %s" % (orig_cs, orig_clade))
+
+        # If this is a lognormal calibration with the mean in realspace, adjust
+        if dist_type == "rlognormal":
+            p1 = math.log(p1)
+            dist_type = "lognormal"
+
+        # All done!
+        return offset, dist_type, p1, p2
 
     def get_languages_by_glottolog_clade(self, clade):
         langs = []

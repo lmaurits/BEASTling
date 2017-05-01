@@ -240,6 +240,8 @@ class BeastXml(object):
             # Create "distr" param for MRCAPrior
             dist_type = {"normal":"Normal","lognormal":"LogNormal","uniform":"Uniform"}[cal.dist]
             attribs = {"id":"CalibrationDistribution.%s" % clade, "name":"distr", "offset":"0.0"}
+            if cal.offset:
+                attribs["offset"] = str(cal.offset)
             if dist_type == "Uniform":
                 attribs["lower"] = str(cal.param1)
                 attribs["upper"] = str(cal.param2)
