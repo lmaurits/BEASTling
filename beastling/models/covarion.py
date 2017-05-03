@@ -42,11 +42,10 @@ class CovarionModel(BinaryModel):
         alpha.text="0.5"
         switch = ET.SubElement(state, "parameter", {"id":"%s:covarion_s.s" % self.name, "lower":"1.0E-4", "name":"stateNode", "upper":"Infinity"})
         switch.text="0.5"
-        vfreq = ET.SubElement(state, "parameter", {"id":"%s:visiblefrequencies.s" % self.name, "dimension":"2","name":"stateNode"})
-        if self.frequencies == "empirical":
-            vfreq.text = self.freq_str
-        else:
-            vfreq.text="0.5 0.5"
+
+    def add_frequency_state(self, state):
+        vfreq = ET.SubElement(state, "parameter", {"id":"%s:visiblefrequencies.s" % self.name, "name":"stateNode", "dimension":"2", "lower":"0.0", "upper":"1.0"})
+        vfreq.text="0.5 0.5"
 
     def get_userdatatype(self, feature, fname):
         if not self.beastxml._covarion_userdatatype_created:
@@ -60,7 +59,16 @@ class CovarionModel(BinaryModel):
         # of the *visible* states (present/absent) and should
         # be based on the data (if we are doing an empirical
         # analysis)
-        substmodel = ET.SubElement(beast, "substModel",{"id":"%s:covarion.s" % self.name,"spec":"BinaryCovarion","alpha":"@%s:covarion_alpha.s" % self.name, "switchRate":"@%s:covarion_s.s" % self.name, "vfrequencies":"@%s:visiblefrequencies.s" % self.name})
+        substmodel = ET.SubElement(beast, "substModel",{"id":"%s:covarion.s" % self.name,"spec":"BinaryCovarion","alpha":"@%s:covarion_alpha.s" % self.name, "switchRate":"@%s:covarion_s.s" % self.name})
+        if self.frequencies == "estimate":
+            substmodel.set("vfrequencies","@%s:visiblefrequencies.s" % self.name)
+        else:
+            vfreq = ET.SubElement(substmodel, "vfrequencies", {"id":"%s:visiblefrequencies.s" % self.name, "dimension":"2","spec":"parameter.RealParameter"})
+            if self.frequencies == "empirical":
+                vfreq.text = self.freq_str
+            else:
+                vfreq.text="0.5 0.5"
+
         if self.use_robust_eigensystem:
             substmodel.set("eigenSystem","beast.evolution.substitutionmodel.RobustEigenSystem")
         # These are the frequencies of the *hidden* states
@@ -98,16 +106,16 @@ class CovarionModel(BinaryModel):
         ET.SubElement(run, "operator", {"id":"%s:covarion_alpha_scaler.s" % self.name, "spec":"ScaleOperator","parameter":"@%s:covarion_alpha.s" % self.name,"scaleFactor":"0.5","weight":"1.0"})
         ET.SubElement(run, "operator", {"id":"%s:covarion_s_scaler.s" % self.name, "spec":"ScaleOperator","parameter":"@%s:covarion_s.s" % self.name,"scaleFactor":"0.5","weight":"1.0"})
 
-        # Estimate frequencies if asked
-        if self.frequencies == "estimate":
-            ET.SubElement(run, "operator", {"id":"%s:covarion_frequency_sampler.s" % self.name, "spec":"DeltaExchangeOperator","parameter":"@%s:visiblefrequencies.s" % self.name,"delta":"0.01","weight":"1.0"})
+    def add_frequency_operators(self, run):
+        ET.SubElement(run, "operator", {"id":"%s:covarion_frequency_sampler.s" % self.name, "spec":"DeltaExchangeOperator","parameter":"@%s:visiblefrequencies.s" % self.name,"delta":"0.01","weight":"1.0"})
 
     def add_param_logs(self, logger):
         BinaryModel.add_param_logs(self, logger)
         ET.SubElement(logger,"log",{"idref":"%s:covarion_alpha.s" % self.name})
         ET.SubElement(logger,"log",{"idref":"%s:covarion_s.s" % self.name})
-        if self.frequencies == "estimate":
-            ET.SubElement(logger,"log",{"idref":"%s:visiblefrequencies.s" % self.name})
         if self.config.log_fine_probs:
             ET.SubElement(logger,"log",{"idref":"%s:covarion_alpha_prior.s" % self.name})
             ET.SubElement(logger,"log",{"idref":"%s:covarion_s_prior.s" % self.name})
+
+    def add_frequency_logs(self, logger):
+        ET.SubElement(logger,"log",{"idref":"%s:visiblefrequencies.s" % self.name})

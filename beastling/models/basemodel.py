@@ -238,6 +238,10 @@ class BaseModel(object):
         Add parameters for Gamma-distributed rate heterogenetiy, if
         configured.
         """
+
+        if self.frequencies == "estimate":
+            self.add_frequency_state(state)
+
         if self.rate_variation:
             if not self.feature_rates:
                 # Set all rates to 1.0 in a big plate
@@ -260,6 +264,18 @@ class BaseModel(object):
             parameter.text="2.0"
             parameter = ET.SubElement(state, "parameter", {"id":"featureClockRateGammaScale:%s" % self.name, "name":"stateNode"})
             parameter.text="0.5"
+
+    def add_frequency_state(self, state):
+        for f in self.features:
+            fname = "%s:%s" % (self.name, f)
+            param = ET.SubElement(state,"stateNode",{
+                "id":"feature_freqs_param.s:%s"%fname,
+                "spec":"parameter.RealParameter",
+                "dimension":str(self.valuecounts[f]),
+                "lower":"0.0",
+                "upper":"1.0",
+            })
+            param.text = str(1.0/self.valuecounts[f])
 
     def add_prior(self, prior):
         """
@@ -392,12 +408,19 @@ class BaseModel(object):
         Add <operators> for individual feature substitution rates if rate
         variation is configured.
         """
+        if self.frequencies == "estimate":
+            self.add_frequency_operators(run)
         if self.rate_variation:
             # UpDownOperator to scale the Gamma distribution for this model's
             # feature rates
             updown = ET.SubElement(run, "operator", {"id":"featureClockRateGammaUpDown:%s" % self.name, "spec":"UpDownOperator", "scaleFactor":"0.5","weight":"0.3"})
             ET.SubElement(updown, "parameter", {"idref":"featureClockRateGammaShape:%s" % self.name, "name":"up"})
             ET.SubElement(updown, "parameter", {"idref":"featureClockRateGammaScale:%s" % self.name, "name":"down"})
+
+    def add_frequency_operators(self, run):
+        for f in self.features:
+            fname = "%s:%s" % (self.name, f)
+            ET.SubElement(run, "operator", {"id":"estimatedFrequencyOperator:%s" % fname, "spec":"DeltaExchangeOperator", "parameter":"@feature_freqs_param.s:%s" % fname, "delta":"0.01","weight":"0.1"})
 
     def add_param_logs(self, logger):
         """
@@ -414,6 +437,8 @@ class BaseModel(object):
                 ET.SubElement(logger,"log",{"idref":"featureClockRatePrior.s:%s" % self.name})
                 ET.SubElement(logger,"log",{"idref":"featureClockRateGammaShapePrior.s:%s" % self.name})
 
+        if self.frequencies == "estimate":
+            self.add_frequency_logs(logger)
         if self.rate_variation:
             plate = ET.SubElement(logger, "plate", {
                 "var":"feature",
@@ -422,3 +447,8 @@ class BaseModel(object):
                 "idref":"featureClockRate:%s:$(feature)" % self.name})
             # Log the shape, but not the scale, as it is always 1 / shape
             ET.SubElement(logger,"log",{"idref":"featureClockRateGammaShape:%s" % self.name})
+
+    def add_frequency_logs(self, logger):
+        for f in self.features:
+            fname = "%s:%s" % (self.name, f)
+            ET.SubElement(logger,"log",{"idref":"feature_freqs_param.s:%s" % fname})
