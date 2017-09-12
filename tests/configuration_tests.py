@@ -185,6 +185,14 @@ class Tests(WithConfigAndTempDir):
             self.assertEqual(list(config.calibrations.values())[0].dist, dist)
 
 
+    @raises(ValueError)
+    def test_calibration_bad_bounds(self):
+        config = Configuration(configfile=[
+            config_path("basic").as_posix(),
+            config_path("bad_cal_endpoints", bad=True).as_posix(),
+            ])
+        config.process()
+
     def test_overlong_chain(self):
         config = self._make_cfg('basic')
         config.chainlength = 9e999

@@ -885,7 +885,6 @@ class Configuration(object):
         useless_calibrations = []
         for clade, cs in self.calibration_configs.items():
             orig_clade = clade[:]
-            orig_cs = cs[:]
             originate = False
             # First parse the clade identifier
             # Might be "root", or else a Glottolog identifier
@@ -902,11 +901,12 @@ class Configuration(object):
                 continue
             
             # Next parse the calibration string
-            offset, dist_type, p1, p2 = self.parse_calibration_string(cs)
+            offset, dist_type, p1, p2 = self.parse_calibration_string(orig_clade, cs)
             clade_identifier = "%s_originate" % clade if originate else clade
             self.calibrations[clade_identifier] = Calibration(langs, originate, offset, dist_type, p1, p2)
 
-    def parse_calibration_string(self, cs):
+    def parse_calibration_string(self, orig_clade, cs):
+        orig_cs = cs[:]
         # Find offset
         if cs.count("+") == 1:
             os, dist = cs.split("+")
@@ -919,6 +919,8 @@ class Configuration(object):
         if cs.count("(") == 1 and cs.count(")") == 1:
             dist_type, cs = cs.split("(", 1)
             dist_type = dist_type.lower()
+            if dist_type not in ("uniform", "normal", "lognormal", "rlognormal"):
+                raise ValueError("Calibration \"%s\" for clade %s uses an unknown distribution %s!" % (orig_cs, orig_clade, dist_type))
             cs = cs[0:-1]
         else:
             # Default to normal
@@ -931,6 +933,8 @@ class Configuration(object):
         elif cs.count("-") == 1 and not any([x in cs for x in (",", "<", ">")]):
             # We've got a 95% HPD range
             lower, upper = map(float, cs.split("-"))
+            if upper <= lower:
+                raise ValueError("Calibration \"%s\" for clade %s has an upper bound which is not higher than its lower bound!" % (orig_cs, orig_clade))
             mid = (lower+upper) / 2.0
             if dist_type == "normal":
                 p1 = (upper + lower) / 2.0
