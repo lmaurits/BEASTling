@@ -232,3 +232,22 @@ Each clock section *must* contain the following parameters, i.e. they are mandat
    * "random" (Random local clock)
 
 For more information on the available models, see :doc:`clocks`.
+
+geography section
+-----------------
+
+Adding a ``geography`` section to your BEASTling config file will include a phylogeographic component in your analysis.  Only a single ``geography`` section can exist in a configuration file, and unlike ``clock`` and ``model`` sections, ``geography`` sections do not need to be named (i.e. do not use ``[geography mygeo]`` or similar).
+
+A ``geography`` section does not require any parameters.  Spherical phylogeography is the only phylogeographic model currently supported.  This model requires latitude and longitude coordinates for each language in the analysis.  If your languages are labelled using Glottocodes or ISO codes, location information will automatically be sourced from Glottolog.  Languages for which Glottolog is missing location data will be excluded from the analysis (and if BEASTling is run in ``--verbose`` mode you will be notified of this).  If you are not using Glottocodes or ISO codes, you can provide your own location data using using 
+
+Your ``geography`` section *may* optionally contain any of the following parameters.
+
+* ``clock``: should specify the name of a clock model (just like the ``clock`` parameter in a ``[model]`` section) which will be used for the phylogeographic diffusion model.  If this is not provided, the phylogeographic model will use the analysis' default clock, which will be shared with any language models in the analysis.  In general, this is not desirable, so unless you are running a geography-only analysis, you should specify a separate geographic clock.
+* ``sampling_points``: by default, phylogeographic analyses integrate over the locations of all internal nodes in the trees.  You can ask BEAST to sample the locations for some interior points using this parameter.  Perhaps you are actually interested in inferring the location of some well-defined point in your tree (e.g. in a phylogeographic analysis of Indo-European you may be interested in the location of proto-Germanic or proto-Balto-Slavic).  Even if you are not interested in these locations, specifying some sampling points (say 5) may actually speed the analysis up somewhat, as changes to the tree topology do not require likelihood calculations to propagate all the way up the tree.  Your sampling points may be specified using Glottocodes or names from Glottolog (e.g. "Germanic").
+
+geo_priors section
+------------------
+
+In the same way that a ``[calibration]`` section is used to add temporal calibrations to an analysis, a ``[geo_priors]`` section can be used to add spatial calibrations to an analysis.  This only makes sense for analyses which include a phylogeographic component, and if your configuration file contains a ``[geo_priors]`` section but not a ``[geography]`` section, BEASTling will complain loudly.
+
+The name of each parameter should be a comma-separated list of family names or Glottocodes, exactly as per temporal calibrations.  The value should be a path to a `KML <https://en.wikipedia.org/wiki/Keyhole_Markup_Language>`_ file specifying a polygon which represents the region you believe the MRCA of the listed family/families should be confined to.  Note that, unlike data files, the contents of the KML file will not end up included in the BEAST XML.  This means the XML and KML file(s) will need to be distributed together for the analysis to be reproducable.
