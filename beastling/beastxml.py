@@ -144,8 +144,8 @@ class BeastXml(object):
         """
         Add tree-related <state> sub-elements.
         """
-        tree = ET.SubElement(self.state, "tree", {"id":"Tree.t:beastlingTree", "name":"stateNode"})
-        self.add_taxon_set(tree, "taxa", self.config.languages, define_taxa=True)
+        self.tree = ET.SubElement(self.state, "tree", {"id":"Tree.t:beastlingTree", "name":"stateNode"})
+        self.add_taxon_set(self.tree, "taxa", self.config.languages, define_taxa=True)
         param = ET.SubElement(self.state, "parameter", {"id":"birthRate.t:beastlingTree","name":"stateNode"})
         param.text="1.0"
 
@@ -155,7 +155,7 @@ class BeastXml(object):
         """
         # If a starting tree is specified, use it...
         if self.config.starting_tree:
-            init = ET.SubElement(self.run, "init", {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "spec":"beast.util.TreeParser","IsLabelledNewick":"true", "newick":self.config.starting_tree})
+            self.init = ET.SubElement(self.run, "init", {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "spec":"beast.util.TreeParser","IsLabelledNewick":"true", "newick":self.config.starting_tree})
         # ...if not, use the simplest random tree initialiser possible
         else:
             # If we have non-trivial monophyly constraints, use ConstrainedRandomTree
@@ -169,23 +169,23 @@ class BeastXml(object):
                 self.add_randomtree_init()
 
     def add_randomtree_init(self):
-        init = ET.SubElement(self.run, "init", {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "taxonset":"@taxa", "spec":"beast.evolution.tree.RandomTree"})
-        popmod = ET.SubElement(init, "populationModel", {"spec":"ConstantPopulation"})
+        self.init = ET.SubElement(self.run, "init", {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "taxonset":"@taxa", "spec":"beast.evolution.tree.RandomTree"})
+        popmod = ET.SubElement(self.init, "populationModel", {"spec":"ConstantPopulation"})
         ET.SubElement(popmod, "popSize", {"spec":"parameter.RealParameter","value":"1"})
 
     def add_simplerandomtree_init(self):
-        ET.SubElement(self.run, "init", {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "taxonset":"@taxa", "spec":"beast.evolution.tree.SimpleRandomTree"})
+        self.init = ET.SubElement(self.run, "init", {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "taxonset":"@taxa", "spec":"beast.evolution.tree.SimpleRandomTree"})
 
     def add_constrainedrandomtree_init(self):
-        init = ET.SubElement(self.run, "init", {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "taxonset":"@taxa", "spec":"beast.evolution.tree.ConstrainedRandomTree", "constraints":"@constraints"})
-        popmod = ET.SubElement(init, "populationModel", {"spec":"ConstantPopulation"})
+        self.init = ET.SubElement(self.run, "init", {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "taxonset":"@taxa", "spec":"beast.evolution.tree.ConstrainedRandomTree", "constraints":"@constraints"})
+        popmod = ET.SubElement(self.init, "populationModel", {"spec":"ConstantPopulation"})
         ET.SubElement(popmod, "popSize", {"spec":"parameter.RealParameter","value":"1"})
 
     def add_distributions(self):
         """
         Add all probability distributions under the <run> element.
         """
-        self.master_distribution = ET.SubElement(self.run,"distribution",{"id":"posterior","spec":"util.CompoundDistribution"})
+        self.posterior = ET.SubElement(self.run,"distribution",{"id":"posterior","spec":"util.CompoundDistribution"})
         self.add_prior()
         self.add_likelihood()
 
@@ -193,7 +193,7 @@ class BeastXml(object):
         """
         Add all prior distribution elements.
         """
-        self.prior = ET.SubElement(self.master_distribution,"distribution",{"id":"prior","spec":"util.CompoundDistribution"})
+        self.prior = ET.SubElement(self.posterior,"distribution",{"id":"prior","spec":"util.CompoundDistribution"})
         self.add_monophyly_constraints()
         self.add_calibrations()
         self.add_tree_prior()
@@ -318,7 +318,7 @@ class BeastXml(object):
         """
         Add all likelihood distribution elements.
         """
-        self.likelihood = ET.SubElement(self.master_distribution,"distribution",{"id":"likelihood","spec":"util.CompoundDistribution"})
+        self.likelihood = ET.SubElement(self.posterior,"distribution",{"id":"likelihood","spec":"util.CompoundDistribution"})
         for model in self.config.all_models:
             model.add_likelihood(self.likelihood)
 
