@@ -54,7 +54,7 @@ Using Glottocodes and alphabetical data:
 CLDF format
 -----------
 
-BEASTling also supports the `Cross-Linguistic Data Format <https://github.com/glottobank/cldf>`_ standard.  In this format, each line of the CSV file contains a single data point for a single language.
+BEASTling also supports the `Cross-Linguistic Data Format <http://cldf.clld.org>`_ standard.  In this format, each line of the CSV file contains a single data point for a single language.
 
 The first line of the file must be a header, giving the column names for the rest of the file.  The three column names must be ``Language_ID``, ``Feature_ID`` or ``Parameter_ID``, and ``Value`` (these column names are how BEASTling recognises a file as a CLDF file, so if you change them the file will be parsed as a BEASTling format file).  As before, Language_IDs can be arbitrary strings (without ``,``), but must be ISO codes or Glottocodes if you want to use all features of BEASTling.  Feature_IDs and Values can be arbitrary strings (no ``,``), and ``?`` can be used to indicate missing data.
 
