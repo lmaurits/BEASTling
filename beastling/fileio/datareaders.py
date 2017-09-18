@@ -87,3 +87,47 @@ def load_cldf_data(reader, filename):
             data[lang] = collections.defaultdict(lambda :"?")
         data[lang][row[feature_column]] = row["Value"]
     return data
+
+def load_location_data(filename):
+
+    # Use CSV dialect sniffer in all other cases
+    with open(str(filename), "r") as fp: # Cast PosixPath to str
+        # On large files, csv.Sniffer seems to need a lot of datta to make a
+        # successful inference...
+        sample = fp.read(1024)
+        while True:
+            try:
+                dialect = csv.Sniffer().sniff(sample, [",","\t"])
+                break
+            except csv.Error:
+                sample += fp.read(1024)
+
+    # Read
+    with UnicodeDictReader(filename, dialect=dialect) as reader:
+        # Identify fieldnames
+        for fieldname in reader.fieldnames:
+            if fieldname.lower() in ("iso", "glotto", "lang", "language", "language_id"):
+                break
+        else:
+            raise ValueError("Could not find a language identifier column in location data file %s" % filename)
+        lang_field = fieldname
+
+        for fieldname in reader.fieldnames:
+            if fieldname.lower() in ("latitude", "lat"):
+                break
+        else:
+            raise ValueError("Could not find a latitude column in location data file %s" % filename)
+        latitude_field = fieldname
+
+        for fieldname in reader.fieldnames:
+            if fieldname.lower() in ("longitude", "lon", "long"):
+                break
+        else:
+            raise ValueError("Could not find a longitude column in location data file %s" % filename)
+        longitude_field = fieldname
+
+        locations = {}
+        for row in reader:
+            locations[row[lang_field].strip()] = float(row[latitude_field]), float(row[longitude_field])
+
+        return locations

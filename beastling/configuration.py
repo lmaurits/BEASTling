@@ -15,6 +15,7 @@ from six.moves.urllib.request import FancyURLopener
 from clldutils.inifile import INI
 from clldutils.dsv import reader
 
+from beastling.fileio.datareaders import load_location_data
 import beastling.clocks.strict as strict
 import beastling.clocks.relaxed as relaxed
 import beastling.clocks.random as random
@@ -449,6 +450,7 @@ class Configuration(object):
                 if isocode:
                     self.classifications[isocode] = classification
                 glottocode2node[glottocode] = node
+
         # Load geographic metadata
         for t in reader(
                 get_glottolog_data('geo', self.glottolog_release), namedtuples=True):
@@ -456,17 +458,12 @@ class Configuration(object):
                 self.glotto_macroareas[t.glottocode] = t.macroarea
                 for isocode in t.isocodes.split():
                     self.glotto_macroareas[isocode] = t.macroarea
-            if self.location_data:
-                continue # Use user-supplied data instead
 
             if t.latitude and t.longitude:
                 latlon = (float(t.latitude), float(t.longitude))
                 self.locations[t.glottocode] = latlon
                 for isocode in t.isocodes.split():
                     self.locations[isocode] = latlon
-
-        if self.location_data:
-            return
 
         # Second pass of geographic data to handle dialects, which inherit
         # their parent language's location
@@ -511,12 +508,9 @@ class Configuration(object):
     def load_user_geo(self):
         if not self.location_data:
             return
-        with io.open(self.location_data, encoding="UTF-8") as fp:
-            # Skip header
-            fp.readline()
-            for line in fp:
-                iso, lat, lon = line.split(",")
-                self.locations[iso.strip().lower()] = float(lat), float(lon)
+        # Read location data from file, patching (rather than replacing) Glottolog
+        for language, location in load_location_data(self.location_data).items():
+            self.locations[language] = location
 
     def build_language_filter(self):
         """
