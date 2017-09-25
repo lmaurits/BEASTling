@@ -122,7 +122,7 @@ def _do_test(config_files):
             if config_files in skip:
                 raise SkipTest
             check_call(
-                ['beast', '-overwrite', temp_filename],
+                ['beast', '-java', '-overwrite', temp_filename],
                 cwd=TEST_CASE.tmp.as_posix(),
                 stdout=PIPE,
                 stderr=PIPE)
