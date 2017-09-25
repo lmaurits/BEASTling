@@ -106,7 +106,7 @@ def load_location_data(filename):
     with UnicodeDictReader(filename, dialect=dialect) as reader:
         # Identify fieldnames
         for fieldname in reader.fieldnames:
-            if fieldname.lower() in ("iso", "glotto", "lang", "language", "language_id"):
+            if fieldname.lower() in _language_column_names:
                 break
         else:
             raise ValueError("Could not find a language identifier column in location data file %s" % filename)
