@@ -261,18 +261,26 @@ class BeastXml(object):
         definition of the tree).  If this is not the case, passing
         define_taxa=True will define, rather than refer to, the taxa.
         """
+        # Kill duplicates
+        langs = set(langs)
         # Refer to any previous TaxonSet with the same languages
         for idref, taxa in self._taxon_sets.items():
-            if set(langs) == taxa:
+            if langs == taxa:
                 ET.SubElement(parent, "taxonset", {"idref" : idref})
                 return
         # Otherwise, create and register a new TaxonSet
         taxonset = ET.SubElement(parent, "taxonset", {"id" : label, "spec":"TaxonSet"})
-        plate = ET.SubElement(taxonset, "plate", {
-            "var":"language",
-            "range":",".join(langs)})
-        ET.SubElement(plate, "taxon", {"id" if define_taxa else "idref" :"$(language)"})
-        self._taxon_sets[label] = set(langs)
+        ## If the taxonset is more than 3 languages in size, use plate notation to minimise XML filesize
+        if len(langs) > 3:
+            plate = ET.SubElement(taxonset, "plate", {
+                "var":"language",
+                "range":",".join(langs)})
+            ET.SubElement(plate, "taxon", {"id" if define_taxa else "idref" :"$(language)"})
+        ## Otherwise go for the more readable notation...
+        else:
+            for lang in langs:
+                ET.SubElement(taxonset, "taxon", {"id" if define_taxa else "idref" : lang})
+        self._taxon_sets[label] = langs
 
     def add_tree_prior(self):
         """
