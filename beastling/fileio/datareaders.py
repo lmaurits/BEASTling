@@ -131,6 +131,9 @@ def load_location_data(filename):
 
         locations = {}
         for row in reader:
-            locations[row[lang_field].strip()] = float(row[latitude_field]), float(row[longitude_field])
+            (lat, lon) = row[latitude_field], row[longitude_field]
+            lat = float(lat) if lat != "?" else lat
+            lon = float(lon) if lon != "?" else lon
+            locations[row[lang_field].strip()] = (lat, lon)
 
         return locations
