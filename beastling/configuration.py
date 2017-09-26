@@ -516,8 +516,10 @@ class Configuration(object):
         if not self.location_data:
             return
         # Read location data from file, patching (rather than replacing) Glottolog
-        for language, location in load_location_data(self.location_data).items():
-            self.locations[language] = location
+        location_files = [x.strip() for x in self.location_data.split(",")]
+        for loc_file in location_files:
+            for language, location in load_location_data(loc_file).items():
+                self.locations[language] = location
 
     def build_language_filter(self):
         """
