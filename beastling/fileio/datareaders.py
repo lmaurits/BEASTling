@@ -5,7 +5,8 @@ import collections
 from clldutils.dsv import UnicodeDictReader
 
 
-def load_data(filename, file_format=None, lang_column=None):
+def load_data(filename, file_format=None, lang_column=None, value_column=None):
+    print(file_format)
     # Handle CSV dialect issues
     if filename == 'stdin':
         filename = sys.stdin
@@ -45,7 +46,7 @@ def load_data(filename, file_format=None, lang_column=None):
 
         # Load data
         if file_format == 'cldf':
-            data = load_cldf_data(reader, filename)
+            data = load_cldf_data(reader, value_column, filename)
         elif file_format == 'beastling':
             data = load_beastling_data(reader, lang_column, filename)
         else:
@@ -73,7 +74,9 @@ def load_beastling_data(reader, lang_column, filename):
     return data
 
 
-def load_cldf_data(reader, filename):
+def load_cldf_data(reader, value_column, filename):
+    if not value_column:
+        value_column = "Value"
     if "Feature_ID" in reader.fieldnames:
         feature_column = "Feature_ID"
     elif "Parameter_ID" in reader.fieldnames:
@@ -85,7 +88,7 @@ def load_cldf_data(reader, filename):
         lang = row["Language_ID"]
         if lang not in data:
             data[lang] = collections.defaultdict(lambda :"?")
-        data[lang][row[feature_column]] = row["Value"]
+        data[lang][row[feature_column]] = row[value_column]
     return data
 
 def load_location_data(filename):
