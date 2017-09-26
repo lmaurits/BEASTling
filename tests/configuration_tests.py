@@ -15,6 +15,8 @@ from beastling.configuration import (
 from beastling.beastxml import BeastXml
 from .util import WithConfigAndTempDir, config_path
 
+def check_lat_lon(prov_lat, prov_lon, target_lat, target_lon):
+    return round(prov_lat, 2) == target_lat and round(prov_lon, 2) == target_lon
 
 class Tests(WithConfigAndTempDir):
     def _make_cfg(self, *names):
@@ -271,3 +273,21 @@ class Tests(WithConfigAndTempDir):
         xml = BeastXml(config).tostring().decode('utf8')
         self.assertTrue("ascertained=\"true\"" in xml)
         self.assertTrue("excludeto=\"1\"" in xml)
+
+    def test_user_locations(self):
+        # First check that we correctly load Glottolog's locations for aiw and abp
+        config = self._make_cfg('basic', 'geo')
+        config.process()
+        print(config.locations["aiw"])
+        self.assertTrue(check_lat_lon(*config.locations["aiw"], 5.95, 36.57))
+        self.assertTrue(check_lat_lon(*config.locations["abp"], 15.41, 120.20))
+        # Now check that we can overwrite just one of these...
+        config = self._make_cfg('basic', 'geo', 'geo_user_loc')
+        config.process()
+        self.assertTrue(check_lat_lon(*config.locations["aiw"], 4.20, 4.20))
+        self.assertTrue(check_lat_lon(*config.locations["abp"], 15.41, 120.20))
+        # Now check that we can overwrite them both using multiple files
+        config = self._make_cfg('basic', 'geo', 'geo_user_loc_multifile')
+        config.process()
+        self.assertTrue(check_lat_lon(*config.locations["aiw"], 4.20, 4.20))
+        self.assertTrue(check_lat_lon(*config.locations["abp"], 6.66, 6.66))
