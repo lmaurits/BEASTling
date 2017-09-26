@@ -142,6 +142,8 @@ class Configuration(object):
         """Either a Newick tree string or the name of a file containing a Newick tree string which represents the desired monophyly constraints if a classification other than Glottolog is required."""
         self.overlap = "union"
         """Either the string 'union' or the string 'intersection', controlling how to handle multiple datasets with non-equal language sets."""
+        self.path_sampling = False
+        """A boolean value, controlling whether to do a standard MCMC run or a Path Sampling analysis for marginal likelihood estimation."""
         self.sample_branch_lengths = True
         """A boolean value, controlling whether or not to estimate tree branch lengths."""
         self.sample_from_prior = False
@@ -207,6 +209,7 @@ class Configuration(object):
             'MCMC': {
                 'chainlength': p.getint,
                 'sample_from_prior': p.getboolean,
+                'path_sampling': p.getboolean,
             },
             'languages': {
                 'exclusions': p.get,
@@ -230,6 +233,10 @@ class Configuration(object):
 
         ## MCMC
         self.sample_from_prior |= self.prior
+        if self.prior and self.path_sampling:
+            raise ValueError(
+                "Cannot sample from the prior during a path sampling analysis."
+            )
         if self.prior and not self.basename.endswith("_prior"):
             self.basename += "_prior"
 

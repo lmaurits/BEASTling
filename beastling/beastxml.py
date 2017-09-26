@@ -116,6 +116,22 @@ class BeastXml(object):
         Add the <run> element and all its descendants, which is most of the
         analysis.
         """
+        if self.config.path_sampling:
+            self.add_path_sampling_run()
+        else:
+            self.add_standard_sampling_run()
+        self.add_state()
+        self.add_init()
+        self.add_distributions()
+        self.add_operators()
+        self.add_loggers()
+
+    def add_standard_sampling_run(self):
+        """
+        Add the <run> element (only) for a standard analysis, i.e. without
+        path sampling.  The <state>, <init> etc. are added to whatever this
+        method names self.run.
+        """
         attribs = {}
         attribs["id"] = "mcmc"
         attribs["spec"] = "MCMC"
@@ -123,11 +139,31 @@ class BeastXml(object):
         if self.config.sample_from_prior:
             attribs["sampleFromPrior"] = "true"
         self.run = ET.SubElement(self.beast, "run", attrib=attribs)
-        self.add_state()
-        self.add_init()
-        self.add_distributions()
-        self.add_operators()
-        self.add_loggers()
+
+    def add_path_sampling_run(self):
+        """
+        Add the <run> element (only) for a path sampling analysis.  We call
+        this self.ps_run and assign the nested <mcmc> element to self.run,
+        so that <state>, <init> etc. will be correctly added there.
+        """
+        self.ps_run = ET.SubElement(self.beast, "run", {
+            "id": "ps",
+            "spec": "beast.inference.PathSampler",
+            "chainLength": str(self.config.chainlength),
+            "nrOfSteps": "8",
+            "alpha": "0.3",
+            "rootdir": "/tmp/step",
+            "preBurnin": str(self.config.chainlength),
+            "deleteOldLogs": "true",
+            })
+        self.ps_run.text = """cd $(dir)
+java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -java -seed $(seed) beast.xml"""
+
+        attribs = {}
+        attribs["id"] = "mcmc"
+        attribs["spec"] = "MCMC"
+        attribs["chainLength"] = str(self.config.chainlength)
+        self.run = ET.SubElement(self.ps_run, "mcmc", attrib=attribs)
 
     def add_state(self):
         """
