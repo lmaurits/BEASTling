@@ -6,7 +6,6 @@ from clldutils.dsv import UnicodeDictReader
 
 
 def load_data(filename, file_format=None, lang_column=None, value_column=None):
-    print(file_format)
     # Handle CSV dialect issues
     if filename == 'stdin':
         filename = sys.stdin
