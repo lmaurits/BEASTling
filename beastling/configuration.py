@@ -362,9 +362,11 @@ class Configuration(object):
         problems.
         """
 
-        # Add dependency notice if required
+        # Add dependency notices if required
         if self.monophyly and not self.starting_tree:
             self.messages.append("[DEPENDENCY] ConstrainedRandomTree is implemented in the BEAST package BEASTLabs.")
+        if self.path_sampling:
+            self.messages.append("[DEPENDENCY] Path sampling is implemented in the BEAST package MODEL_SELECTION.")
 
         # BEAST can't handle really long chains
         if self.chainlength > _BEAST_MAX_LENGTH:
