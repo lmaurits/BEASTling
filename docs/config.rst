@@ -106,7 +106,7 @@ Valid macroareas are: ``Africa``, ``Australia``, ``Eurasia``, ``North America``,
    * If set to ``union`` (the default), languages missing in one data set will be added with missing datapoints ("?") for all features.
    * If set to ``intersection``, only languages present in all data sets will be used.
 
-* ``starting_tree``: Used to provide a starting tree.  Can be a Newick format tree or the name of a file which contains a Newick format tree.  If not specified, a random starting tree (compatible with monophyly constraints, if active) will be used.
+* ``starting_tree``: Used to provide a starting tree.  Can be a Newick format tree or the name of a file which contains a Newick format tree.  If not specified, a random starting tree (compatible with monophyly constraints, if active) will be used.  The languages in the provided tree may be a superset of the languages in your analysis - the starting tree will be pruned appropriately.  Note that BEASTling currently does not check that your starting tree is compatible with your monophyly constraints, if any, so it's up to you to do this (if you don't, the starting prior probability will be zero and BEAST will not run).
 
 * ``sample_branch_lengths``: If True, the branch lengths of the starting tree.  If False, the starting branch lengths will be kept fixed.  Use this in conjunction with ``starting_tree`` when you have a tree you trust and want to fit model parameters to it.  Default is True.
 
