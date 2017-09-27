@@ -22,6 +22,7 @@ class BaseModel(object):
         self.data_filename = model_config["data"] 
         self.clock = model_config.get("clock", "")
         self.features = model_config.get("features",["*"])
+        self.reconstruct = model_config.get("reconstruct",None)
         self.exclusions = model_config.get("exclusions",None)
         self.constant_feature = False
         self.constant_feature_removed = False
@@ -37,6 +38,7 @@ class BaseModel(object):
         self.substitution_name = self.__class__.__name__
         self.data_separator = ","
         self.use_robust_eigensystem = model_config.get("use_robust_eigensystem", False)
+        self.metadata = []
 
         # Load the entire dataset from the file
         self.data = load_data(self.data_filename, file_format=model_config.get("file_format",None), lang_column=model_config.get("language_column",None), value_column=model_config.get("value_column",None))
@@ -62,6 +64,16 @@ class BaseModel(object):
         if self.exclusions:
             self.features = [f for f in self.features if f not in self.exclusions]
         self.feature_filter = set(self.features)
+
+        if self.reconstruct == ["*"]:
+            self.reconstruct = self.features[:]
+        elif self.reconstruct:
+            if self.exclusions:
+                self.reconstruct = [f for f in self.reconstruct if f not in self.exclusions]
+            else:
+                pass
+        else:
+            self.reconstruct = []
 
     def process(self):
         """
@@ -234,9 +246,11 @@ class BaseModel(object):
         pass
 
     def add_state(self, state):
-        """
+        """Construct the model's state nodes.
+
         Add parameters for Gamma-distributed rate heterogenetiy, if
         configured.
+
         """
 
         if self.frequencies == "estimate":
@@ -301,8 +315,17 @@ class BaseModel(object):
         dataset.
         """
         for n, f in enumerate(self.features):
+            if f in  self.reconstruct:
+                treespec = "AncestralStateTreeLikelihood"
+                ambigs = "false"
+            else:
+                treespec = "TreeLikelihood"
+                ambigs = "true"
             fname = "%s:%s" % (self.name, f)
-            attribs = {"id":"featureLikelihood:%s" % fname,"spec":"TreeLikelihood","useAmbiguities":"true"}
+            attribs = {"id":"featureLikelihood:%s" % fname,"spec":treespec,"useAmbiguities":ambigs}
+            if f in  self.reconstruct:
+                self.metadata.append(attribs["id"])
+                attribs["tag"] = "recon_%s" % fname
             if self.pruned:
                 distribution = ET.SubElement(likelihood, "distribution",attribs)
                 # Create pruned tree
