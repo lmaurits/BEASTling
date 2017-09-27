@@ -105,8 +105,11 @@ def do_generate(args):
         traceback.print_exc()
         sys.exit(2)
 
-    # If verbose mode is on, print any messages which were generated while
-    # processing the configuration
+    # Print urgent messages, whether verbose mode is on or not
+    for msg in config.urgent_messages:
+        errmsg(msg + "\n")
+    # If verbose mode is on, print any non-urgent messages which were generated
+    # while # processing the configuration
     if args.verbose:
         for msg in config.messages:
             errmsg(msg + "\n")

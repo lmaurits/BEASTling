@@ -170,6 +170,7 @@ class Configuration(object):
         self.configfile = None
         self.files_to_embed = []
         self.messages = []
+        self.urgent_messages = []
         self.message_flags = []
 
         if configfile:
@@ -229,6 +230,9 @@ class Configuration(object):
         }.items():
             for opt, getter in opts.items():
                 if p.has_option(sec, opt):
+                    if opt == "location_data":
+                        self.urgent_messages.append("[WARNING] Specifying location data via 'location_data' in [languages] is deprecated!  Please use 'data' in [geography] instead.  Your current config will work for now but may not in future releases.")
+                        pass # Deprecation warning
                     setattr(self, opt, getter(sec, opt))
 
         ## MCMC
@@ -345,6 +349,10 @@ class Configuration(object):
                 value = p.getboolean(section, key)
             elif key == "sampling_points":
                 value = self.handle_file_or_list(value)
+            elif key == "data":
+                # Just set the Configuration class attribute, don't put it in this dict
+                self.location_data = value
+                continue 
             cfg[key] = value
         return cfg
 
