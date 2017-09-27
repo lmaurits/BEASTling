@@ -279,7 +279,6 @@ class Tests(WithConfigAndTempDir):
         # First check that we correctly load Glottolog's locations for aiw and abp
         config = self._make_cfg('basic', 'geo')
         config.process()
-        print(config.locations["aiw"])
         self.assertTrue(check_lat_lon(config.locations["aiw"], 5.95, 36.57))
         self.assertTrue(check_lat_lon(config.locations["abp"], 15.41, 120.20))
         # Now check that we can overwrite just one of these...
