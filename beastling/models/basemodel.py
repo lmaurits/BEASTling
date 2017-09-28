@@ -322,10 +322,11 @@ class BaseModel(object):
                 treespec = "TreeLikelihood"
                 ambigs = "true"
             fname = "%s:%s" % (self.name, f)
+            NHX_safe_fname = "%s.%s" % (self.name, f)   # colons in annotation names make ete3's parser sad!
             attribs = {"id":"featureLikelihood:%s" % fname,"spec":treespec,"useAmbiguities":ambigs}
             if f in  self.reconstruct:
                 self.metadata.append(attribs["id"])
-                attribs["tag"] = "recon_%s" % fname
+                attribs["tag"] = "recon_%s" % NHX_safe_fname
             if self.pruned:
                 distribution = ET.SubElement(likelihood, "distribution",attribs)
                 # Create pruned tree
