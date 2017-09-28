@@ -1051,6 +1051,7 @@ class Configuration(object):
             self.messages.append("[INFO] %s tree includes languages not present in any data set and will be pruned." % tree_type.capitalize())
         # Get the tree looking nice
         tree.remove_redundant_nodes()
+        tree.remove_inernal_names()
         if tree_type == "starting":
             tree.resolve_polytomies()
         # Remove lengths for a monophyly tree
