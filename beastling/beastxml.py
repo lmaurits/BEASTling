@@ -176,6 +176,16 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         for model in self.config.all_models:
             model.add_state(self.state)
 
+    def add_tip_heights(self, tree):
+        trait_string = "\n".join("{:s} = {:}".format(lang, age)
+                                 for lang, age in self.config.tip_calibrations.items())
+        datetrait = ET.SubElement(tree, "trait",
+                      {"id": "datetrait",
+                       "spec": "beast.evolution.tree.TraitSet",
+                       "taxa": "@taxa",
+                       "traitname": "date"})
+        datetrait.text = trait_string
+
     def add_tree_state(self):
         """
         Add tree-related <state> sub-elements.
@@ -184,11 +194,17 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         self.add_taxon_set(self.tree, "taxa", self.config.languages, define_taxa=True)
         param = ET.SubElement(self.state, "parameter", {"id":"birthRate.t:beastlingTree","name":"stateNode"})
         param.text="1.0"
+        try:
+            if self.config.tip_calibrations:
+                self.add_tip_heights(tree)
+        except AttributeError:
+            pass
 
     def add_init(self):
         """
         Add the <init> element and all its descendants.
         """
+
         # If a starting tree is specified, use it...
         if self.config.starting_tree:
             self.init = ET.SubElement(self.run, "init", {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "spec":"beast.util.TreeParser","IsLabelledNewick":"true", "newick":self.config.starting_tree})
@@ -285,7 +301,7 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             if dist_type != "Uniform":
                 ET.SubElement(dist, "parameter", {"id":"CalibrationDistribution.%s.param1" % clade, "name":p1_names[dist_type], "estimate":"false"}).text = str(cal.param1)
                 ET.SubElement(dist, "parameter", {"id":"CalibrationDistribution.%s.param2" % clade, "name":p2_names[dist_type], "estimate":"false"}).text = str(cal.param2)
-
+  
     def add_taxon_set(self, parent, label, langs, define_taxa=False):
         """
         Add a TaxonSet element with the specified set of languages.
@@ -304,6 +320,19 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             if langs == taxa:
                 ET.SubElement(parent, "taxonset", {"idref" : idref})
                 return
+        if len(langs) == 1:
+            # At some point, we may be able to use a plain taxon as a
+            # taxonset.  FIXME: Currently, we are ignoring the label
+            # given to us, because it is likely to be the name of a
+            # taxon
+            label = "set_of_only_%s" % langs[0]
+            taxonset = ET.SubElement(parent, "taxonset",
+                                     {"id": label,
+                                      "taxon": "@%s" % langs[0],
+                                      "spec": "TaxonSet"})
+            self._taxon_sets[label] = set(langs)
+            return
+
         # Otherwise, create and register a new TaxonSet
         taxonset = ET.SubElement(parent, "taxonset", {"id" : label, "spec":"TaxonSet"})
         ## If the taxonset is more than 3 languages in size, use plate notation to minimise XML filesize
@@ -430,6 +459,20 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         # Birth rate scaler
         # Birth rate is *always* scaled.
         ET.SubElement(self.run, "operator", {"id":"YuleBirthRateScaler.t:beastlingTree","spec":"ScaleOperator","parameter":"@birthRate.t:beastlingTree", "scaleFactor":"0.5", "weight":"3.0"})
+
+        try:
+            tips = self.config.tip_operators
+            if tips:
+                tiprandomwalker = ET.SubElement(self.run, "operator",
+                                            {"id": "TipDatesScaler",
+                                             "spec": "TipDatesScaler",
+                                             "scaleFactor": "1.1",
+                                             "tree": "@Tree.t:beastlingTree",
+                                             "weight": "3.0"})
+                self.add_taxon_set(tiprandomwalker, "movingTips", tips)
+        except AttributeError:
+            # There were no tips to calibrate
+            pass
 
     def add_loggers(self):
         """

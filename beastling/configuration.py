@@ -24,6 +24,7 @@ import beastling.models.geo as geo
 import beastling.models.bsvs as bsvs
 import beastling.models.covarion as covarion
 import beastling.models.mk as mk
+import beastling.models.dollo as dollo
 
 
 _BEAST_MAX_LENGTH = 2147483647
@@ -781,6 +782,10 @@ class Configuration(object):
                 if "mk_used" not in self.message_flags:
                     self.message_flags.append("mk_used")
                     self.messages.append(mk.MKModel.package_notice)
+            elif config["model"].lower() == "dollo":
+                model = dollo.StochasticDolloModel(config, self)
+                if dollo.StochasticDolloModel.package_notice not in self.messages:
+                    self.messages.append(dollo.StochasticDolloModel.package_notice)
             else:
                 try:
                     sys.path.insert(0, os.getcwd())
@@ -904,10 +909,16 @@ class Configuration(object):
 
     def instantiate_calibrations(self):
         self.calibrations = {}
+        """ Calibration distributions for calibrated clades """
+        self.tip_calibrations = {}
+        """ Starting heights for calibrated tips """
+        self.tip_operators = []
+        """ Tips that need re-heighting operators """
         useless_calibrations = []
         for clade, cs in self.calibration_configs.items():
             orig_clade = clade[:]
             originate = False
+            is_tip_calibration = False
             # First parse the clade identifier
             # Might be "root", or else a Glottolog identifier
             if clade.lower() == "root":
@@ -918,16 +929,36 @@ class Configuration(object):
                     originate = True
                     clade = clade[10:-1]
                 langs = self.get_languages_by_glottolog_clade(clade)
-            if not langs or (len(langs) == 1 and not originate):
+            if len(langs)==1 and not originate:
+                # Originate calibration on a tip is not a tip
+                # calibration, because we don't need to reheight the
+                # tip etc.
+                self.messages.append("[INFO] Calibration on clade %s taken as tip age calibration, as there was precisely 1 matching languages in analysis." % clade)
+                is_tip_calibration = True
+            elif not langs:
                 self.messages.append("[INFO] Calibration on clade %s MRCA ignored as one or zero matching languages in analysis." % clade)
                 continue
             
-            # Next parse the calibration string
-            offset, dist_type, p1, p2 = self.parse_calibration_string(orig_clade, cs)
-            clade_identifier = "%s_originate" % clade if originate else clade
-            self.calibrations[clade_identifier] = Calibration(langs, originate, offset, dist_type, p1, p2)
+            # Next parse the calibration string and build a Calibration object
+            offset, dist_type, p1, p2 = self.parse_calibration_string(orig_clade, cs, is_tip_calibration)
+            cal_obj = Calibration(langs, originate, offset, dist_type, p1, p2)
 
-    def parse_calibration_string(self, orig_clade, cs):
+            # Choose a name
+            if originate:
+                clade_identifier = "%s_originate" % clade
+            elif is_tip_calibration:
+                clade_identifier = "%s_tip" % clade
+            else:
+                clade_identifier = clade
+
+            # Store the Calibration object under the chosen name
+            if is_tip_calibration:
+                self.tip_calibrations[clade_identifier] = cal_obj
+                self.tip_operators.append(clade_identifier)
+            else:
+                self.calibrations[clade_identifier] = cal_obj
+
+    def parse_calibration_string(self, orig_clade, cs, is_tip_cal=False):
         orig_cs = cs[:]
         # Find offset
         if cs.count("+") == 1:
@@ -979,6 +1010,16 @@ class Configuration(object):
             else:
                 p1 = float(bound.strip())
                 p2 = str(sys.maxsize)
+        elif is_tip_cal:
+            # Last chance: It's a single language pinned to a
+            # single date, so make sure to pin it to that date
+            # late and nothing else is left to do with this
+            # calibration.
+            try:
+                p1 = float(cs)
+                p2 = p1
+            except ValueError:
+                raise ValueError("Could not parse tip calibration \"%s\" for clade %s" % (orig_cs, orig_clade))
         else:
             raise ValueError("Could not parse calibration \"%s\" for clade %s" % (orig_cs, orig_clade))
 
