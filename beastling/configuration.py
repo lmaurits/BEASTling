@@ -660,13 +660,14 @@ class Configuration(object):
                 i = i[0] if i else ''
             return d, i
 
+        N = len(langs)
         # Find the ancestor of all the given languages at at particular depth
         # (i.e. look `depth` nodes below the root of the Glottolog tree)
-        levels = list(set([subgroup(l, depth) for l in langs]))
-        if len(levels) == 1:
+        groupings = list(set([subgroup(l, depth) for l in langs]))
+        if len(groupings) == 1:
             # If all languages belong to the same classificatio at this depth,
             # there are two possibilities
-            if levels[0] == "":
+            if groupings[0] == "":
                 # If the common classification is an empty string, then we know
                 # that there is no further refinement possible, so stop
                 # the recursion here.
@@ -682,8 +683,16 @@ class Configuration(object):
             # up accordingly and then break down each classification
             # individually.
 
-            partition = [[l for l in langs if subgroup(l, depth) == level] for level in levels]
+            # Group up those languages which share a non-blank Glottolog classification
+            partition = [[l for l in langs if subgroup(l, depth) == group] for group in groupings if group != ""]
+            # Add those languages with blank classifications in their own isolate groups
+            for l in langs:
+                if subgroup(l, depth) == "":
+                    partition.append([l,])
+            # Get rid of any empty sets we may have accidentally created
             partition = [part for part in partition if part]
+            # Make sure we haven't lost any langs
+            assert sum((len(p) for p in partition)) == N
             return sorted(
                 [self.make_monophyly_structure(group, depth+1, maxdepth)
                  for group in partition],
