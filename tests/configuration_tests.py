@@ -299,3 +299,23 @@ class Tests(WithConfigAndTempDir):
         config.process()
         self.assertTrue(check_lat_lon(config.locations["aiw"], 4.20, 4.20))
         self.assertTrue(check_lat_lon(config.locations["abp"], 6.66, 6.66))
+
+    def test_monophyly_levels(self):
+        # The isolates.csv data file contains Japanese, Korean and Basque, plus
+        # English and Russian.  When used with standard monophly, we should see
+        # a four-way polytomy with eng+rus grouped (IE) and the rest isolated.
+        config = self._make_cfg('admin', 'mk', 'isolates', 'monophyletic')
+        config.process()
+        tree = newick.loads(config.monophyly_newick)[0]
+        assert len(tree.descendants) == 4
+        for node in tree.descendants:
+            if len(node.descendants) == 2:
+                assert all((l.is_leaf and l.name in ("eng", "rus") for l in node.descendants))
+        # Now we set monophyly_start_depth to 1, i.e. ignore the top-most
+        # level of Glottolog constraints.  Now we should just have a massive
+        # polytomy, since IE no longer matters and eng and rus are in separate
+        # subfamilies (Germanic vs Balto-Slavic).
+        config = self._make_cfg('admin', 'mk', 'isolates', 'monophyletic-start-depth')
+        config.process()
+        tree = newick.loads(config.monophyly_newick)[0]
+        assert len(tree.descendants) == 5
