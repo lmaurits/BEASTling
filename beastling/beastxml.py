@@ -1,6 +1,6 @@
 import datetime
 import itertools
-from math import log
+from math import log, exp
 import sys
 import xml.etree.ElementTree as ET
 
@@ -176,10 +176,19 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         for model in self.config.all_models:
             model.add_state(self.state)
 
-    def add_tip_heights(self, tree):
-        trait_string = "\n".join("{:s} = {:}".format(lang, age)
-                                 for lang, age in self.config.tip_calibrations.items())
-        datetrait = ET.SubElement(tree, "trait",
+    def add_tip_heights(self):
+        string_bits = []
+        for cal in self.config.tip_calibrations.values():
+            if cal.dist in ("normal", "point"):
+                initial_height = cal.param1
+            elif cal.dist == "lognormal":
+                initial_height = exp(cal.param1)
+            elif cal.dist == "uniform":
+                initial_height = (cal.param1  + cal.param2) / 2.0
+            string_bits.append("{:s} = {:}".format(cal.langs[0], initial_height))
+        trait_string = "\n".join(string_bits)
+
+        datetrait = ET.SubElement(self.tree, "trait",
                       {"id": "datetrait",
                        "spec": "beast.evolution.tree.TraitSet",
                        "taxa": "@taxa",
@@ -194,11 +203,8 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         self.add_taxon_set(self.tree, "taxa", self.config.languages, define_taxa=True)
         param = ET.SubElement(self.state, "parameter", {"id":"birthRate.t:beastlingTree","name":"stateNode"})
         param.text="1.0"
-        try:
-            if self.config.tip_calibrations:
-                self.add_tip_heights(tree)
-        except AttributeError:
-            pass
+        if self.config.tip_calibrations:
+            self.add_tip_heights()
 
     def add_init(self):
         """
@@ -272,7 +278,12 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         """
         p1_names = {"Normal":"mean", "LogNormal":"M","Uniform":"lower"}
         p2_names = {"Normal":"sigma", "LogNormal":"S","Uniform":"upper"}
-        for clade, cal in sorted(self.config.calibrations.items()):
+        # This itertools.cchain is a bit ugly, I wonder if we can get away with sticking them all in one list...
+        for clade, cal in sorted(itertools.chain(self.config.calibrations.items(), self.config.tip_calibrations.items())):
+            # Don't add an MRCA cal for point calibrations, those only exist to
+            # cause the initial tip height to be set
+            if cal.dist == "point":
+                continue
             # BEAST's logcombiner chokes on spaces...
             clade = clade.replace(" ","_")
             # Create MRCAPrior node
@@ -283,6 +294,9 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             attribs["tree"] = "@Tree.t:beastlingTree"
             if cal.originate:
                 attribs["useOriginate"] = "true"
+            elif len(cal.langs) == 1:   # If there's only 1 lang and it's not an originate cal, it must be a tip cal
+                attribs["tipsonly"] = "true"
+
             cal_prior = ET.SubElement(self.prior, "distribution", attribs)
 
             # Create "taxonset" param for MRCAPrior
@@ -315,24 +329,12 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         """
         # Kill duplicates
         langs = set(langs)
+        assert(langs) # If we've been asked to build an emtpy TaxonSet, something is very wrong
         # Refer to any previous TaxonSet with the same languages
         for idref, taxa in self._taxon_sets.items():
             if langs == taxa:
                 ET.SubElement(parent, "taxonset", {"idref" : idref})
                 return
-        if len(langs) == 1:
-            # At some point, we may be able to use a plain taxon as a
-            # taxonset.  FIXME: Currently, we are ignoring the label
-            # given to us, because it is likely to be the name of a
-            # taxon
-            label = "set_of_only_%s" % langs[0]
-            taxonset = ET.SubElement(parent, "taxonset",
-                                     {"id": label,
-                                      "taxon": "@%s" % langs[0],
-                                      "spec": "TaxonSet"})
-            self._taxon_sets[label] = set(langs)
-            return
-
         # Otherwise, create and register a new TaxonSet
         taxonset = ET.SubElement(parent, "taxonset", {"id" : label, "spec":"TaxonSet"})
         ## If the taxonset is more than 3 languages in size, use plate notation to minimise XML filesize
@@ -460,19 +462,18 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         # Birth rate is *always* scaled.
         ET.SubElement(self.run, "operator", {"id":"YuleBirthRateScaler.t:beastlingTree","spec":"ScaleOperator","parameter":"@birthRate.t:beastlingTree", "scaleFactor":"0.5", "weight":"3.0"})
 
-        try:
-            tips = self.config.tip_operators
-            if tips:
+        # Add a Tip Date scaling operator if required
+        if self.config.tip_calibrations:
+            # Get a list of taxa with non-point tip cals
+            tip_taxa = [cal.langs[0] for cal in self.config.tip_calibrations.values() if cal.dist != "point"]
+            if tip_taxa:
                 tiprandomwalker = ET.SubElement(self.run, "operator",
-                                            {"id": "TipDatesScaler",
-                                             "spec": "TipDatesScaler",
-                                             "scaleFactor": "1.1",
+                                            {"id": "TipDatesRandomWalker",
+                                             "spec": "TipDatesRandomWalker",
+                                             "windowSize": "1",
                                              "tree": "@Tree.t:beastlingTree",
                                              "weight": "3.0"})
-                self.add_taxon_set(tiprandomwalker, "movingTips", tips)
-        except AttributeError:
-            # There were no tips to calibrate
-            pass
+                self.add_taxon_set(tiprandomwalker, "TaxaWithSampledTips", tip_taxa)
 
     def add_loggers(self):
         """
@@ -522,7 +523,10 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
                 "tree":"@Tree.t:beastlingTree"})
 
         # Log calibration clade heights
-        for clade in sorted(self.config.calibrations.keys()):
+        for clade, cal in sorted(itertools.chain(self.config.calibrations.items(), self.config.tip_calibrations.items())):
+            # Don't log unchanging tip heights
+            if cal.dist == "point":
+                continue
             clade = clade.replace(" ","_")
             ET.SubElement(tracer_logger,"log",{"idref":"%sMRCA" % clade})
 

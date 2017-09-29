@@ -910,8 +910,6 @@ class Configuration(object):
         """ Calibration distributions for calibrated clades """
         self.tip_calibrations = {}
         """ Starting heights for calibrated tips """
-        self.tip_operators = []
-        """ Tips that need re-heighting operators """
         useless_calibrations = []
         for clade, cs in self.calibration_configs.items():
             orig_clade = clade[:]
@@ -952,7 +950,6 @@ class Configuration(object):
             # Store the Calibration object under the chosen name
             if is_tip_calibration:
                 self.tip_calibrations[clade_identifier] = cal_obj
-                self.tip_operators.append(clade_identifier)
             else:
                 self.calibrations[clade_identifier] = cal_obj
 
@@ -1007,13 +1004,14 @@ class Configuration(object):
                 p2 = float(bound.strip())
             else:
                 p1 = float(bound.strip())
-                p2 = str(sys.maxsize)
+                p2 = sys.maxsize
         elif is_tip_cal:
             # Last chance: It's a single language pinned to a
             # single date, so make sure to pin it to that date
             # late and nothing else is left to do with this
             # calibration.
             try:
+                dist_type = "point"
                 p1 = float(cs)
                 p2 = p1
             except ValueError:

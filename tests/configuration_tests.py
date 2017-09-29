@@ -173,7 +173,7 @@ class Tests(WithConfigAndTempDir):
         config = self._make_cfg('basic', 'calibration_lower_bound')
         config.process()
         self.assertEqual(list(config.calibrations.values())[0].dist, "uniform")
-        self.assertEqual(list(config.calibrations.values())[0].param2, str(sys.maxsize))
+        self.assertEqual(list(config.calibrations.values())[0].param2, sys.maxsize)
         # Test upper bound format
         config = self._make_cfg('basic', 'calibration_upper_bound')
         config.process()
