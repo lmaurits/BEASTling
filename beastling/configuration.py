@@ -154,6 +154,7 @@ class Configuration(object):
         self.starting_tree = ""
         """A starting tree in Newick format, or the name of a file containing the same."""
         self.stdin_data = stdin_data
+        self.tree_prior = "yule"
 
         # Glottolog data
         self.glottolog_loaded = False
@@ -931,6 +932,7 @@ class Configuration(object):
                 # tip etc.
                 self.messages.append("[INFO] Calibration on clade %s taken as tip age calibration, as there was precisely 1 matching languages in analysis." % clade)
                 is_tip_calibration = True
+                self.tree_prior = "coalescent"
             elif not langs:
                 self.messages.append("[INFO] Calibration on clade %s MRCA ignored as one or zero matching languages in analysis." % clade)
                 continue
