@@ -499,14 +499,15 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         if self.config.tip_calibrations:
             # Get a list of taxa with non-point tip cals
             tip_taxa = [cal.langs[0] for cal in self.config.tip_calibrations.values() if cal.dist != "point"]
-            if tip_taxa:
+            for taxon in tip_taxa:
                 tiprandomwalker = ET.SubElement(self.run, "operator",
-                                            {"id": "TipDatesRandomWalker",
-                                             "spec": "TipDatesRandomWalker",
-                                             "windowSize": "1",
-                                             "tree": "@Tree.t:beastlingTree",
-                                             "weight": "3.0"})
-                self.add_taxon_set(tiprandomwalker, "TaxaWithSampledTips", tip_taxa)
+                    {"id": "TipDatesandomWalker:%s" % taxon,
+                     "spec": "TipDatesRandomWalker",
+                     "windowSize": "1",
+                     "tree": "@Tree.t:beastlingTree",
+                     "weight": "3.0",
+                     })
+                self.add_taxon_set(tiprandomwalker, taxon, (taxon,))
 
     def add_loggers(self):
         """
