@@ -186,7 +186,7 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             elif cal.dist == "uniform":
                 initial_height = (cal.param1  + cal.param2) / 2.0
             string_bits.append("{:s} = {:}".format(cal.langs[0], initial_height))
-        trait_string = "\n".join(string_bits)
+        trait_string = ",\n".join(string_bits)
 
         datetrait = ET.SubElement(self.tree, "trait",
                       {"id": "datetrait",
