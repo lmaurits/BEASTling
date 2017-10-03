@@ -94,10 +94,7 @@ class BSVSModel(BaseModel):
     def add_sitemodel(self, distribution, feature, fname):
 
             # Sitemodel
-            if self.rate_variation:
-                mr = "@featureClockRate:%s" % fname
-            else:
-                mr = "1.0"
+            mr = self.get_mutation_rate(feature, fname)
             sitemodel = ET.SubElement(distribution, "siteModel", {"id":"SiteModel.%s"%fname,"spec":"SiteModel", "mutationRate":mr,"shape":"1","proportionInvariant":"0"})
 
             if self.symmetric:

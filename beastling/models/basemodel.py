@@ -427,6 +427,18 @@ class BaseModel(object):
     def get_userdatatype(self, feature, fname):
         return ET.Element("userDataType", {"id":"featureDataType.%s"%fname,"spec":"beast.evolution.datatype.UserDataType","codeMap":self.codemaps[feature],"codelength":"-1","states":str(self.valuecounts[feature])})
 
+    def get_mutation_rate(self, feature, fname):
+        """
+        Get a string which can be used as the mutationRate for a sitemodel.
+        """
+        if self.rate_variation:
+            mr = "@featureClockRate:%s" % fname
+        elif self.feature_rates:
+            mr = str(self.feature_rates.get(feature, "1.0"))
+        else:
+            mr = "1.0"
+        return mr
+
     def add_operators(self, run):
         """
         Add <operators> for individual feature substitution rates if rate
