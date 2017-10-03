@@ -345,7 +345,7 @@ class BaseModel(object):
             self.add_sitemodel(distribution, f, fname)
 
             # Data
-            self.add_feature_data(distribution, n, f, fname)
+            self.add_feature_data(distribution, f, fname)
 
     def add_sitemodel(self, beast):
         pass
@@ -400,7 +400,7 @@ class BaseModel(object):
             cols.append(self.unique_values[feature].index(point))
             return self.data_separator.join(map(str, cols))
 
-    def add_feature_data(self, distribution, index, feature, fname):
+    def add_feature_data(self, distribution, feature, fname):
         """
         Add <data> element corresponding to the indicated feature, descending
         from the indicated likelihood distribution.
