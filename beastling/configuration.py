@@ -1116,7 +1116,7 @@ class Configuration(object):
             miss_string = ",".join(missing_langs)
             raise ValueError("Some languages in the data are not in the %s tree: %s" % (tree_type, miss_string))
         # If the trees' language set is a proper superset, prune the tree to fit the analysis
-        if not tree_langs == self.languages:
+        if not tree_langs == set(self.languages):
             tree.prune_by_names(self.languages, inverse=True)
             self.messages.append("[INFO] %s tree includes languages not present in any data set and will be pruned." % tree_type.capitalize())
         # Get the tree looking nice
