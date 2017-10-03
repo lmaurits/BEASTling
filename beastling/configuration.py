@@ -926,15 +926,37 @@ class Configuration(object):
                     originate = True
                     clade = clade[10:-1]
                 langs = self.get_languages_by_glottolog_clade(clade)
-            if len(langs)==1 and not originate:
-                # Originate calibration on a tip is not a tip
-                # calibration, because we don't need to reheight the
-                # tip etc.
-                self.messages.append("[INFO] Calibration on clade %s taken as tip age calibration, as there was precisely 1 matching languages in analysis." % clade)
+
+            # Figure out what kind of calibration this is and whether it's valid
+            if len(langs) > 1:
+                ## Calibrations on multiple taxa are always valid
+                pass
+            elif not langs:
+                ## Calibrations on zero taxa are never valid, so abort and skip
+                ## to the next cal
+                self.messages.append("[INFO] Calibration on clade '%s' ignored as no matching languages in analysis." % clade)
+                continue
+            # At this point we know that len(langs) == 1, so that condition is
+            # implicit in the conditions for all the branches below
+            elif originate:
+                ## Originate calibrations on single taxa are always valid
+                pass
+            elif "," not in clade and clade in self.languages:
+                ## This looks like a tip calibration, i.e. the user has specified
+                ## only one identifier, not a comma-separated list, and that
+                ## identifier matches a language, not a Glottolog family that we
+                ## happen to only have one language for
+                self.messages.append("[INFO] Calibration on '%s' taken as tip age calibration." % clade)
                 is_tip_calibration = True
                 self.tree_prior = "coalescent"
-            elif not langs:
-                self.messages.append("[INFO] Calibration on clade %s MRCA ignored as one or zero matching languages in analysis." % clade)
+            else:
+                ## At this point we have a non-originate calibration on a single
+                ## taxa, which is not the result of specifically asking for only
+                ## this taxa.  Probably the user did not expect to get here.
+                ## They might want this to be an originate cal, or a tip cal, but
+                ## we can't tell with what we know and shouldn't guess.  Abort
+                ## and skip to the next cal
+                self.messages.append("[INFO] Calibration on clade '%s' matches only one language.  Ignoring due to ambiguity.  Use 'originate(%s)' if this was supposed to be an originate calibration, or explicitly identify the single language using '%s' if this was supposed to be a tip calibration." % (clade, clade, langs[0]))
                 continue
             
             # Next parse the calibration string and build a Calibration object
