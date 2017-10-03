@@ -199,7 +199,9 @@ Additionally, each model section *may* contain the following parameters, i.e.  t
    * A comma-separated list of feature names (as they are given in the data CSV's header line)
    * A path to a file which contains one feature name per line
 
-   * ``file_format``: Can be used to explicitly set which of the two supported .csv file formats the data for this model is supplied in, to be used if BEASTling is mistakenly trying to parse one format as the other (which should be very rare).  Should be one of:
+* ``feature_rates``: If you want to include rate variation in your model, but rather than estimating rates you would like to supply your own (e.g. using the results of some other analysis), you can use this parameter to provide the path to a CSV file where each line provides the rate for a single feature.  Lines should consist of a feature identifier, followed by a comma, followed by a floating point rate.  Note that you do not have to also set ``rate_variation = True``.  In fact, if you do so, your provided rates will be used as starting values for rate estimation, rather than remaining fixed.
+
+* ``file_format``: Can be used to explicitly set which of the two supported .csv file formats the data for this model is supplied in, to be used if BEASTling is mistakenly trying to parse one format as the other (which should be very rare).  Should be one of:
    * "beastling"
    * "cldf"
 
