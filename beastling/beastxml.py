@@ -482,11 +482,11 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
                 updown = ET.SubElement(self.run, "operator", {"id":"UpDown","spec":"UpDownOperator","scaleFactor":"0.5", "weight":"3.0"})
                 ET.SubElement(updown, "tree", {"idref":"Tree.t:beastlingTree", "name":"up"})
                 ET.SubElement(updown, "parameter", {"idref":"birthRate.t:beastlingTree", "name":"down"})
-            ### Include clock rates in up/down only if calibrations are given
-            if self.config.calibrations:
-                for clock in self.config.clocks:
-                    if clock.estimate_rate:
-                        ET.SubElement(updown, "parameter", {"idref":clock.mean_rate_id, "name":"down"})
+                ### Include clock rates in up/down only if calibrations are given
+                if self.config.calibrations:
+                    for clock in self.config.clocks:
+                        if clock.estimate_rate:
+                            ET.SubElement(updown, "parameter", {"idref":clock.mean_rate_id, "name":"down"})
 
         if self.config.tree_prior == "yule":
             # Birth rate scaler
