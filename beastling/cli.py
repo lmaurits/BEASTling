@@ -91,25 +91,42 @@ def do_extract(args):
 
 def do_generate(args):
 
-    # Build config object
+    # Make sure the requested configuration file exists
     for conf in args.config:
         if not os.path.exists(conf):
             errmsg("No such configuration file: %s\n" % conf)
             sys.exit(1)
+
+    # Build but DON'T PROCESS the Config object
+    # This is fast, and gives us enough information to check whether or not
     try:
         config = beastling.configuration.Configuration(
             configfile=args.config, stdin_data=args.stdin, prior=args.prior)
+    except Exception as e:
+        errmsg("Error encountered while parsing configuration file:\n")
+        traceback.print_exc()
+        sys.exit(2)
+
+    # Make sure we can write to the appropriate output filename
+    output_filename = args.output if args.output else config.basename+".xml"
+    if os.path.exists(output_filename) and not args.overwrite:
+        errmsg("File %s already exists!  Run beastling with the --overwrite option if you wish to overwrite it.\n" % output_filename)
+        sys.exit(4)
+
+    # Now that we know we will be able to save the resulting XML, we can take
+    # the time to process the config object
+    try:
         config.process()
     except Exception as e:
         errmsg("Error encountered while parsing configuration file:\n")
         traceback.print_exc()
         sys.exit(2)
 
-    # Print urgent messages, whether verbose mode is on or not
+    # Print messages
+    ## Urgent messages are printed first, whether verbose mode is on or not
     for msg in config.urgent_messages:
         errmsg(msg + "\n")
-    # If verbose mode is on, print any non-urgent messages which were generated
-    # while # processing the configuration
+    ## Non-urgent messages are next, but only if verbose mode is on
     if args.verbose:
         for msg in config.messages:
             errmsg(msg + "\n")
@@ -123,11 +140,7 @@ def do_generate(args):
         sys.exit(3)
 
     # Write XML file
-    filename = args.output if args.output else config.basename+".xml"
-    if os.path.exists(filename) and not args.overwrite:
-        errmsg("File %s already exists!  Run beastling with the --overwrite option if you wish to overwrite it.\n" % filename)
-        sys.exit(4)
-    xml.write_file(filename)
+    xml.write_file(output_filename)
 
     # Build and write report
     if args.report:
