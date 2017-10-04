@@ -445,18 +445,18 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             delta = ET.SubElement(self.run, "operator", {"id":"featureClockRateDeltaExchanger:%s" % clock.name, "spec":"DeltaExchangeOperator", "weight":"3.0"})
             for model in clock_models:
                 plate = ET.SubElement(delta, "plate", {
-                    "var":"feature",
-                    "range":",".join(model.features)})
-                ET.SubElement(plate, "parameter", {"idref":"featureClockRate:%s:$(feature)" % model.name})
+                    "var":"rate",
+                    "range":",".join(model.all_rates)})
+                ET.SubElement(plate, "parameter", {"idref":"featureClockRate:%s:$(rate)" % model.name})
             # Add weight vector if there has been any binarisation
-            if any([w != 1 for w in itertools.chain(*[m.weights.values() for m in clock_models])]):
+            if any([w != 1 for w in itertools.chain(*[m.weights for m in clock_models])]):
                 weightvector = ET.SubElement(delta, "weightvector", {
                     "id":"featureClockRateWeightParameter:%s" % clock.name,
                     "spec":"parameter.IntegerParameter",
                     "dimension":str(sum([len(m.weights) for m in clock_models])),
                     "estimate":"false"
                 })
-                weightvector.text = " ".join(itertools.chain(*[[str(m.weights[f]) for f in m.features] for m in clock_models]))
+                weightvector.text = " ".join(itertools.chain(*[map(str, m.weights) for m in clock_models]))
 
 
     def add_tree_operators(self):

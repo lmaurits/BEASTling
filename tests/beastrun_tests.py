@@ -54,6 +54,7 @@ def test_basic():
         ("admin", "covarion_multistate", "estimated_freqs"),
         ("admin", "mk", "rate_var"),
         ("admin", "mk", "rate_var", "rate_var_user_rates"),
+        ("admin", "mk", "rate_var", "rate_partition"),
         ("admin", "mk", "monophyletic"),
         ("admin", "mk", "monophyletic-bottom-up"),
         ("admin", "mk", "monophyletic-partial"),

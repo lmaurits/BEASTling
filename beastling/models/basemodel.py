@@ -30,6 +30,7 @@ class BaseModel(object):
         self.pruned = model_config.get("pruned", False)
         self.rate_variation = model_config.get("rate_variation", False)
         self.feature_rates = model_config.get("feature_rates", None)
+        self.rate_partition = model_config.get("rate_partition", None)
         self.ascertained = model_config.get("ascertained", None)
         # Force removal of constant features here
         # This can be set by the user in BinaryModel only
@@ -45,6 +46,12 @@ class BaseModel(object):
         # Remove features not wanted in this analysis
         self.build_feature_filter()
         self.apply_feature_filter()
+        self.load_rate_partition()
+        if self.rate_variation:
+            if self.rate_partition:
+                self.all_rates = sorted(list(set(self.rate_partition.values())))
+            else:
+                self.all_rates = self.features
 
         # Keep this around for later...
         self.global_config = global_config
@@ -84,6 +91,7 @@ class BaseModel(object):
         self.load_feature_rates()
         self.compute_feature_properties()
         self.remove_unwanted_features()
+        self.compute_weights()
         if self.pruned:
             self.messages.append("""[DEPENDENCY] Model %s: Pruned trees are implemented in the BEAST package "BEASTlabs".""" % self.name)
 
@@ -134,6 +142,26 @@ class BaseModel(object):
             for feat in features_to_remove:
                 language.pop(feat)
         self.features = sorted(list(self.features))
+
+    def load_rate_partition(self):
+        """
+        Load a partition of features for sharing mutation rates.
+        """
+        if not self.rate_partition:
+            self.rate_partition = {}
+            return
+        fname = self.rate_partition
+        with open(fname) as fp:
+            self.rate_partition = {}
+            for line in fp:
+                name, part = line.split(":",1)
+                print(name, part)
+                name = name.strip()
+                part = [p.strip() for p in part.split(",")]
+                print(name, part)
+                part = [p for p in part if p in self.features]
+                for p in part:
+                    self.rate_partition[p] = name
 
     def compute_feature_properties(self):
         """
@@ -220,6 +248,17 @@ class BaseModel(object):
         if self.constant_feature and self.rate_variation:
             self.messages.append("""[WARNING] Model "%s": Rate variation enabled with constant features retained in data.  This *may* skew rate estimates for non-constant features.""" % self.name)
 
+    def compute_weights(self):
+        self.weights = []
+        if self.rate_partition:
+            parts = list(self.rate_partition.values())
+            partition_weights = {p:parts.count(p) for p in parts}
+            for part in sorted(list(set(self.rate_partition.values()))):
+                self.weights.append(partition_weights[part])
+        else:
+            for f in self.features:
+                self.weights.append(1.0)
+
     def set_ascertained(self):
         """
         Decide whether or not to do ascertainment correction for non-constant
@@ -260,10 +299,10 @@ class BaseModel(object):
             if not self.feature_rates:
                 # Set all rates to 1.0 in a big plate
                 plate = ET.SubElement(state, "plate", {
-                    "var":"feature",
-                    "range":",".join(self.features)})
+                    "var":"rate",
+                    "range":",".join(self.all_rates)})
                 param = ET.SubElement(plate, "parameter", {
-                    "id":"featureClockRate:%s:$(feature)" % self.name,
+                    "id":"featureClockRate:%s:$(rate)" % self.name,
                     "name":"stateNode"})
                 param.text="1.0"
             else:
@@ -300,10 +339,10 @@ class BaseModel(object):
             sub_prior = ET.SubElement(prior, "prior", {"id":"featureClockRatePrior.s:%s" % self.name, "name":"distribution"})
             compound = ET.SubElement(sub_prior, "input", {"id":"featureClockRateCompound:%s" % self.name, "spec":"beast.core.parameter.CompoundValuable", "name":"x"})
             plate = ET.SubElement(compound, "plate", {
-                "var":"feature",
-                "range":",".join(self.features)})
+                "var":"rate",
+                "range":",".join(self.all_rates)})
             ET.SubElement(plate, "var", {
-                "idref":"featureClockRate:%s:$(feature)" % self.name})
+                "idref":"featureClockRate:%s:$(rate)" % self.name})
             gamma  = ET.SubElement(sub_prior, "input", {"id":"featureClockRatePriorGamma:%s" % self.name, "spec":"beast.math.distributions.Gamma", "name":"distr", "alpha":"@featureClockRateGammaShape:%s" % self.name, "beta":"@featureClockRateGammaScale:%s" % self.name})
 
             sub_prior = ET.SubElement(prior, "prior", {"id":"featureClockRateGammaShapePrior.s:%s" % self.name, "name":"distribution", "x":"@featureClockRateGammaShape:%s" % self.name})
@@ -352,7 +391,6 @@ class BaseModel(object):
 
     def add_master_data(self, beast):
         self.filters = {}
-        self.weights = {}
         data = ET.SubElement(beast, "data", {
             "id":"data_%s" % self.name,
             "name":"data_%s" % self.name,
@@ -379,7 +417,6 @@ class BaseModel(object):
                 "value":value_string})
 
     def format_datapoint(self, feature, point):
-        self.weights[feature] = 1
         if self.ascertained:
             return self._ascertained_format_datapoint(feature, point)
         else:
@@ -432,7 +469,10 @@ class BaseModel(object):
         Get a string which can be used as the mutationRate for a sitemodel.
         """
         if self.rate_variation:
-            mr = "@featureClockRate:%s" % fname
+            if self.rate_partition:
+                mr = "@featureClockRate:%s:%s" % (self.name, self.rate_partition[feature])
+            else:
+                mr = "@featureClockRate:%s" % fname
         elif self.feature_rates:
             mr = str(self.feature_rates.get(feature, "1.0"))
         else:
@@ -465,10 +505,10 @@ class BaseModel(object):
         """
         if self.config.log_fine_probs:
             plate = ET.SubElement(logger, "plate", {
-                "var":"feature",
-                "range":",".join(self.features)})
+                "var":"rate",
+                "range":",".join(self.all_rates)})
             ET.SubElement(plate, "log", {
-                "idref":"featureLikelihood:%s:$(feature)" % self.name})
+                "idref":"rateLikelihood:%s:$(feature)" % self.name})
             if self.rate_variation:
                 ET.SubElement(logger,"log",{"idref":"featureClockRatePrior.s:%s" % self.name})
                 ET.SubElement(logger,"log",{"idref":"featureClockRateGammaShapePrior.s:%s" % self.name})
@@ -477,10 +517,10 @@ class BaseModel(object):
             self.add_frequency_logs(logger)
         if self.rate_variation:
             plate = ET.SubElement(logger, "plate", {
-                "var":"feature",
-                "range":",".join(self.features)})
+                "var":"rate",
+                "range":",".join(self.all_rates)})
             ET.SubElement(plate, "log", {
-                "idref":"featureClockRate:%s:$(feature)" % self.name})
+                "idref":"featureClockRate:%s:$(rate)" % self.name})
             # Log the shape, but not the scale, as it is always 1 / shape
             ET.SubElement(logger,"log",{"idref":"featureClockRateGammaShape:%s" % self.name})
 
