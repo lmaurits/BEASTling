@@ -13,6 +13,8 @@ Mk
 
 The `Lewis Mk model <http://sysbio.oxfordjournals.org/content/50/6/913.abstract>`_ is the simplest generic substitution model available in BEASTling.  It is a generalisation of the classic `JC69 <https://en.wikipedia.org/wiki/Models_of_DNA_evolution#JC69_model_.28Jukes_and_Cantor.2C_1969.29.5B1.5D>`_ model from genetics to a statespace of arbitrary size.  Transitions are possible from any state to any other state, and every transition is equally probable.  No parameters are estimated, increasing analysis speed.  This model could be used with any dataset, but the assumptions are not a good match for cognate data.
 
+If using this model, you may set ``frequencies=approx`` for a slight performance improvement (smaller XML, possibly faster and less memory-intensive MCMC).  This will use "approximately empirical" equilibrium distributions where possible, by rounding to a single decimal point, e.g. the empirical distributions (0.82, 0.18) and (0.76, 0.24) would both be replaced by (0.8, 0.2).  For large datasets and small state spaces, this means that many distinct features will have identical equilibrium frequencies, allowing them to share the same `SubstitutionModel` object.  This cuts down on repeated calculations.
+
 .. _covarion:
 
 Binary Covarion

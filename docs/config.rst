@@ -187,7 +187,7 @@ Each model section *must* contain the following parameters, i.e. they are mandat
 
    Regardless of whether data is read from a file or from ``stdin``, it must be in one of the two compatible .csv formats.  These are described in :doc:`data`.  Note that BEASTling can also be made to read data from ``stdin`` by using the ``--stdin`` command line argument.
 
-Additionally, each model section *may* contain the following parameters, i.e.  they are optional:
+Additionally, each model section *may* contain the following parameters, i.e.  they are optional.  Note that these are only the options supported by all (or most) substitution models.  Most substitution models also have their own specific options.  Check your model's documentation at the :doc:`substitution` page to see these.
 
 * ``ascertained``: "True" or "False".  Controls whether or not to perform ascertainment correction for the absence of non-constant features in the data.  This will have no effect on the sampled tree topology but will influence estimates of branch lengths and the age the tree and clades.  By default, this will be set to true if you provided any calibrations (because in this case you most likely care about estimated ages) and to false if you have not (on the assumption that in this case you are more interested in topology).  Use this parameter to make your intention explicit.  Note that if you have set ``remove_constant_features = False`` in a binary covarion analysis (see below) and your analysis does indeed contain constant features, you cannot set this parameter to "True".
 
