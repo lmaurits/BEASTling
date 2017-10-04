@@ -23,5 +23,26 @@ class MKModel(BaseModel):
             # as the implementation of LewisMK handles it
             if self.frequencies == "empirical":
                 freq = ET.SubElement(substmodel,"frequencies",{"id":"feature_freqs.s:%s"%fname,"spec":"Frequencies", "data":"@data_%s"%fname})
+            elif self.frequencies == "approx":
+                freq = ET.SubElement(substmodel, "parameter",{
+                    "id":"feature_freqs.s:%s"%fname,
+                    "name":"frequencies",
+                    "dimension":str(self.valuecounts[feature]),
+                    })
+                freq.text = self._get_approx_freq_string(feature)
             elif self.frequencies == "estimate":
                 freq = ET.SubElement(substmodel,"frequencies",{"id":"feature_freqs.s:%s"%fname,"spec":"Frequencies", "frequencies":"@feature_freqs_param.s:%s"%fname})
+
+    def _get_approx_freq_string(self, feature):
+        freqs = [
+            self.counts[feature].get(
+                self.unique_values[feature][v], 0)
+            for v in range(self.valuecounts[feature])]
+        norm = float(sum(freqs))
+        freqs = [f/norm for f in freqs]
+        rounded_freqs = [round(f,1) for f in freqs]
+        if sum(rounded_freqs) == 1:
+            freqs = rounded_freqs
+        assert sum(freqs) == 1
+        freq_string = " ".join([str(f) for f in freqs])
+        return freq_string
