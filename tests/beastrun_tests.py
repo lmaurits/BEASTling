@@ -48,6 +48,7 @@ def test_basic():
         ("admin", "mk", "families"),
         ("admin", "mk", "features"),
         ("admin", "mk", "estimated_freqs"),
+        ("admin", "mk", "approx_freqs"),
         ("admin", "bsvs", "estimated_freqs"),
         ("admin", "covarion_multistate", "estimated_freqs"),
         ("admin", "mk", "rate_var"),
