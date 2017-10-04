@@ -1052,16 +1052,32 @@ class Configuration(object):
         return offset, dist_type, p1, p2
 
     def get_languages_by_glottolog_clade(self, clade):
+        """
+        Given a comma-separated list of Glottolog ids, return a list of all
+        languages descended from the corresponding Glottolog nodes.
+        """
         langs = []
-        clade = [c.strip() for c in clade.split(",")]
+        clades = [c.strip() for c in clade.split(",")]
+
+        # First look for clades which are actually language identifiers
+        for clade in clades:
+            if clade in self.languages:
+                langs.append(clade)
+                # Once a clade has matched against a language, don't let it
+                # subsequently match against Glottolog!
+                clades.remove(clade)
+
+        # Now search against Glottolog
+        clades = [c.lower() for c in clades]
         for l in self.languages:
-            if l in clade:
-                langs.append(l)
+            # No repeated matching!
+            if l in langs:
                 continue
             for name, glottocode in self.classifications.get(l.lower(),""):
-                if any([c.lower() == name.lower() or c.lower() == glottocode for c in clade]):
+                if name.lower() in clades or glottocode in clades:
                     langs.append(l)
                     break
+
         return langs
 
     def handle_user_supplied_tree(self, value, tree_type):
