@@ -205,6 +205,8 @@ Additionally, each model section *may* contain the following parameters, i.e.  t
    * "beastling"
    * "cldf"
 
+* ``frequencies``: Used to control the equilibrium distribution of the substitution model.  All models support settings of "uniform" (for a uniform distribution), "empirical" (to use the relative frequencies of different states in the dataset) or "estimate" (to estimate the the equilibrium distribution via sampling during MCMC).  Some models may support additional options (e.g. "approximate" for Lewis Mk).  If not specified, all models will default to "empirical", which is a more realistic setting than "uniform" for large datasets, while being less computationally intensive than "estimate".
+
 * ``language_column``: Can be used to indicate the column name in the .csv file header which corresponds to the unique language identifier.  If the column name is one of "iso", "iso_code", "glotto", "glotto_code", "language", "language_id", "lang" or "lang_id", BEASTling will recognise it automatically.  This parameter is only needed if you have a pre-existing data file which uses a different column name which you don't want to change (perhaps because it would break compatibility with another tool).
 
 * ``pruned``: "True" or "False".  Make use of "pruned trees".  This can improve performance in data sets with a lot of missing data.  Default is False.
