@@ -33,12 +33,7 @@ class MKModel(BaseModel):
             if self.frequencies == "empirical":
                 freq = ET.SubElement(substmodel,"frequencies",{"id":"feature_freqs.s:%s"%fname,"spec":"Frequencies", "data":"@data_%s"%fname})
             elif self.frequencies == "approx":
-                freq = ET.SubElement(substmodel, "parameter",{
-                    "id":"feature_freqs.s:%s"%fname,
-                    "name":"frequencies",
-                    "dimension":str(self.valuecounts[feature]),
-                    })
-                freq.text = self._get_approx_freq_string(feature)
+                freq = ET.SubElement(substmodel,"frequencies",{"id":"feature_freqs.s:%s"%fname,"spec":"Frequencies", "frequencies":self._get_approx_freq_string(feature)})
             elif self.frequencies == "estimate":
                 freq = ET.SubElement(substmodel,"frequencies",{"id":"feature_freqs.s:%s"%fname,"spec":"Frequencies", "frequencies":"@feature_freqs_param.s:%s"%fname})
             self.subst_models[key] = sm_id
