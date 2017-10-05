@@ -155,10 +155,8 @@ class BaseModel(object):
             self.rate_partition = {}
             for line in fp:
                 name, part = line.split(":",1)
-                print(name, part)
                 name = name.strip()
                 part = [p.strip() for p in part.split(",")]
-                print(name, part)
                 part = [p for p in part if p in self.features]
                 for p in part:
                     self.rate_partition[p] = name
