@@ -24,7 +24,7 @@ class BinaryModel(BaseModel):
 
     def compute_weights(self):
         if not self.recoded:
-            BaseModel.compute_weights
+            BaseModel.compute_weights(self)
         else:
             self.weights = []
             if self.rate_partition:
