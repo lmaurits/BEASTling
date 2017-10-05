@@ -795,7 +795,6 @@ class Configuration(object):
                     raise ValueError("Unknown model type '%s' for model section '%s', and failed to import a third-party model." % (config["model"], config["name"]))
                 model = UserClass(config, self)
 
-            self.messages.extend(model.messages)
             self.models.append(model)
             
         if self.geo_config:
@@ -808,6 +807,7 @@ class Configuration(object):
     def process_models(self):
         for model in self.models:
             model.process()
+            self.messages.extend(model.messages)
 
     def link_clocks_to_models(self):
         """
