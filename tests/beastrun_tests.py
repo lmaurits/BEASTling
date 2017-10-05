@@ -55,6 +55,8 @@ def test_basic():
         ("admin", "mk", "rate_var"),
         ("admin", "mk", "rate_var", "rate_var_user_rates"),
         ("admin", "mk", "rate_var", "rate_partition"),
+        ("admin", "mk", "rate_var", "rate_partition", "rate_partition_user_rates"),
+        ("admin", "mk", "rate_partition", "rate_partition_user_rates"),
         ("admin", "mk", "monophyletic"),
         ("admin", "mk", "monophyletic-bottom-up"),
         ("admin", "mk", "monophyletic-partial"),

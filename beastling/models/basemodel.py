@@ -46,12 +46,6 @@ class BaseModel(object):
         # Remove features not wanted in this analysis
         self.build_feature_filter()
         self.apply_feature_filter()
-        self.load_rate_partition()
-        if self.rate_variation:
-            if self.rate_partition:
-                self.all_rates = sorted(list(set(self.rate_partition.values())))
-            else:
-                self.all_rates = self.features
 
         # Keep this around for later...
         self.global_config = global_config
@@ -88,9 +82,17 @@ class BaseModel(object):
         which are compatible with the settings.
         """
         self.apply_language_filter()
-        self.load_feature_rates()
         self.compute_feature_properties()
         self.remove_unwanted_features()
+        self.load_rate_partition()
+        if self.rate_partition:
+            self.all_rates = sorted(list(set(self.rate_partition.values())))
+        elif self.rate_variation or self.feature_rates:
+            self.all_rates = self.features
+        self.load_feature_rates()
+        if self.rate_partition and not (self.feature_rates or self.rate_variation):
+            self.messages.append("""[WARNING] Model %s: Estimating rates for feature partitions because no fixed rates were provided, is this what you wnated?  Use rate_variation=True to make this implicit.""" % self.name)
+            self.rate_variation = True
         self.compute_weights()
         if self.pruned:
             self.messages.append("""[DEPENDENCY] Model %s: Pruned trees are implemented in the BEAST package "BEASTlabs".""" % self.name)
@@ -110,20 +112,51 @@ class BaseModel(object):
         # Keep a sorted list so that the order of things in XML is deterministic
         self.languages = sorted(list(self.data.keys()))
 
+    def load_rate_partition(self):
+        """
+        Load a partition of features for sharing mutation rates.
+        """
+        if not self.rate_partition:
+            self.rate_partition = {}
+            return
+        if not os.path.exists(self.rate_partition):
+            raise ValueError("Could not find feature rate file %s." % self.rate_partition)
+        fname = self.rate_partition
+        with open(fname) as fp:
+            self.rate_partition = {}
+            for line in fp:
+                name, part = line.split(":",1)
+                name = name.strip()
+                part = [p.strip() for p in part.split(",")]
+                part = [p for p in part if p in self.features]
+                for p in part:
+                    self.rate_partition[p] = name
+
     def load_feature_rates(self):
         """
         Load relative feature rates from .csv file.
         """
         if not self.feature_rates:
+            self.feature_rates = {}
             return
         if not os.path.exists(self.feature_rates):
             raise ValueError("Could not find feature rate file %s." % self.feature_rates)
+        fname = self.feature_rates
         with io.open(self.feature_rates, encoding="UTF-8") as fp:
             self.feature_rates = {}
             for line in fp:
                 feature, rate = line.split(",")
+                feature = feature.strip()
+                # Skip irrelevant things
+                if feature not in self.all_rates:
+                    continue
                 rate = float(rate.strip())
-                self.feature_rates[feature.strip()] = rate
+                self.feature_rates[feature] = rate
+        if not all((rate in self.feature_rates for rate in self.all_rates)):
+            self.messages.append("""[WARNING] Model "%s": Rate file %s does not contain rates for every feature/partition.  Missing rates will default to 1.0, please check that this is okay.""" % (self.name, fname))
+        if not self.feature_rates:
+            self.messages.append("""[WARNING] Model "%s": Could not find any valid feature or partition rates in the file %s, is this the correct file for this analysis?""" % (self.name, fname))
+            return
         norm = sum(self.feature_rates.values()) / len(self.feature_rates.values())
         for f in self.feature_rates:
             self.feature_rates[f] /= norm
@@ -142,24 +175,6 @@ class BaseModel(object):
             for feat in features_to_remove:
                 language.pop(feat)
         self.features = sorted(list(self.features))
-
-    def load_rate_partition(self):
-        """
-        Load a partition of features for sharing mutation rates.
-        """
-        if not self.rate_partition:
-            self.rate_partition = {}
-            return
-        fname = self.rate_partition
-        with open(fname) as fp:
-            self.rate_partition = {}
-            for line in fp:
-                name, part = line.split(":",1)
-                name = name.strip()
-                part = [p.strip() for p in part.split(",")]
-                part = [p for p in part if p in self.features]
-                for p in part:
-                    self.rate_partition[p] = name
 
     def compute_feature_properties(self):
         """
@@ -294,8 +309,18 @@ class BaseModel(object):
             self.add_frequency_state(state)
 
         if self.rate_variation:
-            if not self.feature_rates:
-                # Set all rates to 1.0 in a big plate
+            if self.feature_rates:
+                # If user specified rates have been provided for either
+                # features or partitions, we need to list each rate
+                # individually
+                for rate in self.all_rates:
+                    param = ET.SubElement(state, "parameter", {
+                        "id":"featureClockRate:%s:%s" % (self.name, rate),
+                        "name":"stateNode"})
+                    param.text=str(self.feature_rates.get(rate,1.0))
+            else:
+                # If not, and everything is initialised to the same
+                # value, we can just whack 'em all in a big plate
                 plate = ET.SubElement(state, "plate", {
                     "var":"rate",
                     "range":",".join(self.all_rates)})
@@ -303,13 +328,6 @@ class BaseModel(object):
                     "id":"featureClockRate:%s:$(rate)" % self.name,
                     "name":"stateNode"})
                 param.text="1.0"
-            else:
-                # Give each rate a custom value
-                for f in self.features:
-                    param = ET.SubElement(state, "parameter", {
-                        "id":"featureClockRate:%s:%s" % (self.name, f),
-                        "name":"stateNode"})
-                    param.text=str(self.feature_rates.get(f,1.0))
 
             parameter = ET.SubElement(state, "parameter", {"id":"featureClockRateGammaShape:%s" % self.name, "lower":"0.0","upper":"100.0","name":"stateNode"})
             parameter.text="2.0"
@@ -472,7 +490,10 @@ class BaseModel(object):
             else:
                 mr = "@featureClockRate:%s" % fname
         elif self.feature_rates:
-            mr = str(self.feature_rates.get(feature, "1.0"))
+            if self.rate_partition:
+                mr = str(self.feature_rates.get(self.rate_partition[feature], 1.0))
+            else:
+                mr = str(self.feature_rates.get(feature, 1.0))
         else:
             mr = "1.0"
         return mr
