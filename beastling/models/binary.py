@@ -28,8 +28,6 @@ class BinaryModel(BaseModel):
         else:
             self.weights = []
             if self.rate_partition:
-                parts = list(partition_weights.values())
-                partition_weights = {p:parts.count(p) for p in parts}
                 for part in sorted(list(set(self.rate_partition.values()))):
                     weight = 0
                     for f in self.features:
