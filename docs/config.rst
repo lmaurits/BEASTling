@@ -116,9 +116,9 @@ Valid macroareas are: ``Africa``, ``Australia``, ``Eurasia``, ``North America``,
 calibration section
 -------------------
 
-The ``calibration`` section should contain one parameter for each distinct calibration point that you wish to include in the analysis.
+If you wish to estimate divergence times as part of your analysis, it is essentially to provide some amount of calibration data, i.e. estimates of the times when some known divergences are believed to have occurred (based on e.g. archaeological or historical evidence).  One calibration is the minimum required, but you can add as many as you like.  More is generally better, although large numbers of calibrations can cause problems too.  To include calibrations, you should add a ``calibration`` section to your config file.  This section should contain one parameter for each distinct calibration point that you wish to use.
 
-The name of each parameter should be a comma-separated list of family names or Glottocodes.  Optionally, the name can be enclosed in ``originate( )`` to place the calibration not on the MRCA of the languages/families specificed, but on the originate, i.e. the top of the branch leading to the MRCA.  The value for each calibration can be a string in one of several supported formats.  The two simplest formats are to specify a range of ages, or a single upper or lower bounding age.
+The name of each parameter should be some identifier for a group of languages (e.g. a Glottolog family name like "Indo-European", but there are other options.  See below for more on ways to specify languages, including originate calibrations and tip dates).   The value for each calibration can be a string in one of several supported formats, representing your prior beliefs about the time the calibration event diverged.  The two simplest formats are to specify a range of ages, or a single upper or lower bounding age.
 
 Ranges can be specified as follows:
 
@@ -126,13 +126,15 @@ Ranges can be specified as follows:
 
 	Austronesian = 4750 - 5800
 
-You may use arbitrary units without problems, i.e. you could provide dates in millenia BP:
+This says that you strongly believe the disintegration of proto-Austronesian happened between 4750 and 5800 units of time in the past.  This example calibration has been given in years, but the units are actually arbitrary and you could just as well provide dates in millenia BP:
 
 ::
 
 	Austronesian = 4.75 - 5.8
 
-The only time this matters is when it comes time to interpret tree heights or clock and/or mutation rates.  With this kind of calibration, BEASTling will set a normal distribution prior on the age of the family indicated.  The mean of the distribution will be equal to the midpoint of the provided range (5275 in the above case).  The standard deviation will be set such that 95\% of the probability mass will lie within the range provided.  In other words, the range you provide is treated as a 95\% credibility interval.
+Or centuries BP, fortnights BP, etc.  The units only matter when it comes time to interpret parameters like tree heights, clock rates or mutation rates, but using centuries or millenia BP is a good practice.
+
+When given this kind of calibration (i.e. a range of dates), BEASTling will set a Normal distribution prior on the age of the family indicated.  The mean of the distribution will be equal to the midpoint of the provided range (5275 for the first case above).  The standard deviation will be set such that 95\% of the probability mass will lie within the range provided.  In other words, the range you provide is treated as a 95\% credibility interval.
 
 Bounds can be specified as follows:
 
@@ -164,6 +166,50 @@ Finally, it is possible to specify an age range and ask for a lognormal distribu
 	Austronesian = lognormal(4750 - 5800)
 
 With this kind of calibration, BEASTling will set a lognormal distribution prior on the age of the family indicated.  The mean of the distribution will be set so that the median of the lognormal distribution equals the midpoint of the range provided.  The standard deviation will be set to the mean of two values: one with the property that the provided lower bound is at the 5th percentile of the lognormal distribution, and one with the property that the provided upper bound is at the 95th percentile.  The provided interval does not quite end up being a 95% credible interval, but it is roughly so.  Explicitly set the lognormal parameters as shown above if you need more control over the matching than this.
+
+Providing a Glottolog-recognised family name like "Austronesian" is one way to identify a group of languages to calibrate, but there are others.  If your data uses ISO codes or Glottocodes to identify languages, then you can use Glottocodes for calibration points, e.g.:
+
+::
+
+        aust1307 = 4750 - 5800
+
+A comma-separated list of family names or Glottocodes will be interpreted as the common ancestor of those families (and this will introduce a constraint that those families are monophyletic):
+
+::
+
+        Finnic, Saami = 2000 - 3000
+
+If you wish to calibrate on a group of languages which do not comprise a Glottolog node, you can simply use a comma-separated list of languages (named however they are in your datafiles):
+
+::
+
+        esto1258, liv1244, sout2679 = 1 - 1.5
+
+Whichever of the above methods you use, you can enclosed the identifier in ``originate( )`` to place the calibration not on the MRCA of the languages/families specificed, but on the originate, i.e. the top of the branch leading to the MRCA.
+
+::
+
+        originate(Indo-European) = > 8000
+
+Originate calibrations can be used even with single languages:
+
+::
+
+        originate(jpn) = > 5
+
+Finally, if your data includes an extinct language which is a leaf node (e.g. data for Tocharian, but not for proto-Germanic which isn't a leaf) and you have some idea of how long ago the language died out, you can place a calibration on that "tip date" by listing just the single language:
+
+::
+
+        xto = 1000 - 1500
+
+If a date range is provided as above, in the resulting analysis BEAST will sample and log the tip date for that language.  However, tip calibrations are also the one time when you can provide a point calibration as opposed to a range:
+
+::
+
+        xto = 1375
+
+In which case the tip date will be set to precisely the provided value and no sampling will occur.
 
 model sections
 --------------
