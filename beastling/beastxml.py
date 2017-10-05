@@ -120,6 +120,7 @@ class BeastXml(object):
             self.add_path_sampling_run()
         else:
             self.add_standard_sampling_run()
+        self.estimate_tree_height()
         self.add_state()
         self.add_init()
         self.add_distributions()
@@ -203,9 +204,13 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         self.add_taxon_set(self.tree, "taxa", self.config.languages, define_taxa=True)
         if self.config.tree_prior == "yule":
             param = ET.SubElement(self.state, "parameter", {"id":"birthRate.t:beastlingTree","name":"stateNode"})
+            if self.birthrate_estimate is not None:
+                param.text=str(self.birthrate_estimate)
+            else:
+                param.text="1.0"
         elif self.config.tree_prior == "coalescent":
             param = ET.SubElement(self.state, "parameter", {"id":"popSize.t:beastlingTree","name":"stateNode"})
-        param.text="1.0"
+            param.text="1.0"
         if self.config.tip_calibrations:
             self.add_tip_heights()
 
@@ -229,16 +234,57 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             else:
                 self.add_randomtree_init()
 
+    def estimate_tree_height(self):
+        """
+        Make a rough estimate of what the starting height of the tree should
+        be so we can initialise somewhere decent.
+        """
+        birthrate_estimates = []
+        for cal in self.config.calibrations.values():
+            if len(cal.langs) == 1 or cal.dist not in ("normal", "lognormal"):
+                continue
+            # Find the midpoint of this cal
+            if cal.dist == "normal":
+                mid = cal.offset + cal.param1
+            elif cal.dist == "lognormal":
+                mid = cal.offset + exp(cal.param1)
+            # Find the Yule birthrate which results in an expected height for
+            # a tree of this many taxa which equals the midpoint of the
+            # calibration.
+            # The expected height of a Yule tree with n taxa and birthrate lambda
+            # is 1/(lambda) * (Hn - 1), where Hn is the nth harmonic number.  Hn
+            # can be asymptotically approximated by Hn = log(n) + 0.5772156649.
+            birthrate = (log(len(cal.langs)) + 0.5772156649 - 1) / mid
+            birthrate_estimates.append(birthrate)
+        # If there were no calibrations that could be used, return a non-esitmate
+        if not birthrate_estimates:
+            self.birthrate_estimate = None
+            self.treeheight_estimate = None
+            return
+        # Find the mean birthrate estimate
+        self.birthrate_estimate = sum(birthrate_estimates) / len(birthrate_estimates)
+        # Find the expected height of a tree with this birthrate
+        self.treeheight_estimate = (1.0/self.birthrate_estimate)*(log(len(self.config.languages)) + 0.5772156649 - 1)
+
     def add_randomtree_init(self):
-        self.init = ET.SubElement(self.run, "init", {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "taxonset":"@taxa", "spec":"beast.evolution.tree.RandomTree"})
+        attribs = {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "taxonset":"@taxa", "spec":"beast.evolution.tree.RandomTree"}
+        if self.birthrate_estimate is not None:
+            attribs["rootHeight"] = str(self.treeheight_estimate)
+        self.init = ET.SubElement(self.run, "init", attribs)
         popmod = ET.SubElement(self.init, "populationModel", {"spec":"ConstantPopulation"})
         ET.SubElement(popmod, "popSize", {"spec":"parameter.RealParameter","value":"1"})
 
     def add_simplerandomtree_init(self):
-        self.init = ET.SubElement(self.run, "init", {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "taxonset":"@taxa", "spec":"beast.evolution.tree.SimpleRandomTree"})
+        attribs = {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "taxonset":"@taxa", "spec":"beast.evolution.tree.SimpleRandomTree"}
+        if self.birthrate_estimate is not None:
+            attribs["rootHeight"] = str(self.treeheight_estimate)
+        self.init = ET.SubElement(self.run, "init", attribs)
 
     def add_constrainedrandomtree_init(self):
-        self.init = ET.SubElement(self.run, "init", {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "taxonset":"@taxa", "spec":"beast.evolution.tree.ConstrainedRandomTree", "constraints":"@constraints"})
+        attribs = {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "taxonset":"@taxa", "spec":"beast.evolution.tree.ConstrainedRandomTree", "constraints":"@constraints"}
+        if self.birthrate_estimate is not None:
+            attribs["rootHeight"] = str(self.treeheight_estimate)
+        self.init = ET.SubElement(self.run, "init", attribs)
         popmod = ET.SubElement(self.init, "populationModel", {"spec":"ConstantPopulation"})
         ET.SubElement(popmod, "popSize", {"spec":"parameter.RealParameter","value":"1"})
 
