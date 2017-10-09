@@ -154,7 +154,9 @@ class Configuration(object):
         self.starting_tree = ""
         """A starting tree in Newick format, or the name of a file containing the same."""
         self.stdin_data = stdin_data
+        """A boolean value, controlling whether or not to read data from stdin as opposed to the file given in the config."""
         self.tree_prior = "yule"
+        """Tree prior.  Should generally not be set manually."""
 
         # Glottolog data
         self.glottolog_loaded = False
