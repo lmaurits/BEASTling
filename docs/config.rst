@@ -59,7 +59,21 @@ The ``MCMC`` section may contain the following parameters:
 
 * ``chainlength``: number of iterations to run the MCMC chain for.  Default is 10,000,000.
 
+* ``path_sampling``: "True" or "False".  If True, BEAST will use path sampling to estimate the marginal likelihood of data under the provided models, rather than sampling from the posterior.  Default is False.
+
 * ``sample_from_prior``: "True" or "False".  If True, BEAST will ignore all supplied data and the tree, all clock rates and any model parameters will all be sampled from their prior distributions.  Default is False.
+
+In path sampling analyses, i.e. if and only if ``path_sampling = True`` is set, then the following parameters will also be used.  They will be ignored if MCMC is used to sample directly from the posterior or prior.
+
+* ``alpha``: A floating point value used as a parameter for the Beta distribution from which the exponents at each step of a patch sampling analysis are sampled.  Default is 0.3, this should not be changed unless you know what you are doing.
+
+* ``do_not_run``: "True" or "False".  If True, BEAST will generate scripts or batch files for running the different steps of the analysis, but not actually run them.  This lets you manually run the different steps on different computers in parallel.  It's then up to you to calculate the marginal likelihood using BEAST's ``PathSampleAnalyser`` program.  See the official BEAST `path sampling documentation <https://www.beast2.org/path-sampling/>`_ for more details.
+
+* ``log_burnin``: A floating point value giving the proportion of ``chainlength`` which will be discarded as burnin for each step of a path sampling analysis, for the purpose of computing the marginal likelihood estimate.
+
+* ``preburnin``: A floating point value giving the proportion of ``chainlength`` which will be discarded as burnin for the first step only of a path sampling analysis.
+
+* ``steps``: number of steps to use in a path sampling analysis.
 
 languages section
 -----------------
