@@ -93,6 +93,8 @@ class Configuration(object):
         """Number of iterations to run the Markov chain for."""
         self.clock_configs = []
         """A list of dictionaries, each of which specifies the configuration for a single clock model."""
+        self.do_not_run = False
+        """A boolean value, controlling whether or not BEAST should run path sampling analyses or just generate the file and scripts to do so."""
         self.embed_data = False
         """A list of languages to exclude from the analysis, or a name of a file containing such a list."""
         self.exclusions = ""
@@ -219,12 +221,12 @@ class Configuration(object):
             },
             'MCMC': {
                 'alpha': p.getfloat,
-                'steps': p.getint,
                 'chainlength': p.getint,
-                'sample_from_prior': p.getboolean,
+                'do_not_run': p.getboolean,
                 'log_burnin': p.getfloat,
                 'path_sampling': p.getboolean,
                 'preburnin': p.getfloat,
+                'sample_from_prior': p.getboolean,
                 'steps': p.getint,
             },
             'languages': {

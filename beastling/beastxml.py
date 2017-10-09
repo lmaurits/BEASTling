@@ -147,7 +147,7 @@ class BeastXml(object):
         this self.ps_run and assign the nested <mcmc> element to self.run,
         so that <state>, <init> etc. will be correctly added there.
         """
-        self.ps_run = ET.SubElement(self.beast, "run", {
+        attribs = {
             "id": "ps",
             "spec": "beast.inference.PathSampler",
             "chainLength": str(self.config.chainlength),
@@ -157,7 +157,10 @@ class BeastXml(object):
             "preBurnin": str(self.config.preburnin*self.config.chainlength),
             "burnInPercentage": str(self.config.log_burnin),
             "deleteOldLogs": "true",
-            })
+            }
+        if self.config.do_not_run:
+            attribs["doNotRun"] = "true"
+        self.ps_run = ET.SubElement(self.beast, "run", attribs)
         self.ps_run.text = """cd $(dir)
 java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -java -seed $(seed) beast.xml"""
 
