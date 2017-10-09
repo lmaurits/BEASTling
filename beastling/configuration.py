@@ -83,6 +83,8 @@ class Configuration(object):
         """
 
         # Options set by the user, with default values
+        self.alpha = 0.3
+        """Alpha parameter for path sampling intervals."""
         self.basename = basename+"_prior" if prior else basename
         """This will be used as a common prefix for output filenames (e.g. the log will be called basename.log)."""
         self.calibration_configs = {}
@@ -107,6 +109,8 @@ class Configuration(object):
         """Name of a file containing latitude/longitude data."""
         self.log_all = False
         """A boolean value, setting this True is a shortcut for setting log_params, log_probabilities and log_trees True."""
+        self.log_burnin = 0.5
+        """Proportion of logs to discard as burnin when calculating marginal likelihood from path sampling."""
         self.log_dp = 4
         """An integer value, setting the number of decimal points to use when logging rates, locations, etc.  Defaults to 4.  Use -1 to enable full precision."""
         self.log_every = 0
@@ -143,6 +147,8 @@ class Configuration(object):
         """Either the string 'union' or the string 'intersection', controlling how to handle multiple datasets with non-equal language sets."""
         self.path_sampling = False
         """A boolean value, controlling whether to do a standard MCMC run or a Path Sampling analysis for marginal likelihood estimation."""
+        self.preburnin = 0.1
+        """Proportion of chainlength to discard as burnin for the first step in a path sampling analysis."""
         self.sample_branch_lengths = True
         """A boolean value, controlling whether or not to estimate tree branch lengths."""
         self.sample_from_prior = False
@@ -153,6 +159,8 @@ class Configuration(object):
         """A boolean parameter, controlling whether or not to log some basic output to stdout."""
         self.starting_tree = ""
         """A starting tree in Newick format, or the name of a file containing the same."""
+        self.steps = 8
+        """Number of steps between prior and posterior in path sampling analysis."""
         self.stdin_data = stdin_data
         """A boolean value, controlling whether or not to read data from stdin as opposed to the file given in the config."""
         self.tree_prior = "yule"
@@ -210,9 +218,14 @@ class Configuration(object):
                 'glottolog_release': p.get,
             },
             'MCMC': {
+                'alpha': p.getfloat,
+                'steps': p.getint,
                 'chainlength': p.getint,
                 'sample_from_prior': p.getboolean,
+                'log_burnin': p.getfloat,
                 'path_sampling': p.getboolean,
+                'preburnin': p.getfloat,
+                'steps': p.getint,
             },
             'languages': {
                 'exclusions': p.get,

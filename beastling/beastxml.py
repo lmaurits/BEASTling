@@ -151,10 +151,11 @@ class BeastXml(object):
             "id": "ps",
             "spec": "beast.inference.PathSampler",
             "chainLength": str(self.config.chainlength),
-            "nrOfSteps": "8",
-            "alpha": "0.3",
-            "rootdir": "/tmp/step",
-            "preBurnin": str(self.config.chainlength),
+            "nrOfSteps": str(self.config.steps),
+            "alpha": str(self.config.alpha),
+            "rootdir": self.config.basename+"_path_sampling",
+            "preBurnin": str(self.config.preburnin*self.config.chainlength),
+            "burnInPercentage": str(self.config.log_burnin),
             "deleteOldLogs": "true",
             })
         self.ps_run.text = """cd $(dir)
