@@ -361,13 +361,9 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             attribs = {"id":"CalibrationDistribution.%s" % clade, "name":"distr", "offset":"0.0"}
             if cal.offset:
                 attribs["offset"] = str(cal.offset)
-            if dist_type == "Uniform":
-                attribs["lower"] = str(cal.param1)
-                attribs["upper"] = str(cal.param2)
-            dist = ET.SubElement(cal_prior, dist_type, attribs)
-            if dist_type != "Uniform":
-                ET.SubElement(dist, "parameter", {"id":"CalibrationDistribution.%s.param1" % clade, "name":p1_names[dist_type], "estimate":"false"}).text = str(cal.param1)
-                ET.SubElement(dist, "parameter", {"id":"CalibrationDistribution.%s.param2" % clade, "name":p2_names[dist_type], "estimate":"false"}).text = str(cal.param2)
+            attribs[p1_names[dist_type]] = str(cal.param1)
+            attribs[p2_names[dist_type]] = str(cal.param2)
+            ET.SubElement(cal_prior, dist_type, attribs)
   
     def add_taxon_set(self, parent, label, langs, define_taxa=False):
         """
