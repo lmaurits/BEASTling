@@ -154,7 +154,7 @@ class BeastXml(object):
             "nrOfSteps": str(self.config.steps),
             "alpha": str(self.config.alpha),
             "rootdir": self.config.basename+"_path_sampling",
-            "preBurnin": str(self.config.preburnin*self.config.chainlength),
+            "preBurnin": str(int((self.config.preburnin/100)*self.config.chainlength)),
             "burnInPercentage": str(self.config.log_burnin),
             "deleteOldLogs": "true",
             }
