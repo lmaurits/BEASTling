@@ -2,6 +2,9 @@ import csv
 import sys
 import collections
 
+import pycldf.dataset
+from pycldf.cli import Path
+
 from clldutils.dsv import UnicodeDictReader
 
 
@@ -12,8 +15,10 @@ def load_data(filename, file_format=None, lang_column=None, value_column=None):
         # We can't sniff from stdin, so guess comma-delimited and hope for
         # the best
         dialect = "excel" # Default dialect for csv module
+    elif file_format and file_format.lower() == "cldf-wordlist":
+        return read_cldf_wordlist(filename)
     elif file_format and file_format.lower() == "cldf":
-        # CLDF standard says delimiter is indicated by file extension
+        # CLDF pre-1.0 standard says delimiter is indicated by file extension
         if str(filename).lower().endswith("csv") or filename == "stdin":
             dialect = "excel"
         elif str(filename).lower().endswith("tsv"):
@@ -90,6 +95,7 @@ def load_cldf_data(reader, value_column, filename):
         data[lang][row[feature_column]] = row[value_column]
     return data
 
+
 def load_location_data(filename):
 
     # Use CSV dialect sniffer in all other cases
@@ -136,3 +142,58 @@ def load_location_data(filename):
             locations[row[lang_field].strip()] = (lat, lon)
 
         return locations
+
+
+def get_dataset(fname):
+    """Load a CLDF dataset.
+
+    Load the file as `json` CLDF metadata description file, or as metadata-free
+    dataset contained in a single csv file.
+
+    The distinction is made depending on the file extension: `.json` files are
+    loaded as metadata descriptions, all other files are matched against the
+    CLDF module specifications. Directories are checked for the presence of
+    any CLDF datasets in undefined order of the dataset types.
+
+    Parameters
+    ----------
+    fname : str or Path
+        Path to a CLDF dataset
+
+    Returns
+    -------
+    Dataset
+    """
+    fname = Path(fname)
+    if not fname.exists():
+        raise FileNotFoundError(
+            '{:} does not exist'.format(fname))
+    if fname.suffix == '.json':
+        return pycldf.dataset.Dataset.from_metadata(fname)
+    return pycldf.dataset.Dataset.from_data(fname)
+
+
+def read_cldf_wordlist(filename):
+    dataset = get_dataset(filename)
+    data = collections.defaultdict(lambda: collections.defaultdict(lambda: "?"))
+    try:
+        value_column = dataset["FormTable", "cognatesetReference"].name
+        # The form table contains cognate sets!
+        language_column = dataset["FormTable", "languageReference"].name
+        parameter_column = dataset["FormTable", "parameterReference"].name
+        for row in dataset["FormTable"].iterdicts():
+            data[row[language_column]][row[parameter_column]] = row[value_column]
+    except KeyError:
+        cognatesets = collections.defaultdict(lambda: "?")
+        form_reference = dataset["CognateTable", "formReference"].name
+        value_column = dataset["CognateTable", "cognatesetReference"].name
+        for row in dataset["CognateTable"].iterdicts():
+            cognatesets[row[form_reference]] = row[value_column]
+        language_column = dataset["FormTable", "languageReference"].name
+        parameter_column = dataset["FormTable", "parameterReference"].name
+        form_column = dataset["FormTable", "id"].name
+        languages = set()
+        for row in dataset["FormTable"].iterdicts():
+            data[row[language_column]][row[parameter_column]] = cognatesets[row[form_column]]
+    return data
+
