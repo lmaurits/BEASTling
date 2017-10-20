@@ -44,8 +44,10 @@ class BeastlingReport(object):
         for title, tally in zip(("Family", "Macroarea"), (self.family_tally, self.macroarea_tally)):
             lines.append("### %s breakdown\n" % title)
             ranked = [(tally[f],f) for f in tally]
-            ranked.sort()
-            ranked.reverse()
+            # Sort alphabetically first
+            ranked.sort(key=lambda x: x[1])
+            # Then sort by reverse size
+            ranked.sort(key=lambda x: x[0], reverse=True)
             for n, x in ranked:
                 lines.append("* %s: %d" % (x, n))
             lines.append("")
