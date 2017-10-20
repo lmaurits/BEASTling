@@ -524,10 +524,10 @@ class BaseModel(object):
         """
         if self.config.log_fine_probs:
             plate = ET.SubElement(logger, "plate", {
-                "var":"rate",
-                "range":",".join(self.all_rates)})
+                "var":"feature",
+                "range":",".join(self.features)})
             ET.SubElement(plate, "log", {
-                "idref":"rateLikelihood:%s:$(feature)" % self.name})
+                "idref":"featureLikelihood:%s:$(feature)" % self.name})
             if self.rate_variation:
                 ET.SubElement(logger,"log",{"idref":"featureClockRatePrior.s:%s" % self.name})
                 ET.SubElement(logger,"log",{"idref":"featureClockRateGammaShapePrior.s:%s" % self.name})
