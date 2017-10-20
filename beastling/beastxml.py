@@ -377,8 +377,11 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         define_taxa=True will define, rather than refer to, the taxa.
         """
         # Kill duplicates
-        langs = set(langs)
-        assert(langs) # If we've been asked to build an emtpy TaxonSet, something is very wrong
+        langs = sorted(list(set(langs)))
+
+        # If we've been asked to build an emtpy TaxonSet, something is very wrong,
+        # so better to die loud and early
+        assert(langs)
         # Refer to any previous TaxonSet with the same languages
         for idref, taxa in self._taxon_sets.items():
             if langs == taxa:
