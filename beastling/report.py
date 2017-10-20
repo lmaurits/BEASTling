@@ -24,7 +24,7 @@ class BeastlingReport(object):
         self.macroarea_tally = {}
         for l in self.config.languages:
             if l in self.config.classifications:
-                fam = self.config.classifications[l][0][0] or "Unclassified"
+                fam = self.config.classifications[l][0][0] if self.config.classifications[l] else "Unclassified"
                 self.family_tally[fam] = self.family_tally.get(fam, 0) + 1
             if l in self.config.glotto_macroareas:
                 area = self.config.glotto_macroareas.get(l, "Unknown")
@@ -87,12 +87,14 @@ class BeastlingGeoJSON(object):
         self.geojson = {}
         self.geojson["type"] = "FeatureCollection"
         features = []
-        all_families = set([self.config.classifications.get(l,[["Unclassified"]])[0][0] for l in self.config.languages])
+        all_families = set([self.config.classifications[l][0][0] for l in
+            self.config.languages if self.config.classifications[l]])
         style_map = dict(zip(all_families, itertools.cycle(itertools.product(_SHAPES,_COLOURS))))
+        style_map["Unclassified"] = ("circle", "#D3D3D3")
         for l in self.config.languages:
             if l not in self.config.locations:
                 continue
-            fam = self.config.classifications[l][0][0] or "Unclassified"
+            fam = self.config.classifications[l][0][0] if self.config.classifications[l] else "Unclassified"
             area = self.config.glotto_macroareas.get(l, "Unknown")
             lbit = {}
             lbit["type"] = "Feature"
