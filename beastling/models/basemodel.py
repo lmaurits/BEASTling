@@ -73,9 +73,15 @@ class BaseModel(object):
             if fail_to_find:
                 self.messages.append(
                     "[WARNING] Model {:s}:"
-                    "Features {:} not found, cannot be reconstructed.""".format(
+                    " Features {:} not found, cannot be reconstructed.""".format(
                         self.name, fail_to_find))
             self.reconstruct = [f for f in self.reconstruct if f in self.features]
+            self.messages.append(
+                    "[INFO] Model \"{:s}\":"
+                    " Features {:} will be reconstructed.""".format(
+                        self.name, self.reconstruct))
+            # Note: That is a lie. Features can still be filtered out by
+            # subsequent decisions, eg. because they are constant.
         else:
             self.reconstruct = []
 
