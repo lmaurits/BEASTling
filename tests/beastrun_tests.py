@@ -41,6 +41,7 @@ def test_basic():
         ("admin", "noncode"),
         ("admin", "bsvs"),
         ("admin", "covarion_multistate"),
+        ("admin", "covarion_multistate", "covarion_per_feature_params"),
         ("admin", "covarion_true_binary"),
         ("admin", "covarion_binarised"),
         ("admin", "bsvs", "robust_eigen"),
