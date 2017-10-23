@@ -13,6 +13,7 @@ requires = [
     'newick>=0.6.0',
     'appdirs',
     'clldutils',
+    'pycldf',
 ]
 
 setup(
