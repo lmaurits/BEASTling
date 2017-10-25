@@ -17,11 +17,13 @@ class RandomLocalClock(BaseClock):
         ET.SubElement(state, "stateNode", {"id":"Indicators.c:%s" % self.name, "spec":"parameter.BooleanParameter","dimension":"42"}).text="false"
         ET.SubElement(state, "stateNode", {"id":"clockrates.c:%s" % self.name, "spec":"parameter.RealParameter", "dimension":"42"}).text = "0.1"
         self.shape_id = "randomClockGammaShape:%s" % self.name
-        parameter = ET.SubElement(state, "parameter", {"id":self.shape_id, "name":"stateNode"})
-        parameter.text="2.0"
+        # Domain and initial values for Gamma params copied from rate heterogeneity
+        # implementation in BaseModel
+        parameter = ET.SubElement(state, "parameter", {"id":self.shape_id, "name":"stateNode", "lower":"1.1", "upper":"1000.0"})
+        parameter.text="5.0"
         self.scale_id = "randomClockGammaScale:%s" % self.name
         parameter = ET.SubElement(state, "parameter", {"id":self.scale_id, "name":"stateNode"})
-        parameter.text="0.5"
+        parameter.text="0.2"
 
     def add_prior(self, prior):
         BaseClock.add_prior(self, prior)
@@ -34,12 +36,11 @@ class RandomLocalClock(BaseClock):
             "alpha":"@%s" % self.shape_id,
             "beta":"@%s" % self.scale_id})
 
-        # Exponential prior over Gamma shape parameter
+        # Exponential prior over Gamma scale parameter
+        # (mean param copied from rate heterogeneity implementation in BaseModel)
         if self.estimate_variance:
-            sub_prior = ET.SubElement(prior, "prior", {"id":"randomClockGammaShapePrior.s:%s" % self.name, "name":"distribution", "x":"@%s" % self.shape_id})
-            exp = ET.SubElement(sub_prior, "Exponential", {"id":"randomClockGammaShapePriorExponential.s:%s" % self.name, "name":"distr"})
-            param = ET.SubElement(exp, "parameter", {"id":"randomClockGammaShapePriorParam:%s" % self.name, "name":"mean", "lower":"0.0", "upper":"0.0"})
-            param.text = "1.0"
+            sub_prior = ET.SubElement(prior, "prior", {"id":"randomClockGammaScalePrior.s:%s" % self.name, "name":"distribution", "x":"@%s" % self.shape_id})
+            exp = ET.SubElement(sub_prior, "Exponential", {"id":"randomClockGammaScalePriorExponential.s:%s" % self.name, "mean":"0.23", "name":"distr"})
 
         # Poisson prior over number of rate changes
         sub_prior = ET.SubElement(prior, "prior", {"id":"RandomRateChangesPrior.c:%s" % self.name, "name":"distribution"})
@@ -58,7 +59,7 @@ class RandomLocalClock(BaseClock):
         # Operate on indicators
         ET.SubElement(run, "operator", {"id":"IndicatorsBitFlip.c:%s" % self.name, "spec":"BitFlipOperator", "parameter":"@Indicators.c:%s" % self.name, "weight":"15.0"})
         # Operate on branch rates
-        ET.SubElement(run, "operator", {"id":"ClockRateScaler.c:%s" % self.name, "spec":"ScaleOperator", "parameter":"@clockrates.c:%s" % self.name, "weight":"15.0"})
+        ET.SubElement(run, "operator", {"id":"ClockRateScaler.c:%s" % self.name, "spec":"ScaleOperator", "parameter":"@clockrates.c:%s" % self.name, "scaleFactor": "0.5", "weight":"15.0"})
         # Up/down for Gamma params
         if self.estimate_variance:
             updown = ET.SubElement(run, "operator", {"id":"randomClockGammaUpDown:%s" % self.name, "spec":"UpDownOperator", "scaleFactor":"0.5","weight":"1.0"})

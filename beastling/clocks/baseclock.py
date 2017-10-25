@@ -30,6 +30,7 @@ class BaseClock(object):
         # Add mean clock rate
         parameter = ET.SubElement(state, "parameter", {
             "id": self.mean_rate_id,
+            "upper": "1000.0",
             "name": "stateNode"
             })
         parameter.text=str(self.initial_mean)

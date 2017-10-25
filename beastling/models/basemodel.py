@@ -69,10 +69,19 @@ class BaseModel(object):
         if self.reconstruct == ["*"]:
             self.reconstruct = self.features[:]
         elif self.reconstruct:
-            if self.exclusions:
-                self.reconstruct = [f for f in self.reconstruct if f not in self.exclusions]
-            else:
-                pass
+            fail_to_find = [f for f in self.reconstruct if f not in self.features]
+            if fail_to_find:
+                self.messages.append(
+                    "[WARNING] Model {:s}:"
+                    " Features {:} not found, cannot be reconstructed.""".format(
+                        self.name, fail_to_find))
+            self.reconstruct = [f for f in self.reconstruct if f in self.features]
+            self.messages.append(
+                    "[INFO] Model \"{:s}\":"
+                    " Features {:} will be reconstructed.""".format(
+                        self.name, self.reconstruct))
+            # Note: That is a lie. Features can still be filtered out by
+            # subsequent decisions, eg. because they are constant.
         else:
             self.reconstruct = []
 
@@ -329,10 +338,16 @@ class BaseModel(object):
                     "name":"stateNode"})
                 param.text="1.0"
 
-            parameter = ET.SubElement(state, "parameter", {"id":"featureClockRateGammaShape:%s" % self.name, "lower":"0.0","upper":"100.0","name":"stateNode"})
-            parameter.text="2.0"
+            # Give Gamma shape parameter a finite domain
+            # Must be > 1.0 for the distribution to be bell-shaped,
+            # rather than L-shaped.  The domain [1.1,1000] limits feature
+            # rate variation to the realms of vague plausibity
+            parameter = ET.SubElement(state, "parameter", {"id":"featureClockRateGammaShape:%s" % self.name, "lower":"1.1","upper":"100.0","name":"stateNode"})
+            parameter.text="5.0"
+            # Gamma scale parameter's domain is defined *implicilty*
+            # by the fact that the operators maintain shape*scale = 1.0
             parameter = ET.SubElement(state, "parameter", {"id":"featureClockRateGammaScale:%s" % self.name, "name":"stateNode"})
-            parameter.text="0.5"
+            parameter.text="0.2"
 
     def add_frequency_state(self, state):
         for f in self.features:
@@ -352,6 +367,7 @@ class BaseModel(object):
         configured.
         """
         if self.rate_variation:
+            # Gamma prior with mean 1 over all mutation rates
             sub_prior = ET.SubElement(prior, "prior", {"id":"featureClockRatePrior.s:%s" % self.name, "name":"distribution"})
             compound = ET.SubElement(sub_prior, "input", {"id":"featureClockRateCompound:%s" % self.name, "spec":"beast.core.parameter.CompoundValuable", "name":"x"})
             plate = ET.SubElement(compound, "plate", {
@@ -360,9 +376,16 @@ class BaseModel(object):
             ET.SubElement(plate, "var", {
                 "idref":"featureClockRate:%s:$(rate)" % self.name})
             gamma  = ET.SubElement(sub_prior, "input", {"id":"featureClockRatePriorGamma:%s" % self.name, "spec":"beast.math.distributions.Gamma", "name":"distr", "alpha":"@featureClockRateGammaShape:%s" % self.name, "beta":"@featureClockRateGammaScale:%s" % self.name})
-
-            sub_prior = ET.SubElement(prior, "prior", {"id":"featureClockRateGammaShapePrior.s:%s" % self.name, "name":"distribution", "x":"@featureClockRateGammaShape:%s" % self.name})
-            ET.SubElement(sub_prior, "Exponential", {"id":"featureClockRateGammaShapePriorExponential.s:%s" % self.name, "mean":"1.0", "name":"distr"})
+            # Exponential hyperprior on scale of Gamma prior
+            # Exponential prior favours small scales over large scales, i.e. less rate variation
+            # Mean scale 0.23 chosen for general sensibility, e.g.:
+            #   - Prior distribution is roughly 50/50 that ratio of fastest
+            #     to slowest feature rate in a dataset of size 200 is below
+            #     or above 10.
+            #   - Prior probability of roughly 0.90 that this ratio is below
+            #     100.
+            sub_prior = ET.SubElement(prior, "prior", {"id":"featureClockRateGammaScalePrior.s:%s" % self.name, "name":"distribution", "x":"@featureClockRateGammaScale:%s" % self.name})
+            ET.SubElement(sub_prior, "Exponential", {"id":"featureClockRateGammaShapePriorExponential.s:%s" % self.name, "mean":"0.23", "name":"distr"})
 
     def add_likelihood(self, likelihood):
         """
@@ -530,7 +553,7 @@ class BaseModel(object):
                 "idref":"featureLikelihood:%s:$(feature)" % self.name})
             if self.rate_variation:
                 ET.SubElement(logger,"log",{"idref":"featureClockRatePrior.s:%s" % self.name})
-                ET.SubElement(logger,"log",{"idref":"featureClockRateGammaShapePrior.s:%s" % self.name})
+                ET.SubElement(logger,"log",{"idref":"featureClockRateGammaScalePrior.s:%s" % self.name})
 
         if self.frequencies == "estimate":
             self.add_frequency_logs(logger)
@@ -540,7 +563,8 @@ class BaseModel(object):
                 "range":",".join(self.all_rates)})
             ET.SubElement(plate, "log", {
                 "idref":"featureClockRate:%s:$(rate)" % self.name})
-            # Log the shape, but not the scale, as it is always 1 / shape
+            # Log the scale, but not the shape, as it is always 1 / scale
+            # We prefer the scale because it is positively correlated with extent of variation
             ET.SubElement(logger,"log",{"idref":"featureClockRateGammaShape:%s" % self.name})
 
     def add_frequency_logs(self, logger):
