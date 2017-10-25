@@ -319,3 +319,9 @@ class Tests(WithConfigAndTempDir):
         config.process()
         tree = newick.loads(config.monophyly_newick)[0]
         assert len(tree.descendants) == 5
+
+    def test_language_groups(self):
+        config = self._make_cfg('basic', 'taxa')
+        config.process()
+        self.assertEqual(config.language_groups["abf"], {"abf"})
+        self.assertEqual(config.language_groups["macronesian"], {"kbt", "abf", "abg"})
