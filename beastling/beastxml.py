@@ -566,6 +566,10 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         self.add_tracer_logger()
         self.add_tree_loggers()
 
+        # Log reconstructed traits
+        if any([model.metadata for model in self.config.models]):
+            self.add_trait_logger("_reconstructed")
+
     def add_screen_logger(self):
         """
         Add the screen logger, if configured to do so.
@@ -646,10 +650,6 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         if self.config.log_pure_tree and not pure_tree_done:
             self.add_tree_logger("_pure")
 
-        # Log reconstructed traits
-        if any([model.metadata for model in self.config.models]):
-            self.add_trait_tree_logger("_reconstructed")
-
         # Created a dedicated geographic tree log if asked to log locations,
         # or if the geo model's clock is non-strict
         if not self.config.geo_config:
@@ -668,12 +668,16 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
                 "spec":"sphericalGeo.TraitFunction",
                 "likelihood":"@sphericalGeographyLikelihood"}).text = "0.0"
 
-    def add_trait_tree_logger(self, suffix=""):
-        tree_logger = ET.SubElement(self.run, "logger", {"mode":"tree", "fileName":self.config.basename + suffix + ".nex", "logEvery":str(self.config.log_every),"id":"treeLogger" + suffix})
-        log = ET.SubElement(tree_logger, "log", attrib={"id":"ReconstructedStateTreeLogger","spec":"beast.evolution.tree.TreeWithTraitLogger","tree":"@Tree.t:beastlingTree"})
+    def add_trait_logger(self, suffix=""):
+        """Add a logger referencing all AncestralStateLogger likelihoods in the tree."""
+        trait_logger = ET.SubElement(self.run, "logger",
+                                     {"fileName": self.config.basename + suffix + ".log",
+                                      "logEvery": str(self.config.log_every),
+                                      "id":"traitLogger" + suffix})
         for model in self.config.models:
-            for md in model.metadata:
-                ET.SubElement(log, "metadata", {"idref":md})
+            for reference in model.metadata:
+                ET.SubElement(trait_logger, "log", {
+                    "idref": reference})
 
     def tostring(self):
         """

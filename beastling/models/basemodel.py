@@ -393,18 +393,19 @@ class BaseModel(object):
         dataset.
         """
         for n, f in enumerate(self.features):
-            if f in  self.reconstruct:
-                treespec = "AncestralStateTreeLikelihood"
-                ambigs = "false"
-            else:
-                treespec = "TreeLikelihood"
-                ambigs = "true"
             fname = "%s:%s" % (self.name, f)
-            NHX_safe_fname = "%s.%s" % (self.name, f)   # colons in annotation names make ete3's parser sad!
-            attribs = {"id":"featureLikelihood:%s" % fname,"spec":treespec,"useAmbiguities":ambigs}
+            attribs = {"id": "featureLikelihood:%s" % fname}
             if f in  self.reconstruct:
+                attribs["spec"] = "AncestralStateLogger"
+                attribs["useAmbiguities"] = "false"
+                attribs["taxonset"] = "@taxa"
+                # TODO: Actually, we need to be able to specify some taxa
+                # somewhere, which will then be used here. And in the long run,
+                # we want a syntax that supports more than one TaxonSet.
                 self.metadata.append(attribs["id"])
-                attribs["tag"] = "recon_%s" % NHX_safe_fname
+            else:
+                attribs["spec"] = "TreeLikelihood"
+                attribs["useAmbiguities"] = "true"
             if self.pruned:
                 distribution = ET.SubElement(likelihood, "distribution",attribs)
                 # Create pruned tree
