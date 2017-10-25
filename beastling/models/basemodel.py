@@ -95,7 +95,9 @@ class BaseModel(object):
             self.treewide_reconstruction = True
         elif self.reconstruct_at:
             for f in self.reconstruct_at:
-                assert f in self.config.language_groups
+                if f not in self.config.language_group_configs:
+                    raise KeyError("Language group {:} is undefined. Valid groups are: {:}".format(
+                        f, ", ".join(self.config.language_groups.keys())))
         elif self.reconstruct:
             self.reconstruct_at=["root"]
 

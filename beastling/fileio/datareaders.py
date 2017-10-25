@@ -15,9 +15,13 @@ def load_data(filename, file_format=None, lang_column=None, value_column=None):
         # We can't sniff from stdin, so guess comma-delimited and hope for
         # the best
         dialect = "excel" # Default dialect for csv module
-    elif file_format and file_format.lower() == "cldf-wordlist":
-        return read_cldf_wordlist(filename)
+    elif filename.endswith("-metadata.json") or filename in {"forms.csv", "values.csv"}:
+        # TODO: Should we just let the pycldf module try its hands on the file
+        # and fall back to other formats if that doesn't work?
+        return read_cldf_dataset(filename)
     elif file_format and file_format.lower() == "cldf":
+        return read_cldf_dataset(filename)
+    elif file_format and file_format.lower() == "cldf-legacy":
         # CLDF pre-1.0 standard says delimiter is indicated by file extension
         if str(filename).lower().endswith("csv") or filename == "stdin":
             dialect = "excel"
@@ -43,13 +47,13 @@ def load_data(filename, file_format=None, lang_column=None, value_column=None):
     with UnicodeDictReader(filename, dialect=dialect) as reader:
         # Guesstimate file format if user has not been explicit
         if file_format is None:
-            file_format = 'cldf' if all(
+            file_format = 'cldf-legacy' if all(
                 [f in reader.fieldnames for f in ("Language_ID", "Value")]) and any(
                     [f in reader.fieldnames for f in ("Feature_ID", "Parameter_ID")]
                 ) else 'beastling'
 
         # Load data
-        if file_format == 'cldf':
+        if file_format == 'cldf-legacy':
             data = load_cldf_data(reader, value_column, filename)
         elif file_format == 'beastling':
             data = load_beastling_data(reader, lang_column, filename)
@@ -173,27 +177,41 @@ def get_dataset(fname):
     return pycldf.dataset.Dataset.from_data(fname)
 
 
-def read_cldf_wordlist(filename):
+def read_cldf_dataset(filename):
     dataset = get_dataset(filename)
     data = collections.defaultdict(lambda: collections.defaultdict(lambda: "?"))
-    try:
-        value_column = dataset["FormTable", "cognatesetReference"].name
-        # The form table contains cognate sets!
+    if dataset.module == "Wordlist":
+        try:
+            value_column = dataset["FormTable", "cognatesetReference"].name
+            cognate_column_in_form_table = True
+            # The form table contains cognate sets!
+        except KeyError:
+            cognatesets = collections.defaultdict(lambda: "?")
+            form_reference = dataset["CognateTable", "formReference"].name
+            value_column = dataset["CognateTable", "cognatesetReference"].name
+            for row in dataset["CognateTable"].iterdicts():
+                cognatesets[row[form_reference]] = row[value_column]
+            form_column = dataset["FormTable", "id"].name
+            cognate_column_in_form_table = False
+
         language_column = dataset["FormTable", "languageReference"].name
         parameter_column = dataset["FormTable", "parameterReference"].name
+
+        for row in dataset["FormTable"].iterdicts():
+            if cognate_column_in_form_table:
+                data[row[language_column]][row[parameter_column]] = row[value_column]
+            else:
+                data[row[language_column]][row[parameter_column]] = cognatesets[row[form_column]]
+        return data
+    elif dataset.module == "StructureDataset":
+        language_column = dataset["FormTable", "languageReference"].name
+        parameter_column = dataset["FormTable", "parameterReference"].name
+        value_column = dataset["FormTable", "value"].name
         for row in dataset["FormTable"].iterdicts():
             data[row[language_column]][row[parameter_column]] = row[value_column]
-    except KeyError:
-        cognatesets = collections.defaultdict(lambda: "?")
-        form_reference = dataset["CognateTable", "formReference"].name
-        value_column = dataset["CognateTable", "cognatesetReference"].name
-        for row in dataset["CognateTable"].iterdicts():
-            cognatesets[row[form_reference]] = row[value_column]
-        language_column = dataset["FormTable", "languageReference"].name
-        parameter_column = dataset["FormTable", "parameterReference"].name
-        form_column = dataset["FormTable", "id"].name
-        languages = set()
-        for row in dataset["FormTable"].iterdicts():
-            data[row[language_column]][row[parameter_column]] = cognatesets[row[form_column]]
-    return data
+        return data
+    else:
+        raise ValueError("Beastling does not know how to interpret CLDF {:} data.".format(
+            dataset.module))
+
 
