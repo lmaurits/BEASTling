@@ -96,6 +96,8 @@ class BaseModel(object):
         elif self.reconstruct_at:
             for f in self.reconstruct_at:
                 assert f in self.config.language_groups
+        elif self.reconstruct:
+            self.reconstruct_at=["root"]
 
     def process(self):
         """

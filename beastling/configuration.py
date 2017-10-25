@@ -489,6 +489,7 @@ class Configuration(object):
 
         """
         self.language_groups = {language: {language} for language in self.languages}
+        self.language_groups["root"] = set(self.languages)
 
         for name, specification in self.language_group_configs.items():
             taxa = set()
