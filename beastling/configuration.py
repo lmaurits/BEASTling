@@ -107,6 +107,10 @@ class Configuration(object):
         """A string representing a Glottolog release number."""
         self.languages = []
         """List of languages to filter down to, or name of a file containing such a list."""
+        self.language_group_configs = collections.OrderedDict()
+        """An ordered dictionary whose keys are language group names and whose values are language group definitions."""
+        self.language_groups = {}
+        """A dictionary giving names to arbitrary collections of tip languages."""
         self.location_data = None
         """Name of a file containing latitude/longitude data."""
         self.log_all = False
@@ -281,6 +285,11 @@ class Configuration(object):
         if p.has_option(sec,'minimum_data'):
             self.minimum_data = p.getfloat(sec, "minimum_data")
 
+        ## Language groups
+        if p.has_section("language_groups"):
+            for name, components_string in p.items("language_groups"):
+                self.language_group_configs[name] = components_string
+
         ## Calibration
         if p.has_section("calibration"):
             for clade, calibration in p.items("calibration"):
@@ -295,6 +304,7 @@ class Configuration(object):
         model_sections = [s for s in p.sections() if s.lower().startswith("model")]
         for section in model_sections:
             self.model_configs.append(self.get_model_config(p, section))
+
         # Geography
         if p.has_section("geography"):
             self.geo_config = self.get_geo_config(p, "geography")
@@ -412,6 +422,7 @@ class Configuration(object):
         self.build_language_filter()
         self.process_models()
         self.build_language_list()
+        self.define_language_groups()
         self.handle_monophyly()
         self.instantiate_calibrations()
         # At this point, we can tell whether or not the tree's length units
@@ -440,6 +451,26 @@ class Configuration(object):
                 "[INFO] Tree logging disabled because starting tree is known and fixed and all clocks are strict.")
         else:
             self.tree_logging_pointless = False
+
+    def define_language_groups(self):
+        """Parse the [language_groups] section.
+
+        Every individual language is a language group of size one. Additional
+        groups can be specified as comma-separated lists of already-defined
+        groups. (This does of course include comma-separated lists of
+        languages, but definitions can be nested.)
+
+        TODO: In the future, the [languages] section should gain a property
+        such that language groups can be specified using external sources.
+
+        """
+        self.language_groups = {language: {language} for language in self.languages}
+
+        for name, specification in self.language_group_configs.items():
+            taxa = set()
+            for already_defined in specification.split(","):
+                taxa |= self.language_groups[already_defined.strip()]
+            self.language_groups[name] = taxa
 
     def load_glottolog_data(self):
         """
