@@ -5,6 +5,7 @@ import io
 import itertools
 import math
 import os
+import random
 import re
 import six
 import sys
@@ -165,6 +166,8 @@ class Configuration(object):
         """Number of steps between prior and posterior in path sampling analysis."""
         self.stdin_data = stdin_data
         """A boolean value, controlling whether or not to read data from stdin as opposed to the file given in the config."""
+        self.subsample_size = 0
+        """Number of languages to subsample from the set defined by the dataset(s) and other filtering options like "families" or "macroareas"."""
         self.tree_prior = "yule"
         """Tree prior.  Should generally not be set manually."""
 
@@ -239,6 +242,7 @@ class Configuration(object):
                 'starting_tree': p.get,
                 'sample_branch_lengths': p.getboolean,
                 'sample_topology': p.getboolean,
+                'subsample_size': p.getint,
                 'monophyly_start_depth': p.getint,
                 'monophyly_end_depth': p.getint,
                 'monophyly_levels': p.getint,
@@ -919,9 +923,29 @@ class Configuration(object):
         if not self.languages:
             raise ValueError("No languages specified!")
 
+        ## Perform subsampling, if requested
+        self.languages = self.subsample_languages(self.languages)
+
         ## Convert back into a sorted list
         self.languages = sorted(self.languages)
         self.messages.append("[INFO] %d languages included in analysis." % len(self.languages))
+
+    def subsample_languages(self, languages):
+        """
+        Return a random subsample of languages with a specified size
+        """
+        if not self.subsample_size:
+            return languages
+        if self.subsample_size > len(languages):
+            self.messages.append("[INFO] Requested subsample size is %d, but only %d languages to work with!  Disabling subsampling." % (self.subsample_size, len(languages)))
+            return languages
+        # Seed PRNG with sorted language names
+        # Python will convert to an integer hash
+        # This means we always take the same subsample for a particular
+        # initial language set.
+        self.messages.append("[INFO] Subsampling %d languages down to %d." % (len(languages), self.subsample_size))
+        random.seed("",join(sorted(languages)))
+        return random.sample(languages, self.subsample_size)
 
     def instantiate_calibrations(self):
         self.calibrations = {}
