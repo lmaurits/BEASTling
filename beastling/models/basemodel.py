@@ -11,6 +11,9 @@ class BaseModel(object):
     models, such as rate variation.
     """
 
+    treewide_reconstruction = False
+    """Should ASR be performed on the entire tree (if at all)?"""
+
     def __init__(self, model_config, global_config):
         """
         Parse configuration options, load data from file and pre-process data.
@@ -22,7 +25,8 @@ class BaseModel(object):
         self.data_filename = model_config["data"] 
         self.clock = model_config.get("clock", "")
         self.features = model_config.get("features",["*"])
-        self.reconstruct = model_config.get("reconstruct",None)
+        self.reconstruct = model_config.get("reconstruct", None)
+        self.reconstruct_at = model_config.get("reconstruct_at", [])
         self.exclusions = model_config.get("exclusions",None)
         self.constant_feature = False
         self.constant_feature_removed = False
@@ -40,6 +44,7 @@ class BaseModel(object):
         self.data_separator = ","
         self.use_robust_eigensystem = model_config.get("use_robust_eigensystem", False)
         self.metadata = []
+        self.treedata = []
 
         # Load the entire dataset from the file
         self.data = load_data(self.data_filename, file_format=model_config.get("file_format",None), lang_column=model_config.get("language_column",None), value_column=model_config.get("value_column",None))
@@ -84,6 +89,13 @@ class BaseModel(object):
             # subsequent decisions, eg. because they are constant.
         else:
             self.reconstruct = []
+
+        if self.reconstruct_at == ["*"]:
+            self.reconstruct_at = None
+            self.treewide_reconstruction = True
+        elif self.reconstruct_at:
+            for f in self.reconstruct_at:
+                assert f in self.config.language_groups
 
     def process(self):
         """
@@ -394,18 +406,10 @@ class BaseModel(object):
         """
         for n, f in enumerate(self.features):
             fname = "%s:%s" % (self.name, f)
-            attribs = {"id": "featureLikelihood:%s" % fname}
-            if f in  self.reconstruct:
-                attribs["spec"] = "AncestralStateLogger"
-                attribs["useAmbiguities"] = "false"
-                attribs["taxonset"] = "@taxa"
-                # TODO: Actually, we need to be able to specify some taxa
-                # somewhere, which will then be used here. And in the long run,
-                # we want a syntax that supports more than one TaxonSet.
-                self.metadata.append(attribs["id"])
-            else:
-                attribs["spec"] = "TreeLikelihood"
-                attribs["useAmbiguities"] = "true"
+            attribs = {"id": "featureLikelihood:%s" % fname,
+                       "spec": "TreeLikelihood",
+                       "useAmbiguities": "true"}
+
             if self.pruned:
                 distribution = ET.SubElement(likelihood, "distribution",attribs)
                 # Create pruned tree
@@ -419,6 +423,19 @@ class BaseModel(object):
                 attribs["branchRateModel"] = "@%s" % self.clock.branchrate_model_id
                 attribs["tree"] = "@Tree.t:beastlingTree"
                 distribution = ET.SubElement(likelihood, "distribution",attribs)
+
+            if f in  self.reconstruct:
+                # Use a different likelihood spec (also depending on whether
+                # the whole tree is reconstructed, or only some nodes)
+                if self.treewide_reconstruction:
+                    distribution.attrib["spec"] = "AncestralStateTreeLikelihood"
+                    self.treedata.append(attribs["id"])
+                else:
+                    distribution.attrib["spec"] = "AncestralStateLogger"
+                    for label in self.reconstruct_at:
+                        self.beastxml.add_taxon_set(distribution, label, self.config.language_groups[label])
+                    self.metadata.append(attribs["id"])
+                distribution.attrib["useAmbiguities"] = "false"
 
             # Sitemodel
             self.add_sitemodel(distribution, f, fname)
