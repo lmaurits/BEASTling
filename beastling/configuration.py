@@ -132,7 +132,7 @@ class Configuration(object):
         self.minimum_data = 0.0
         """List of Glottolog macro-areas to filter down to, or name of a file containing such a list."""
         self.model_configs = []
-        """A list of dictionaries, each of which specifies the configuration for a single clock model."""
+        """A list of dictionaries, each of which specifies the configuration for a single evolutionary model."""
         self.monophyly = False
         """A boolean parameter, controlling whether or not to enforce monophyly constraints derived from Glottolog's classification."""
         self.monophyly_start_depth = 0
