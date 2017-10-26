@@ -19,7 +19,7 @@ from clldutils.dsv import reader
 from beastling.fileio.datareaders import load_location_data
 import beastling.clocks.strict as strict
 import beastling.clocks.relaxed as relaxed
-import beastling.clocks.random as random
+import beastling.clocks.random as random_clock
 
 import beastling.models.geo as geo
 import beastling.models.bsvs as bsvs
@@ -756,7 +756,7 @@ class Configuration(object):
             elif config["type"].lower() == "relaxed":
                 clock = relaxed.relaxed_clock_factory(config, self)
             elif config["type"].lower() == "random":
-                clock = random.RandomLocalClock(config, self) 
+                clock = random_clock.RandomLocalClock(config, self)
             self.clocks.append(clock)
             self.clocks_by_name[clock.name] = clock
         # Create default clock if necessary
@@ -852,7 +852,7 @@ class Configuration(object):
 
         # Disable pruned trees in models using RLCs
         for model in self.models:
-            if model.pruned and isinstance(model.clock, random.RandomLocalClock):
+            if model.pruned and isinstance(model.clock, random_clock.RandomLocalClock):
                 model.pruned = False
                 self.messages.append("""[INFO] Disabling pruned trees in model %s because associated clock %s is a RandomLocalClock.  Pruned trees are currently only compatible with StrictClocks and RelaxedClocks.""" % (model.name, model.clock.name))
 
@@ -923,12 +923,16 @@ class Configuration(object):
         if not self.languages:
             raise ValueError("No languages specified!")
 
-        ## Perform subsampling, if requested
-        self.languages = self.subsample_languages(self.languages)
-
         ## Convert back into a sorted list
         self.languages = sorted(self.languages)
+
+        ## Perform subsampling, if requested
+        self.languages = sorted(self.subsample_languages(self.languages))
         self.messages.append("[INFO] %d languages included in analysis." % len(self.languages))
+
+        ## SPREAD THE WORD!
+        for m in self.models:
+            m.languages = [l for l in m.languages if l in self.languages]
 
     def subsample_languages(self, languages):
         """
@@ -944,7 +948,7 @@ class Configuration(object):
         # This means we always take the same subsample for a particular
         # initial language set.
         self.messages.append("[INFO] Subsampling %d languages down to %d." % (len(languages), self.subsample_size))
-        random.seed("",join(sorted(languages)))
+        random.seed(",".join(sorted(languages)))
         return random.sample(languages, self.subsample_size)
 
     def instantiate_calibrations(self):
