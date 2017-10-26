@@ -266,9 +266,9 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             self.treeheight_estimate = None
             return
         # Find the mean birthrate estimate
-        self.birthrate_estimate = sum(birthrate_estimates) / len(birthrate_estimates)
+        self.birthrate_estimate = round(sum(birthrate_estimates) / len(birthrate_estimates), 4)
         # Find the expected height of a tree with this birthrate
-        self.treeheight_estimate = (1.0/self.birthrate_estimate)*(log(len(self.config.languages)) + 0.5772156649 - 1)
+        self.treeheight_estimate = round((1.0/self.birthrate_estimate)*(log(len(self.config.languages)) + 0.5772156649 - 1), 4)
 
     def add_randomtree_init(self):
         attribs = {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "taxonset":"@taxa", "spec":"beast.evolution.tree.RandomTree"}
