@@ -110,8 +110,8 @@ class Configuration(object):
         """List of languages to filter down to, or name of a file containing such a list."""
         self.location_data = None
         """Name of a file containing latitude/longitude data."""
-        self.log_all = False
-        """A boolean value, setting this True is a shortcut for setting log_params, log_probabilities and log_trees True."""
+        self._log_all = False
+        """A boolean value, setting this True is a shortcut for setting log_params, log_probabilities, log_fine_probs and log_trees True."""
         self.log_burnin = 50
         """Proportion of logs to discard as burnin when calculating marginal likelihood from path sampling."""
         self.log_dp = 4
@@ -123,7 +123,7 @@ class Configuration(object):
         self.log_probabilities = True
         """A boolean value, controlling whether or not to log the prior, likelihood and posterior of the analysis."""
         self.log_fine_probs = False
-        """A boolean value, controlling whether or not to log individual components of the prior and likelihood."""
+        """A boolean value, controlling whether or not to log individual components of the prior and likelihood.  Setting this True automatically sets log_probabilities True."""
         self.log_trees = True
         """A boolean value, controlling whether or not to log the sampled trees."""
         self.log_pure_tree = False
@@ -191,6 +191,19 @@ class Configuration(object):
         if configfile:
             self.read_from_file(configfile)
 
+    @property
+    def log_all(self):
+        return self._log_all
+
+    @log_all.setter
+    def log_all(self, log_all):
+        self._log_all = log_all
+        if log_all:
+            self.log_trees = True
+            self.log_params = True
+            self.log_probabilities = True
+            self.log_fine_probs = True
+
     def read_from_file(self, configfile):
         """
         Read one or several INI-style configuration files and overwrite
@@ -207,12 +220,15 @@ class Configuration(object):
                 self.configfile.read(conf)
         p = self.configfile
 
+        # Set some logging options according to log_all
+        # Note that these can still be overridden later
+        self.log_all = p.get("admin", "log_all", fallback=False)
+
         for sec, opts in {
             'admin': {
                 'basename': p.get,
                 'embed_data': p.getboolean,
                 'screenlog': p.getboolean,
-                'log_all': p.getboolean,
                 'log_dp': p.getint,
                 'log_every': p.getint,
                 'log_probabilities': p.getboolean,
@@ -255,6 +271,10 @@ class Configuration(object):
                         self.urgent_messages.append("[WARNING] Specifying location data via 'location_data' in [languages] is deprecated!  Please use 'data' in [geography] instead.  Your current config will work for now but may not in future releases.")
                         pass # Deprecation warning
                     setattr(self, opt, getter(sec, opt))
+
+        # Handle some logical implications
+        if self.log_fine_probs:
+            self.log_probabilities = True
 
         ## MCMC
         self.sample_from_prior |= self.prior
