@@ -266,9 +266,9 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             self.treeheight_estimate = None
             return
         # Find the mean birthrate estimate
-        self.birthrate_estimate = sum(birthrate_estimates) / len(birthrate_estimates)
+        self.birthrate_estimate = round(sum(birthrate_estimates) / len(birthrate_estimates), 4)
         # Find the expected height of a tree with this birthrate
-        self.treeheight_estimate = (1.0/self.birthrate_estimate)*(log(len(self.config.languages)) + 0.5772156649 - 1)
+        self.treeheight_estimate = round((1.0/self.birthrate_estimate)*(log(len(self.config.languages)) + 0.5772156649 - 1), 4)
 
     def add_randomtree_init(self):
         attribs = {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "taxonset":"@taxa", "spec":"beast.evolution.tree.RandomTree"}
@@ -582,16 +582,16 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         """
         Add file logger, if configured to do so.
         """
-        if not(self.config.log_probabilities or self.config.log_params or self.config.log_all):
+        if not(self.config.log_probabilities or self.config.log_params):
             return
         tracer_logger = ET.SubElement(self.run,"logger",{"id":"tracelog","fileName":self.config.basename+".log","logEvery":str(self.config.log_every),"sort":"smart"})
         # Log prior, likelihood and posterior
-        if self.config.log_probabilities or self.config.log_all:
+        if self.config.log_probabilities:
             ET.SubElement(tracer_logger,"log",{"idref":"prior"})
             ET.SubElement(tracer_logger,"log",{"idref":"likelihood"})
             ET.SubElement(tracer_logger,"log",{"idref":"posterior"})
         # Log Yule birth rate
-        if self.config.log_params or self.config.log_all:
+        if self.config.log_params:
             if self.config.tree_prior == "yule":
                 ET.SubElement(tracer_logger,"log",{"idref":"birthRate.t:beastlingTree"})
             elif self.config.tree_prior == "coalescent":
@@ -625,8 +625,7 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         """
         Add tree logger, if configured to do so.
         """
-        if not ((self.config.log_trees or self.config.log_all) and not
-            self.config.tree_logging_pointless):
+        if not self.config.log_trees or self.config.tree_logging_pointless:
             return
 
         pure_tree_done = False
