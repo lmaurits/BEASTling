@@ -599,7 +599,7 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             for clock in self.config.clocks:
                 clock.add_param_logs(tracer_logger)
             for model in self.config.all_models:
-                    model.add_param_logs(tracer_logger)
+                model.add_param_logs(tracer_logger)
 
         # Log tree height
         if not self.config.tree_logging_pointless:
