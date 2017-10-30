@@ -120,12 +120,15 @@ Valid macroareas are: ``Africa``, ``Australia``, ``Eurasia``, ``North America``,
    * If set to ``union`` (the default), languages missing in one data set will be added with missing datapoints ("?") for all features.
    * If set to ``intersection``, only languages present in all data sets will be used.
 
-* ``starting_tree``: Used to provide a starting tree.  Can be a Newick format tree or the name of a file which contains a Newick format tree.  If not specified, a random starting tree (compatible with monophyly constraints, if active) will be used.  The languages in the provided tree may be a superset of the languages in your analysis - the starting tree will be pruned appropriately.  Note that BEASTling currently does not check that your starting tree is compatible with your monophyly constraints, if any, so it's up to you to do this (if you don't, the starting prior probability will be zero and BEAST will not run).
-
 * ``sample_branch_lengths``: If True, the branch lengths of the starting tree.  If False, the starting branch lengths will be kept fixed.  Use this in conjunction with ``starting_tree`` when you have a tree you trust and want to fit model parameters to it.  Default is True.
 
 * ``sample_topology``: If true, the topology of the starting tree (i.e. the details of which leaves are connected to which and how) will be sampled during the analysis to fit the data.  If false, the topology will be kept fixed.  Use this in conjunction with ``starting_tree`` when you have a tree you trust and want to fit model parameters to it.  Default is True.
 
+* ``starting_tree``: Used to provide a starting tree.  Can be a Newick format tree or the name of a file which contains a Newick format tree.  If not specified, a random starting tree (compatible with monophyly constraints, if active) will be used.  The languages in the provided tree may be a superset of the languages in your analysis - the starting tree will be pruned appropriately.  Note that BEASTling currently does not check that your starting tree is compatible with your monophyly constraints, if any, so it's up to you to do this (if you don't, the starting prior probability will be zero and BEAST will not run).
+
+* ``subsample_size``: An integer, specifying a number of languages to subsample down to if more languages than this are present in the data and compatible with other options (``families``, ``macroareas``, etc.).  Useful if your dataset(s) contain many languages resulting in slow analyses or memory issues, and you want to experiment on a small subset of your data before doing a slower full run on a more powerful machine.  Exactly the same subsample will be returned on each run of BEASTling as long as the value of ``subsample_size`` and the full set of languages remains the same, so you can still, e.g. do meaning model comparions.
+
+Note that the current subsampling implementation chooses languages uniformly at random from the full set, so the distribution over families, macroareas, etc. will usually be *approximately* equal to the corresponding distribution for the full set, but this is not guaranteed and there is a chance that e.g. some families represented in the full set will be missing from the subsample.  More principled subsampling approaches may be available in future releases.
 
 calibration section
 -------------------
