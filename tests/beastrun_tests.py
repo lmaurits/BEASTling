@@ -33,6 +33,7 @@ def test_basic():
     BEAST.xml, and feed it to BEAST, testing for a zero return
     value, which suggests no deeply mangled XML."""
     for configs in [
+        ("admin", "mk", "subsample"),
         ("admin", "mk", "ancestral_state_reconstruction"),
         ("admin", "mk", "cldf_data_with_nonstandard_value_column"),
         ("admin", "mk"),

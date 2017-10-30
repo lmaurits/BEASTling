@@ -319,3 +319,20 @@ class Tests(WithConfigAndTempDir):
         config.process()
         tree = newick.loads(config.monophyly_newick)[0]
         assert len(tree.descendants) == 5
+
+    def test_subsampling(self):
+        # First check how many languages there usually are
+        config = self._make_cfg('admin', 'mk')
+        config.process()
+        full_lang_count = len(config.languages)
+        # Try various subsamples and make sure they work
+        for subsample_size in range(2, full_lang_count):
+            config = self._make_cfg('admin', 'mk')
+            config.subsample_size = subsample_size
+            config.process()
+            assert len(config.languages) == subsample_size
+        # Make sure if we ask for more languages than we have nothing happens
+        config = self._make_cfg('admin', 'mk')
+        config.subsample_size = full_lang_count + 42
+        config.process()
+        assert len(config.languages) == full_lang_count
