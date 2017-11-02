@@ -137,6 +137,7 @@ class BeastXml(object):
         attribs["id"] = "mcmc"
         attribs["spec"] = "MCMC"
         attribs["chainLength"] = str(self.config.chainlength)
+        attribs["numInitializationAttempts"] = "1000"
         if self.config.sample_from_prior:
             attribs["sampleFromPrior"] = "true"
         self.run = ET.SubElement(self.beast, "run", attrib=attribs)
