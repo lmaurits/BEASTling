@@ -637,7 +637,7 @@ Calibrations are added to their own section in the configuration file.  Suppose 
            rate_variation=True
            [clock default]
            type=relaxed
-           [calibrations]
+           [calibration]
            French,Italian,Portuguese,Romanian,Spanish=1.4-1.6
     --- ie_vocabulary.conf
 
