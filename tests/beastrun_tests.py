@@ -37,11 +37,7 @@ def test_basic():
         ("admin", "mk", "cldf_data_with_nonstandard_value_column"),
         ("admin", "mk"),
         ("admin", "cldf_data"),
-        # ("admin", "cldf1_wordlist"),
-    # It is currently not clear whether metadatafree wordlists (such as the one
-    # used in this test) may have additional columns (such as the cognate
-    # column used in this test). Once https://github.com/cldf/pycldf/issues/50
-    # is resolved, this test may be re-instated.
+        ("admin", "cldf1_wordlist"),
         ("admin", "cldf1_wordlist_external_codes"),
         ("admin", "cldf1_structure"),
         ("admin", "nonnumeric"),
