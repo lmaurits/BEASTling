@@ -6,6 +6,8 @@ import xml.etree.ElementTree as ET
 
 from six import BytesIO, PY3
 
+from clldutils.path import Path
+
 from beastling import __version__
 import beastling.beast_maps as beast_maps
 
@@ -98,7 +100,7 @@ class BeastXml(object):
         the text of the specified data file.
         """
         header = "BEASTling embedded data file: %s" % filename
-        fp = open(filename, "r")
+        fp = Path(filename).open("r")
         data_block = "\n".join([header, fp.read()])
         fp.close()
         return ET.Comment(data_block)

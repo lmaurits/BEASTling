@@ -15,6 +15,7 @@ from appdirs import user_data_dir
 from six.moves.urllib.request import FancyURLopener
 from clldutils.inifile import INI
 from clldutils.dsv import reader
+from clldutils.path import Path
 
 from beastling.fileio.datareaders import load_location_data
 import beastling.clocks.strict as strict
@@ -385,6 +386,8 @@ class Configuration(object):
             if key in ['minimum_data']:
                 value = p.getfloat(section, key)
 
+            if key in ['data']:
+                value = Path(value)
             cfg[key] = value
         return cfg
 

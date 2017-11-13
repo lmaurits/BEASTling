@@ -10,28 +10,28 @@ from clldutils.dsv import UnicodeDictReader
 
 def load_data(filename, file_format=None, lang_column=None, value_column=None):
     # Handle CSV dialect issues
-    if filename == 'stdin':
+    if str(filename) == 'stdin':
         filename = sys.stdin
         # We can't sniff from stdin, so guess comma-delimited and hope for
         # the best
         dialect = "excel" # Default dialect for csv module
-    elif filename.endswith("-metadata.json") or filename in {"forms.csv", "values.csv"}:
-        # TODO: Should we just let the pycldf module try its hands on the file
-        # and fall back to other formats if that doesn't work?
-        return read_cldf_dataset(filename)
     elif file_format and file_format.lower() == "cldf":
-        return read_cldf_dataset(filename)
+        return read_cldf_dataset(filename, value_column)
     elif file_format and file_format.lower() == "cldf-legacy":
         # CLDF pre-1.0 standard says delimiter is indicated by file extension
-        if str(filename).lower().endswith("csv") or filename == "stdin":
+        if filename.suffix.lower() == ".csv" or str(filename) == "stdin":
             dialect = "excel"
-        elif str(filename).lower().endswith("tsv"):
+        elif filename.suffix.lower() == ".tsv":
             dialect = "excel-tab"
         else:
             raise ValueError("CLDF standard dictates that filenames must end in .csv or .tsv")
+    elif filename.suffix == ".json" or filename.name in {"forms.csv", "values.csv"}:
+        # TODO: Should we just let the pycldf module try its hands on the file
+        # and fall back to other formats if that doesn't work?
+        return read_cldf_dataset(filename, value_column)
     else:
         # Use CSV dialect sniffer in all other cases
-        fp = open(str(filename), "r") # Cast PosixPath to str
+        fp = filename.open("r")
         # On large files, csv.Sniffer seems to need a lot of datta to make a
         # successful inference...
         sample = fp.read(1024)
@@ -177,38 +177,54 @@ def get_dataset(fname):
     return pycldf.dataset.Dataset.from_data(fname)
 
 
-def read_cldf_dataset(filename):
+def read_cldf_dataset(filename, code_column=None):
     dataset = get_dataset(filename)
     data = collections.defaultdict(lambda: collections.defaultdict(lambda: "?"))
     if dataset.module == "Wordlist":
-        try:
-            value_column = dataset["FormTable", "cognatesetReference"].name
-            cognate_column_in_form_table = True
-            # The form table contains cognate sets!
-        except KeyError:
-            cognatesets = collections.defaultdict(lambda: "?")
-            form_reference = dataset["CognateTable", "formReference"].name
-            value_column = dataset["CognateTable", "cognatesetReference"].name
-            for row in dataset["CognateTable"].iterdicts():
-                cognatesets[row[form_reference]] = row[value_column]
-            form_column = dataset["FormTable", "id"].name
-            cognate_column_in_form_table = False
+        if code_column:
+            try:
+                code_column = dataset["FormTable", code_column].name
+                cognate_column_in_form_table = True
+            except KeyError:
+                raise ValueError(
+                    "Code column {:} not found in primary word list table "
+                    "of dataset {:}".format(code_column, filename))
+        else:
+            try:
+                code_column = dataset["FormTable", "cognatesetReference"].name
+                cognate_column_in_form_table = True
+                # The form table contains cognate sets!
+            except KeyError:
+                cognatesets = collections.defaultdict(lambda: "?")
+                try:
+                    form_reference = dataset["CognateTable", "formReference"].name
+                    code_column = dataset["CognateTable", "cognatesetReference"].name
+                except KeyError:
+                    raise ValueError(
+                        "Dataset {:} has no cognatesetReference column in its "
+                        "primary table or in a separate cognate table. "
+                        "Is this a metadata-free wordlist and you forgot to "
+                        "specify code_column explicitly?".format(filename))
+                for row in dataset["CognateTable"].iterdicts():
+                    cognatesets[row[form_reference]] = row[code_column]
+                form_column = dataset["FormTable", "id"].name
+                cognate_column_in_form_table = False
 
         language_column = dataset["FormTable", "languageReference"].name
         parameter_column = dataset["FormTable", "parameterReference"].name
 
         for row in dataset["FormTable"].iterdicts():
             if cognate_column_in_form_table:
-                data[row[language_column]][row[parameter_column]] = row[value_column]
+                data[row[language_column]][row[parameter_column]] = row[code_column]
             else:
                 data[row[language_column]][row[parameter_column]] = cognatesets[row[form_column]]
         return data
     elif dataset.module == "StructureDataset":
-        language_column = dataset["FormTable", "languageReference"].name
-        parameter_column = dataset["FormTable", "parameterReference"].name
-        value_column = dataset["FormTable", "value"].name
-        for row in dataset["FormTable"].iterdicts():
-            data[row[language_column]][row[parameter_column]] = row[value_column]
+        language_column = dataset["ValueTable", "languageReference"].name
+        parameter_column = dataset["ValueTable", "parameterReference"].name
+        code_column = code_column or dataset["ValueTable", "codeReference"].name
+        for row in dataset["ValueTable"].iterdicts():
+            data[row[language_column]][row[parameter_column]] = row[code_column]
         return data
     else:
         raise ValueError("Beastling does not know how to interpret CLDF {:} data.".format(

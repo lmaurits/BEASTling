@@ -434,6 +434,7 @@ class BaseModel(object):
                 if self.treewide_reconstruction:
                     distribution.attrib["spec"] = "AncestralStateTreeLikelihood"
                     self.treedata.append(attribs["id"])
+                    distribution.attrib["tag"] = f
                 else:
                     distribution.attrib["spec"] = "AncestralStateLogger"
                     for label in self.reconstruct_at:
