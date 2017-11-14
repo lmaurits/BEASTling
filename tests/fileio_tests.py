@@ -2,7 +2,7 @@
 from __future__ import unicode_literals, print_function
 from unittest import TestCase
 
-from beastling.fileio.datareaders import load_data
+from beastling.fileio.datareaders import load_data, sniff
 from .util import data_path
 
 
@@ -48,3 +48,18 @@ class Tests(TestCase):
                 set(beastling_format[key].items()), set(tabbed_cldf_format[key].items()))
             self.assertEqual(
                 set(beastling_format[key].items()), set(tabbed_explicit_cldf_format[key].items()))
+
+    def test_sniffer(self):
+        for file in ["basic.csv", "basic_with_comma.csv", "binary.csv",
+                     "cldf2.csv", "cldf.csv", "cldf_value_col.csv",
+                     "cldf_with_comma.csv", "cognatesets.csv",
+                     "duplicated_iso.csv", "forms.csv", "germanic.csv",
+                     "glottocode.csv", "isolates.csv", "location_data.csv",
+                     "mixedcode.csv", "more_location_data.csv", "no_iso.csv",
+                     "noncode.csv", "nonnumeric.csv",
+                     "nonstandard_lang_col.csv", "values.csv"]:
+            dialect = sniff(data_path().joinpath(file))
+            assert dialect.delimiter == ","
+        for file in ["cldf.tsv"]:
+            dialect = sniff(data_path().joinpath(file))
+            assert dialect.delimiter == "\t"

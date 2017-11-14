@@ -30,7 +30,10 @@ def sniff(filename):
             try:
                 return csv.Sniffer().sniff(sample, [",", "\t"])
             except csv.Error:
-                sample += fp.read(1024)
+                blob = fp.read(1024)
+                sample += blob
+                if not blob:
+                    raise
 
 
 def load_data(filename, file_format=None, lang_column=None, value_column=None):

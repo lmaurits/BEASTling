@@ -342,3 +342,8 @@ class Tests(WithConfigAndTempDir):
         config.process()
         self.assertEqual(config.language_groups["abf"], {"abf"})
         self.assertEqual(config.language_groups["macronesian"], {"kbt", "abf", "abg"})
+
+    @raises(KeyError)
+    def test_nonexisting_language_group(self):
+        config = self._make_cfg('basic', 'reconstruct_one')
+        config.process()
