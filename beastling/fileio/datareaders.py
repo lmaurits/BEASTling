@@ -8,6 +8,52 @@ from pycldf.cli import Path
 from clldutils.dsv import UnicodeDictReader
 
 
+if sys.version_info[0] == 2: # pragma: no cover
+    def sniff(filename):
+        """Read the beginning of the file and guess its csv dialect.
+
+        Parameters
+        ----------
+        filename: str or pathlib.Path
+            Path to a csv file to be sniffed
+
+        Returns
+        -------
+        csv.Dialect
+        """
+        with Path(filename).open("rb") as fp:
+            # On large files, csv.Sniffer seems to need a lot of data to make a
+            # successful inference...
+            sample = fp.read(1024)
+            while True:
+                try:
+                    return csv.Sniffer().sniff(sample, [",", "\t"])
+                except csv.Error:
+                    sample += fp.read(1024)
+else:
+    def sniff(filename):
+        """Read the beginning of the file and guess its csv dialect.
+
+        Parameters
+        ----------
+        filename: str or pathlib.Path
+            Path to a csv file to be sniffed
+
+        Returns
+        -------
+        csv.Dialect
+        """
+        with Path(filename).open("r") as fp:
+            # On large files, csv.Sniffer seems to need a lot of data to make a
+            # successful inference...
+            sample = fp.read(1024)
+            while True:
+                try:
+                    return csv.Sniffer().sniff(sample, [",", "\t"])
+                except csv.Error:
+                    sample += fp.read(1024)
+
+
 def load_data(filename, file_format=None, lang_column=None, value_column=None):
     # Handle CSV dialect issues
     if str(filename) == 'stdin':
@@ -31,18 +77,7 @@ def load_data(filename, file_format=None, lang_column=None, value_column=None):
         return read_cldf_dataset(filename, value_column)
     else:
         # Use CSV dialect sniffer in all other cases
-        fp = filename.open("r")
-        # On large files, csv.Sniffer seems to need a lot of datta to make a
-        # successful inference...
-        sample = fp.read(1024)
-        while True:
-            try:
-                dialect = csv.Sniffer().sniff(sample, [",","\t"])
-                break
-            except csv.Error:
-                sample += fp.read(1024)
-        fp.close()
-
+        dialect = sniff(filename)
     # Read
     with UnicodeDictReader(filename, dialect=dialect) as reader:
         # Guesstimate file format if user has not been explicit
