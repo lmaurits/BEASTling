@@ -34,10 +34,12 @@ def test_basic():
     value, which suggests no deeply mangled XML."""
     for configs in [
         ("admin", "mk", "subsample"),
-        ("admin", "mk", "ancestral_state_reconstruction"),
         ("admin", "mk", "cldf_data_with_nonstandard_value_column"),
         ("admin", "mk"),
         ("admin", "cldf_data"),
+        ("admin", "cldf1_wordlist"),
+        ("admin", "cldf1_wordlist_external_codes"),
+        ("admin", "cldf1_structure"),
         ("admin", "nonnumeric"),
         ("admin", "noncode"),
         ("admin", "bsvs"),
@@ -125,7 +127,7 @@ skip = [
     ]
 
 
-def _do_test(config_files):
+def _do_test(config_files, inspector=None):
     config = TEST_CASE.make_cfg([config_path(cf).as_posix() for cf in config_files])
     xml = beastling.beastxml.BeastXml(config)
     temp_filename = TEST_CASE.tmp_path('test').as_posix()
@@ -148,3 +150,46 @@ def _do_test(config_files):
                 "Beast run on {:} returned non-zero exit status "
                 "{:d}".format(
                     config_files, e.returncode))
+        if inspector:
+            inspector(TEST_CASE.tmp)
+
+
+def test_asr_root_output_files():
+    """Test the root ASR output.
+
+    Generate a Beast config file for ASR at the root and run Beast. Check that
+    beast returns a `0` return value, and check some properties of the data
+    generated.
+
+    """
+    def assert_asr_logfile(dir):
+        assert dir.joinpath("beastling_test_reconstructed.log").exists()
+    _do_test(("admin", "mk", "ancestral_state_reconstruction"), inspector=assert_asr_logfile)
+
+
+def test_asr_tree_output():
+    """Test the full-tree ASR output.
+
+    Generate a Beast config file for ASR in every node of the tree and run
+    Beast. Check that beast returns a `0` return value, and check some
+    properties of the data generated.
+
+    """
+    def assert_asr_logfile(dir):
+        assert dir.joinpath("beastling_test_reconstructed.nex").exists()
+    _do_test(("admin", "mk", "ancestral_state_reconstruction", "taxa", "reconstruct_all"), inspector=assert_asr_logfile)
+
+
+def test_asr_output():
+    """Test the clade ASR output.
+
+    Generate a Beast config file for ASR at the MRCA of a taxonset and run
+    Beast. Check that beast returns a `0` return value, and check some
+    properties of the data generated.
+
+    """
+    def assert_asr_logfile(dir):
+        assert dir.joinpath("beastling_test_reconstructed.log").exists()
+    _do_test(("admin", "mk", "ancestral_state_reconstruction", "taxa", "reconstruct_one"), inspector=assert_asr_logfile)
+
+

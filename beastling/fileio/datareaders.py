@@ -2,54 +2,75 @@ import csv
 import sys
 import collections
 
+from six import PY2
+
 import pycldf.dataset
 from pycldf.cli import Path
 
 from clldutils.dsv import UnicodeDictReader
 
 
-def load_data(filename, file_format=None, lang_column=None, value_column=None):
-    # Handle CSV dialect issues
-    if filename == 'stdin':
-        filename = sys.stdin
-        # We can't sniff from stdin, so guess comma-delimited and hope for
-        # the best
-        dialect = "excel" # Default dialect for csv module
-    elif file_format and file_format.lower() == "cldf-wordlist":
-        return read_cldf_wordlist(filename)
-    elif file_format and file_format.lower() == "cldf":
-        # CLDF pre-1.0 standard says delimiter is indicated by file extension
-        if str(filename).lower().endswith("csv") or filename == "stdin":
-            dialect = "excel"
-        elif str(filename).lower().endswith("tsv"):
-            dialect = "excel-tab"
-        else:
-            raise ValueError("CLDF standard dictates that filenames must end in .csv or .tsv")
-    else:
-        # Use CSV dialect sniffer in all other cases
-        fp = open(str(filename), "r") # Cast PosixPath to str
-        # On large files, csv.Sniffer seems to need a lot of datta to make a
+def sniff(filename):
+    """Read the beginning of the file and guess its csv dialect.
+
+    Parameters
+    ----------
+    filename: str or pathlib.Path
+        Path to a csv file to be sniffed
+
+    Returns
+    -------
+    csv.Dialect
+    """
+    with Path(filename).open("rb" if PY2 else "r") as fp:
+        # On large files, csv.Sniffer seems to need a lot of data to make a
         # successful inference...
         sample = fp.read(1024)
         while True:
             try:
-                dialect = csv.Sniffer().sniff(sample, [",","\t"])
-                break
+                return csv.Sniffer().sniff(sample, [",", "\t"])
             except csv.Error:
-                sample += fp.read(1024)
-        fp.close()
+                blob = fp.read(1024)
+                sample += blob
+                if not blob:
+                    raise
 
+
+def load_data(filename, file_format=None, lang_column=None, value_column=None):
+    # Handle CSV dialect issues
+    if str(filename) == 'stdin':
+        filename = sys.stdin
+        # We can't sniff from stdin, so guess comma-delimited and hope for
+        # the best
+        dialect = "excel" # Default dialect for csv module
+    elif file_format and file_format.lower() == "cldf":
+        return read_cldf_dataset(filename, value_column)
+    elif file_format and file_format.lower() == "cldf-legacy":
+        # CLDF pre-1.0 standard says delimiter is indicated by file extension
+        if filename.suffix.lower() == ".csv" or str(filename) == "stdin":
+            dialect = "excel"
+        elif filename.suffix.lower() == ".tsv":
+            dialect = "excel-tab"
+        else:
+            raise ValueError("CLDF standard dictates that filenames must end in .csv or .tsv")
+    elif filename.suffix == ".json" or filename.name in {"forms.csv", "values.csv"}:
+        # TODO: Should we just let the pycldf module try its hands on the file
+        # and fall back to other formats if that doesn't work?
+        return read_cldf_dataset(filename, value_column)
+    else:
+        # Use CSV dialect sniffer in all other cases
+        dialect = sniff(filename)
     # Read
     with UnicodeDictReader(filename, dialect=dialect) as reader:
         # Guesstimate file format if user has not been explicit
         if file_format is None:
-            file_format = 'cldf' if all(
+            file_format = 'cldf-legacy' if all(
                 [f in reader.fieldnames for f in ("Language_ID", "Value")]) and any(
                     [f in reader.fieldnames for f in ("Feature_ID", "Parameter_ID")]
                 ) else 'beastling'
 
         # Load data
-        if file_format == 'cldf':
+        if file_format == 'cldf-legacy':
             data = load_cldf_data(reader, value_column, filename)
         elif file_format == 'beastling':
             data = load_beastling_data(reader, lang_column, filename)
@@ -173,27 +194,70 @@ def get_dataset(fname):
     return pycldf.dataset.Dataset.from_data(fname)
 
 
-def read_cldf_wordlist(filename):
+def read_cldf_dataset(filename, code_column=None):
+    """Load a CLDF dataset.
+
+    Load the file as `json` CLDF metadata description file, or as metadata-free
+    dataset contained in a single csv file.
+
+    The distinction is made depending on the file extension: `.json` files are
+    loaded as metadata descriptions, all other files are matched against the
+    CLDF module specifications. Directories are checked for the presence of
+    any CLDF datasets in undefined order of the dataset types.
+
+    Parameters
+    ----------
+    fname : str or Path
+        Path to a CLDF dataset
+
+    Returns
+    -------
+    Dataset
+    """
     dataset = get_dataset(filename)
     data = collections.defaultdict(lambda: collections.defaultdict(lambda: "?"))
-    try:
-        value_column = dataset["FormTable", "cognatesetReference"].name
-        # The form table contains cognate sets!
+    if dataset.module == "Wordlist":
+        if code_column:
+            cognate_column_in_form_table = True
+        else:
+            try:
+                code_column = dataset["FormTable", "cognatesetReference"].name
+                cognate_column_in_form_table = True
+                # The form table contains cognate sets!
+            except KeyError:
+                cognatesets = collections.defaultdict(lambda: "?")
+                try:
+                    form_reference = dataset["CognateTable", "formReference"].name
+                    code_column = dataset["CognateTable", "cognatesetReference"].name
+                except KeyError:
+                    raise ValueError(
+                        "Dataset {:} has no cognatesetReference column in its "
+                        "primary table or in a separate cognate table. "
+                        "Is this a metadata-free wordlist and you forgot to "
+                        "specify code_column explicitly?".format(filename))
+                for row in dataset["CognateTable"].iterdicts():
+                    cognatesets[row[form_reference]] = row[code_column]
+                form_column = dataset["FormTable", "id"].name
+                cognate_column_in_form_table = False
+
         language_column = dataset["FormTable", "languageReference"].name
         parameter_column = dataset["FormTable", "parameterReference"].name
+
         for row in dataset["FormTable"].iterdicts():
-            data[row[language_column]][row[parameter_column]] = row[value_column]
-    except KeyError:
-        cognatesets = collections.defaultdict(lambda: "?")
-        form_reference = dataset["CognateTable", "formReference"].name
-        value_column = dataset["CognateTable", "cognatesetReference"].name
-        for row in dataset["CognateTable"].iterdicts():
-            cognatesets[row[form_reference]] = row[value_column]
-        language_column = dataset["FormTable", "languageReference"].name
-        parameter_column = dataset["FormTable", "parameterReference"].name
-        form_column = dataset["FormTable", "id"].name
-        languages = set()
-        for row in dataset["FormTable"].iterdicts():
-            data[row[language_column]][row[parameter_column]] = cognatesets[row[form_column]]
-    return data
+            if cognate_column_in_form_table:
+                data[row[language_column]][row[parameter_column]] = row[code_column]
+            else:
+                data[row[language_column]][row[parameter_column]] = cognatesets[row[form_column]]
+        return data
+    elif dataset.module == "StructureDataset":
+        language_column = dataset["ValueTable", "languageReference"].name
+        parameter_column = dataset["ValueTable", "parameterReference"].name
+        code_column = code_column or dataset["ValueTable", "codeReference"].name
+        for row in dataset["ValueTable"].iterdicts():
+            data[row[language_column]][row[parameter_column]] = row[code_column]
+        return data
+    else:
+        raise ValueError("Beastling does not know how to interpret CLDF {:} data.".format(
+            dataset.module))
+
 

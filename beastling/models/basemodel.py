@@ -11,6 +11,9 @@ class BaseModel(object):
     models, such as rate variation.
     """
 
+    treewide_reconstruction = False
+    """Should ASR be performed on the entire tree (if at all)?"""
+
     def __init__(self, model_config, global_config):
         """
         Parse configuration options, load data from file and pre-process data.
@@ -22,7 +25,8 @@ class BaseModel(object):
         self.data_filename = model_config["data"] 
         self.clock = model_config.get("clock", "")
         self.features = model_config.get("features",["*"])
-        self.reconstruct = model_config.get("reconstruct",None)
+        self.reconstruct = model_config.get("reconstruct", None)
+        self.reconstruct_at = model_config.get("reconstruct_at", [])
         self.exclusions = model_config.get("exclusions",None)
         self.constant_feature = False
         self.constant_feature_removed = False
@@ -40,6 +44,7 @@ class BaseModel(object):
         self.data_separator = ","
         self.use_robust_eigensystem = model_config.get("use_robust_eigensystem", False)
         self.metadata = []
+        self.treedata = []
 
         # Load the entire dataset from the file
         self.data = load_data(self.data_filename, file_format=model_config.get("file_format",None), lang_column=model_config.get("language_column",None), value_column=model_config.get("value_column",None))
@@ -84,6 +89,17 @@ class BaseModel(object):
             # subsequent decisions, eg. because they are constant.
         else:
             self.reconstruct = []
+
+        if self.reconstruct_at == ["*"]:
+            self.reconstruct_at = None
+            self.treewide_reconstruction = True
+        elif self.reconstruct_at:
+            for f in self.reconstruct_at:
+                if f not in self.config.language_group_configs:
+                    raise KeyError("Language group {:} is undefined. Valid groups are: {:}".format(
+                        f, ", ".join(self.config.language_groups.keys())))
+        elif self.reconstruct:
+            self.reconstruct_at=["root"]
 
     def process(self):
         """
@@ -393,18 +409,11 @@ class BaseModel(object):
         dataset.
         """
         for n, f in enumerate(self.features):
-            if f in  self.reconstruct:
-                treespec = "AncestralStateTreeLikelihood"
-                ambigs = "false"
-            else:
-                treespec = "TreeLikelihood"
-                ambigs = "true"
             fname = "%s:%s" % (self.name, f)
-            NHX_safe_fname = "%s.%s" % (self.name, f)   # colons in annotation names make ete3's parser sad!
-            attribs = {"id":"featureLikelihood:%s" % fname,"spec":treespec,"useAmbiguities":ambigs}
-            if f in  self.reconstruct:
-                self.metadata.append(attribs["id"])
-                attribs["tag"] = "recon_%s" % NHX_safe_fname
+            attribs = {"id": "featureLikelihood:%s" % fname,
+                       "spec": "TreeLikelihood",
+                       "useAmbiguities": "true"}
+
             if self.pruned:
                 distribution = ET.SubElement(likelihood, "distribution",attribs)
                 # Create pruned tree
@@ -418,6 +427,20 @@ class BaseModel(object):
                 attribs["branchRateModel"] = "@%s" % self.clock.branchrate_model_id
                 attribs["tree"] = "@Tree.t:beastlingTree"
                 distribution = ET.SubElement(likelihood, "distribution",attribs)
+
+            if f in  self.reconstruct:
+                # Use a different likelihood spec (also depending on whether
+                # the whole tree is reconstructed, or only some nodes)
+                if self.treewide_reconstruction:
+                    distribution.attrib["spec"] = "AncestralStateTreeLikelihood"
+                    self.treedata.append(attribs["id"])
+                    distribution.attrib["tag"] = f
+                else:
+                    distribution.attrib["spec"] = "AncestralStateLogger"
+                    for label in self.reconstruct_at:
+                        self.beastxml.add_taxon_set(distribution, label, self.config.language_groups[label])
+                    self.metadata.append(attribs["id"])
+                distribution.attrib["useAmbiguities"] = "false"
 
             # Sitemodel
             self.add_sitemodel(distribution, f, fname)
