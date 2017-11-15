@@ -336,3 +336,14 @@ class Tests(WithConfigAndTempDir):
         config.subsample_size = full_lang_count + 42
         config.process()
         assert len(config.languages) == full_lang_count
+
+    def test_language_groups(self):
+        config = self._make_cfg('basic', 'taxa')
+        config.process()
+        self.assertEqual(config.language_groups["abf"], {"abf"})
+        self.assertEqual(config.language_groups["macronesian"], {"kbt", "abf", "abg"})
+
+    @raises(KeyError)
+    def test_nonexisting_language_group(self):
+        config = self._make_cfg('basic', 'reconstruct_one')
+        config.process()
