@@ -17,9 +17,74 @@ should be set to a comma-separated list of the particular features/meaning
 classes in that model which you would like to reconstruct values for.  You can
 reconstruct all features in a model by setting ``reconstruct = *``.
 
-If you add ASR to an analysis, in addition to the standard Nexus tree log, a
-second log with the suffix ``_reconstructed`` will be written, with sampled
-values for the reconstructed features included.
+.. NOTE::
+  This reconstruction reports internal states of the model. For example, the
+  internal hot states of the :ref:`covarion` model are shown in the output, so
+  eg. when running ASR using the covarion model, you will see ``a`` for the
+  hot-0 state and ``b`` for the hot-1 state, in addition to ``0`` and ``1`` for
+  presence and absence of a class.
+
+By default, all features specified in this manner will be reconstructed at the
+root of the tree. The option ``reconstruct_at`` can be used to modify this
+behavior.
+
+You can specify one :ref:`language_group`, or multiple ones separated by comma,
+for ``reconstruct_at``. The ancestral states will then be reconstructed for the
+most recest common ancestor (MRCA) of each of these groups of languages. Unless
+you also specify :ref:`monophyly_constraints`, the MRCA may vary widely between
+trees and may also be an ancestor of languages outside the language group you
+specified!
+
+If you add ASR for one or multiple language groups to an analysis, in addition
+to the standard logs, a log with the suffix ``_reconstructed.log`` will be
+written, with sampled values for the reconstructed features included. This file
+contains tab-separated reconstructions for all features to be reconstructed, for
+each MRCA specified.
+
+.. WARNING::
+  Currently, BEASTling uses a somewhat naïve way of logging ancestral states
+  shipped with standard beast packages. Among other things, this
+  AncestralStateLogger class does not permit more than one MRCA to be
+  reconstructed and generates sub-par output.
+
+Alternatively, it is possible to reconstruct ancestral states for every node in
+the tree. If you set ``reconstruct_at = *``, BEAST will output a file ending in
+``_reconstructed.nex``, which a Nexus file with a (nonstandard) node annotation.
+Every node obtains a comment (some text between ``[&`` and ``]``), which is a
+comma-separated list of strings of the form ``feature1="0011``, with each digit
+corresponding to one column of the alignment for ``feature1``.
+
+Examples
+~~~~~~~~
+
+Given appropriate data, the following snippet ::
+
+    [language_groups]
+    west_germanic = deu,eng,nld
+
+    [model vocabulary]
+    data = european_vocabulary
+    model = covarion
+    reconstruct = mountain,I
+    reconstruct_at = west_germanic
+
+could be used to reconstruct the binary classes for the meanings ‘I’ and
+‘mountain’ for the most recent common ancestor of these west germanic languages.
+If Flemish was included in the data and consistently grouped as sister language
+of Dutch, the reconstruction would occur in the common ancestor of German,
+English, Dutch and Flemish. The output might look like this::
+
+    Sample	west_germanic:mountain0	west_germanic:mountain1	west_germanic:mountain2	west_germanic:I0	west_germanic:I1
+    0	0	1 a	1	0
+    1000	0	b 0	1	0
+    2000	0	1 b	1	0
+    3000	0	1 0	1	0
+
+and would idicate that class 0 for the meaning ‘mountain’ is reconstructed for
+this node in none of the sampled generations, class 1 in 100% of the samples
+(sometimes as a hot-presence), and class 2 in 25% of the trees (and then only
+hotly). For the two forms of ‘I’ observed in the data, the first (``I0``) is
+reconstructed in 100% of all cases, the other one never.
 
 Path sampling
 -------------
