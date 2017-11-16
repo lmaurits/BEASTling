@@ -526,8 +526,11 @@ class Configuration(object):
                 match.group('isocode'))
 
         def get_classification(node):
-            res = []
             ancestor = node.ancestor
+            if not ancestor:
+                # Node is root of some family
+                return [label2name[node.name]]
+            res = []
             while ancestor:
                 res.append(label2name[ancestor.name])
                 ancestor = ancestor.ancestor
