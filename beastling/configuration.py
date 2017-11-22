@@ -1161,14 +1161,22 @@ class Configuration(object):
         """
         langs = []
         clades = [c.strip() for c in clade.split(",")]
-
+        matched_clades = []
         # First look for clades which are actually language identifiers
         for clade in clades:
             if clade in self.languages:
                 langs.append(clade)
-                # Once a clade has matched against a language, don't let it
-                # subsequently match against Glottolog!
-                clades.remove(clade)
+                matched_clades.append(clade)
+
+        # Once a clade has matched against a language name, don't let it
+        # subsequently match against anything in Glottolog!
+        for clade in matched_clades:
+            clades.remove(clade)
+
+        # If all clades matched against language names, don't bother
+        # searching Glottolog.
+        if not clades:
+            return langs
 
         # Now search against Glottolog
         clades = [c.lower() for c in clades]
