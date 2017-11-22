@@ -180,7 +180,7 @@ def test_asr_binary_root_output_files():
     def assert_asr_logfile(dir):
         assert dir.joinpath("beastling_test_reconstructed.log").exists()
     _do_test((
-        "admin", "covarion", "ancestral_state_reconstruction", "ascertainment_false"
+        "admin", "covarion_multistate", "ancestral_state_reconstruction", "ascertainment_false"
     ), inspector=assert_asr_logfile)
 
 
@@ -210,7 +210,7 @@ def test_ascertained_asr_binary_root_output_files():
     def assert_asr_logfile(dir):
         assert dir.joinpath("beastling_test_reconstructed.log").exists()
     _do_test((
-        "admin", "covarion", "ancestral_state_reconstruction", "ascertainment_true"
+        "admin", "covarion_multistate", "ancestral_state_reconstruction", "ascertainment_true"
     ), inspector=assert_asr_logfile)
 
 

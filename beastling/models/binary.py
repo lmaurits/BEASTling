@@ -90,8 +90,8 @@ class BinaryModel(BaseModel):
         if such columns exist.
 
         """
-        return (["{:}_dummy{:d}".format(f, i) for i in range(self.extracolumns[f])] +
-                ["{:}_{:}".format(f, i) for i in self.unique_values[f]])
+        return (["{:}_dummy{:d}".format(feature, i) for i in range(self.extracolumns[feature])] +
+                ["{:}_{:}".format(feature, i) for i in self.unique_values[feature]])
 
     def format_datapoint(self, feature, point):
         if not self.recoded:
