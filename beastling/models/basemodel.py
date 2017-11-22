@@ -437,6 +437,9 @@ class BaseModel(object):
                     distribution.attrib["tag"] = f
                 else:
                     distribution.attrib["spec"] = "AncestralStateLogger"
+                    distribution.attrib["value"] = " ".join([
+                        "{:}_{:d}".format(f, i)
+                        for i in range(self.valuecounts[f] + self.extracolumns[f])])
                     for label in self.reconstruct_at:
                         self.beastxml.add_taxon_set(distribution, label, self.config.language_groups[label])
                     self.metadata.append(attribs["id"])
