@@ -164,7 +164,54 @@ def test_asr_root_output_files():
     """
     def assert_asr_logfile(dir):
         assert dir.joinpath("beastling_test_reconstructed.log").exists()
-    _do_test(("admin", "mk", "ancestral_state_reconstruction"), inspector=assert_asr_logfile)
+    _do_test((
+        "admin", "mk", "ancestral_state_reconstruction", "ascertainment_false"
+    ), inspector=assert_asr_logfile)
+
+
+def test_asr_binary_root_output_files():
+    """Test the root ASR output under a binary (covarion) model.
+
+    Generate a Beast config file for ASR at the root and run Beast. Check that
+    beast returns a `0` return value, and check some properties of the data
+    generated.
+
+    """
+    def assert_asr_logfile(dir):
+        assert dir.joinpath("beastling_test_reconstructed.log").exists()
+    _do_test((
+        "admin", "covarion", "ancestral_state_reconstruction", "ascertainment_false"
+    ), inspector=assert_asr_logfile)
+
+
+def test_ascertained_asr_root_output_files():
+    """Test the root ASR output under a Mk model with ascertainment correction.
+
+    Generate a Beast config file for ASR at the root and run Beast. Check that
+    beast returns a `0` return value, and check some properties of the data
+    generated.
+
+    """
+    def assert_asr_logfile(dir):
+        assert dir.joinpath("beastling_test_reconstructed.log").exists()
+    _do_test((
+        "admin", "mk", "ancestral_state_reconstruction", "ascertainment_true"
+    ), inspector=assert_asr_logfile)
+
+
+def test_ascertained_asr_binary_root_output_files():
+    """Test the root ASR output under a binary model with ascertainment correction.
+
+    Generate a Beast config file for ASR at the root and run Beast. Check that
+    beast returns a `0` return value, and check some properties of the data
+    generated.
+
+    """
+    def assert_asr_logfile(dir):
+        assert dir.joinpath("beastling_test_reconstructed.log").exists()
+    _do_test((
+        "admin", "covarion", "ancestral_state_reconstruction", "ascertainment_true"
+    ), inspector=assert_asr_logfile)
 
 
 def test_asr_tree_output():
@@ -180,7 +227,7 @@ def test_asr_tree_output():
     _do_test(("admin", "mk", "ancestral_state_reconstruction", "taxa", "reconstruct_all"), inspector=assert_asr_logfile)
 
 
-def test_asr_output():
+def test_asr_clade_output():
     """Test the clade ASR output.
 
     Generate a Beast config file for ASR at the MRCA of a taxonset and run

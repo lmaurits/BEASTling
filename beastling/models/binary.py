@@ -81,6 +81,18 @@ class BinaryModel(BaseModel):
                 if not self.ascertained:
                     self.messages.append("""[INFO] Model "%s": Assuming that data source %s contains binary structural data (e.g. absence/presence).  If this is cognate set data which has been pre-binarised, please set "binarised=True" in your config to enable appropriate ascertainment correction for the recoding.  If you don't do this, estimates of branch lengths and clade ages may be biased.""" % (self.name, self.data_filename))
 
+    def pattern_names(self, feature):
+        """Content of the columns corresponding to this feature in the alignment.
+
+        This method is used for displaying helpful column names in ancestral
+        state reconstruction output. It gives column headers for actual value
+        columns as well as for dummy columns used in ascertainment correction,
+        if such columns exist.
+
+        """
+        return (["{:}_dummy{:d}".format(f, i) for i in range(self.extracolumns[f])] +
+                ["{:}_{:}".format(f, i) for i in self.unique_values[f]])
+
     def format_datapoint(self, feature, point):
         if not self.recoded:
             # This is "true binary" data, and doesn't need to be
