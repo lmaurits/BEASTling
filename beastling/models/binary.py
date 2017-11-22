@@ -94,6 +94,7 @@ class BinaryModel(BaseModel):
                 # If we are not ascertaining on non-constant data, we still
                 # need to add one "all zeros" column to account for the recoding
                 extra_columns = 1
+            self.extracolumns[feature] = extra_columns
             if point == "?":
                 valuestring = "".join(["?" for i in range(0,self.valuecounts[feature]+extra_columns)])
             else:

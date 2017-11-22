@@ -485,6 +485,7 @@ class BaseModel(object):
             return self._standard_format_datapoint(feature, point)
 
     def _standard_format_datapoint(self, feature, point):
+        self.extracolumns[feature] = 0
         if point == "?":
             return point
         else:
@@ -492,6 +493,7 @@ class BaseModel(object):
 
     def _ascertained_format_datapoint(self, feature, point):
         extra_cols = self.valuecounts[feature]
+        self.extracolumns[feature] = extra_cols
         if point == "?":
             return self.data_separator.join(["?" for i in range(0, extra_cols + 1)])
         else:
