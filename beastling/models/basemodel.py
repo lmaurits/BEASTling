@@ -238,6 +238,7 @@ class BaseModel(object):
 
             N = len(unique_values)
             self.valuecounts[f] = N
+            self.extracolumns[f] = 0
             self.missing_ratios[f] = missing_data_ratio
             self.counts[f] = counts
             self.codemaps[f] = self.build_codemap(unique_values)
