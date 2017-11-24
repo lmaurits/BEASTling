@@ -641,6 +641,29 @@ Calibrations are added to their own section in the configuration file.  Suppose 
            French,Italian,Portuguese,Romanian,Spanish=1.4-1.6
     --- ie_vocabulary.conf
 
+Suppose we further wish to calibrate the common ancestor of our Germanic
+languages, this time a little more broadly.  Proto-Germanic is generally
+believed to have developed during the pre-Roman Iron Age of 3,000 - 7,000 YBP:
+
+    ::
+
+           [admin]
+           basename=ie_vocabulary
+           log_params=True
+           [mcmc]
+           chainlength=2000000
+           [model ie_vocabulary]
+           model=covarion
+           data=ie_cognates.csv
+           rate_variation=True
+           [clock default]
+           type=relaxed
+           [calibration]
+           French,Italian,Portuguese,Romanian,Spanish=1.4-1.6
+           Danish,Dutch,English,German,Icelandic,Norwegian,Swedish=3-7
+
+    --- ie_vocabulary.conf
+
 Once again we rebuild and re-run:
 
 ::
@@ -657,36 +680,151 @@ Once again we rebuild and re-run:
     [...]
 
 Including this calibration will have changed several things about our
-output.  First, let's look at the prior log file.  The most obvious
+output.  First, let's look at the prior log files, i.e. the results of
+our inference *without* any data involved.  Below is a consensus tree.
+
+.. image:: images/tutorial_tree_06.png
+
+We can see that, even without any language data included, the Romance
+and Germanic languages are grouped together in clades with support of
+1.0, i.e. they are prefectly related in all 10,000 sampled trees.
+This is due to them being calibrated.  However, notice that unlike
+previous consensus trees we have seen, there is no internal structure.
+We have *told* BEAST that German, Dutch, English, etc. are related,
+but without the cognate data there is no way for it to know that English
+is more closely related to German than it is to Icleandic.  Therefore
+Both Romance and Germanic show up as highly polytomous in the consensus
+trees.  Also notice that the Germanic clade is showing as older than the
+Romance clade, in accordance with our calibrations.
+
+Let's turn our attention now to the parameter log file.  The most obvious
 difference will be in the ``treeHeight`` column.  Whereas previously
 this value was in rather abstract units of "average number of changes
 per meaning slot", now it is in units of millenia, matching our
-calibration.
+calibration.  instead of a mean value of around 0.82, you should see a
+mean value of something like 6.69.  This is our analysis' *a priori*
+estimate of the age of proto-Indo-European (i.e. about 6,700 years).  If
+there is no data involved when we are sampling from the prior, where
+does this estimate come from?  It comes from the interaction of our
+calibrations with the model's tree prior.  The Yule tree prior assumes
+that language divergence events ("speciations") occur at random interals
+but with a constant probabilistic rate, like radioactive decay events.
+Sometimes two divergence events may happen very shortly after one
+another, or sometimes a long period of time may pass with no divergence,
+but over a long enough timespan, we expect the total number of divergences
+every, say, thousand years, to remain around the same.  Since we have
+told the model that proto-Romance broke up into five descendant languages
+in about 1,500 years, and proto-Germanic broke up into 7 languages in a
+longer (but less certain) time period, this puts some constraints on what
+the possible constant rate of divergence might be.  Regardless of what
+the linguistic data says, we do not believe that Indo-European languages,
+on average, diverge at rates so fast or so slow that the behaviours of
+Romance or Germanic we have specified would be incredibly unlikely.  If
+in fact languages diverge at the sort of rates which would make these
+behaviours perfectly typical, then this in turn implies what sort of
+times would typically be required for all 19 languages in the datset to
+diverge.  This is where the 6,700 year estimate above comes from.
 
-HOW THIS AFFECTS THE PRIOR:
-SUMMARY TREE
-TREE HEIGHT
+Because there is some uncertainty in our calibrations (i.e. we aren't
+sure if Romance becan to disintegrate 1,400 or 1,600 years ago, and we
+have claimed to be *very* unsure about Germanic), and because the Yule
+tree prior is itself probabilistic (i.e. divergences happen with some
+average rate but there is always some chance of events happening
+unusually rapidly or slowly), our prior estimate of the age of
+Indo-European is similarly uncertain.  The *mean* age of Indo-European
+in our 10,000 trees is 6,700 years, but we can get a plausible interval
+by seeing that 95% of the samples in our analysis are between 2.57 and
+12.18, so the age of Indo-European could plausibly lie anywhere in this
+range.  In general, the calibrations we add, and the tighter these
+calibrations becomes, the narrower the posterior estimate of the family
+age will be, as the divergence rate is more tightly constrained.  This
+is not to say you should strive for lots of very restrictive calibrations.
+These can cause MCMC mixing problems, and at the end of the day the
+linguistic data should have a strong say in the results.  It's good if
+your prior is a little relaxed, so that it can accommodate the opinion
+of the data, but important that most of the prior probability is
+concentrated within what you consider a plausible range.
 
-In the posterior log, instead of a mean value of around 0.82, you
-should see a mean value of something like 5.72.  This is our analysis'
-estimate of the age of proto-Indo-European (i.e. about 5,700 years).
-In addition to a point estimate like this, we can get a plausible
-interval, by seeing that 95% of the samples in our analysis are
-between 1.35 and 15.00, so the age of Indo-European could plausibly
-lie anywhere in this range.  This is quite a broad range, which is not
+In addition to the ``treeHeight`` column, you should also see some new
+columns, with somewhat unweildy names.  One will be
+``mrcatime(French,Italian,Portuguese,Romanian,Spanish)``, and another
+will have a similar form but will include the Germanic languages.  These
+columns records the age (in millenia BP) of the most recent common
+ancestor of the Romance and Germanic languages in our analysis.  Because
+we placed a calibration on these node, you should see that almost all
+values in these columns are between 1.4 and 1.6 or 3 and 7.  The fits may
+not be exact because of *interaction* between the two calibrations.  In
+my run of this analysis, I see a mean of 1.501 and a 95% HPD interval of
+1.402 to 1.602 for Romance, indicating that our first calibration has
+functioned exactly as intended.  For Germanic I see a mean of 4.149 and
+a 95% HPD interval of 2.186 to 6.271.  This is not quite a perfect match
+with what we specified, which was a mean of 5.0 and a HPD of 3.0 to 7.00,
+but it is fairly close.  Because there is only one divergence rate for
+the whole tree, it is not always possible to achieve multiple precise
+calibrations, as different calibrations may prefer different ranges of
+divergence rate.   This is one reason why it is very important to
+sample from the prior and inspect the results, especially if you have
+many calibrations.  The interactions between the calibrations may in fact
+force your prior to be something quite different from what you actually
+want.  In this case, things do not seem to be too bad.
+
+Now let's look at our actual results, i.e. the trees sampled from the
+posterior, not the prior, which take the data into account.  The
+consensus stree is below.
+
+.. image:: images/tutorial_tree_07.png
+
+Notice that now the Romance and Germanic clades are internally resolved,
+and the Slavic clade has appeared again, because now the data can help
+identify those languages as being more similar to one another than to e.g.
+Greek and Hindi.
+
+Let's now look at the parameter log, and in particular at the ``treeHeight``
+column.  Recall that when sampling from the prior, we got a mean age for
+proto-Indo-European of 6,700 years, with a HPD interval of 2,570 to 12,580
+years.  How do our results compare when including the influence of data?  I
+get a slightly older mean of 8,900 years.  This is still well within the
+95% HPD range from our prior analysis, which means that the Yule tree prior
+is quite happy at having to explain the entire IE family diverging from a
+common ancestor in this time using the same overall average rate of
+divergence it has to use to explain our Romance and Germanic calibrations.
+But while the Yule would be even happier if the tree were a little younger,
+there is enough lexical variation across the entire family's data that the
+Covarion subsitution model insists on an extra 2,000 years because it has
+to be happy explaining the cognate replacement events that happen across
+the entire tree and within Romance and Germanic using the same overall
+average rate of linguistic evolution (with some allowance for variation
+across the tree according to the the relaxed clock).  Our prior sample is
+a *compromise* between what the prior wants and what the data demands.
+Again we can look at the 95% HPD interval for the age of proto-IE, and I
+see 3,200 - 16,650 years.  This is quite a broad range, which is not
 unexpected here -- we are using a very small data set (in terms of
 both languages and meaning slots) and have only one internal
 calibration.  Serious efforts to date protolanguages require much more
 care than this analysis, however it demonstrates the basics of using
 BEASTling for this purpose.
 
-You should also see some new columns, including one with the (somewhat unweildy) name ``mrcatime(French,Italian,Portuguese,Romanian,Spanish)``.  This column records the age (in millenia BP) of the most recent common ancestor of the Romance languages in our analysis.  Because we placed a calibration on this node, you should see that almost all values in this column are between 1.4 and 1.6.  In my run of this analysis, I see a mean of 1.497 and a 95% HPD interval of 1.399 to 1.6, indicating that the calibration has functioned exactly as intended.
-
-As is now usual, we can build a consensus tree to summarise the results of our analysis.
-
-.. image:: images/tutorial_tree_06.png
-
-If you compare this tree to the previous one, after we introduced the relaxed clock, you will notice that they have exactly the same topology, and the posterior support values are very similar.  This is to be expected.  Adding a single calibration point essentially does nothing but rescale the tree branch lengths.  Adding multiple calibrations, however, could potentially change the topology.
+We can also look at the posterior age estimates for the Romance and Germanic
+clades individually.  My mean age for Romance is almost exactly the same as
+the prior, 1.502.  This is not too surprising, as our calibration on Romance
+is very tight and there is not much room for the data to push it around.
+However, my mean age for Germanic is 3.4, or 3,400 years, about 500 years
+younger than the prior, and the upper limit of the 95% HPD interval is only
+5,400 years, compared to about 6,300 years in the prior.  This suggests that
+the data is hard to reconcile with Germanic being at least twice as old as
+Romance.  Indeed, our calibration on proto-Germanic (which should be properly
+understood as a calibration on the time proto-Germanic began to disintegrate,
+not when the original language arose) is probably on the high side.  If I
+run this analysis with only the calibration on Romance, the model estimates
+Germanic to be about 1,300 years old, suggesting that it is roughly as
+lexically diverse (as represented in this small data set, of course) as
+Romance.  Of course, equal lexical diversity does not necessarily translate
+into equal age, but with only one calibration the model has no way to
+estimate how much variation in the rate of lexical evolution there can be
+from clade to clade.  This small example demonstrates some of the difficulty
+of estimating linguistic divergence times using complex models.  More
+calibrations are generally better than few, but calibrations must be
+*well-justified and carefully chosen* if the result is to be reliable.
 
 Best practices
 ~~~~~~~~~~~~~~
