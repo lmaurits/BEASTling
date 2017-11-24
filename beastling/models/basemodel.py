@@ -1,5 +1,6 @@
 import io
 import os
+import collections
 import xml.etree.ElementTree as ET
 
 from ..fileio.datareaders import load_data
@@ -207,6 +208,7 @@ class BaseModel(object):
         """
 
         self.valuecounts = {}
+        self.extracolumns = collections.defaultdict(int)
         self.unique_values = {}
         self.missing_ratios = {}
         self.counts = {}
@@ -236,7 +238,6 @@ class BaseModel(object):
 
             N = len(unique_values)
             self.valuecounts[f] = N
-            self.extracolumns[f] = 0
             self.missing_ratios[f] = missing_data_ratio
             self.counts[f] = counts
             self.codemaps[f] = self.build_codemap(unique_values)
@@ -404,6 +405,21 @@ class BaseModel(object):
             sub_prior = ET.SubElement(prior, "prior", {"id":"featureClockRateGammaScalePrior.s:%s" % self.name, "name":"distribution", "x":"@featureClockRateGammaScale:%s" % self.name})
             ET.SubElement(sub_prior, "Exponential", {"id":"featureClockRateGammaShapePriorExponential.s:%s" % self.name, "mean":"0.23", "name":"distr"})
 
+    def pattern_names(self, feature):
+        """Content of the columns corresponding to this feature in the alignment.
+
+        This method is used for displaying helpful column names in ancestral
+        state reconstruction output. It gives column headers for actual value
+        columns as well as for dummy columns used in ascertainment correction,
+        if such columns exist.
+
+        """
+        if self.ascertained:
+            return ["{:}_dummy{:d}".format(feature, i)
+                    for i in range(self.extracolumns[feature])] + [feature]
+        else:
+            return [feature]
+
     def add_likelihood(self, likelihood):
         """
         Add likelihood distribution corresponding to all features in the
@@ -438,6 +454,7 @@ class BaseModel(object):
                     distribution.attrib["tag"] = f
                 else:
                     distribution.attrib["spec"] = "AncestralStateLogger"
+                    distribution.attrib["value"] = " ".join(self.pattern_names(f))
                     for label in self.reconstruct_at:
                         self.beastxml.add_taxon_set(distribution, label, self.config.language_groups[label])
                     self.metadata.append(attribs["id"])
