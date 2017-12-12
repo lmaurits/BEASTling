@@ -617,6 +617,8 @@ Notice that the Scandinavian and Romance subfamilies are now both completely res
 
 For more details on clock models supported by BEASTling, see the :doc:`clocks` page.
 
+.. _adding-calibrations-label:
+
 Adding calibrations
 -------------------
 
@@ -838,7 +840,25 @@ For serious linguistic studies, you will almost always end up using some model m
 
 You should always begin a study by using the simplest model possible, even if it is not a perfect match to reality.  Make sure the model runs with a strict clock, no rate variation and without any calibrations first.  Add these details later one at a time to see what impact each one has on the results.  If you encounter any problems, at least you will know which part of the model is the cause.
 
-How long should I run my chains?
+Sample from the prior
+---------------------
+
+For serious linguistic studies, you will probably end up using a relatively
+complicated prior distribution.  In particular, you may have many different age
+calibrations.  As we saw in the section :ref:`adding-calibrations-label`,
+multiple calibrations can be tricky and you may end up specifying *implicit* age
+priors that you are not aware of and perhaps do not agree with.  The Yule tree
+prior may also unintentionally add high prior support for some clades.  For this
+reason, you should *always* sample from the prior and look at the sampled
+trees.
+
+In addition to making sure that your prior does not contain any unintentional
+biases, you should also check that your prior and your posterior are
+substantially different.  If you get similar clade suppors and clade ages in
+these two forms of your analysis, it means that your data is actually not very
+informative and you should not really believe your results.
+
+Target ESS values (or ``How long should I run my chains?'')
 --------------------------------
 
 The essence of what BEAST does when it runs an analysis configured by BEASTling is to sample 10,000 trees (and 10,000 values of all parameters), and we use these samples as an estimate of the posterior distribution.  This is true regardless of the configured chain length.  If we run the chain for 10,000 iterations, then each one is kept as one of our samples.  If we run the chain for 100,000 iterations, then only every 10th sample is kept and the others are thrown out.  Since we get 10,000 samples either way, how do we know how long to set our chain length?
