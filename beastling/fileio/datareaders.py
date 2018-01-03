@@ -5,7 +5,7 @@ import collections
 from six import PY2
 
 import pycldf.dataset
-from clldutils.path import Path
+from pycldf.util import Path
 
 from clldutils.dsv import UnicodeDictReader
 
