@@ -453,7 +453,7 @@ class BaseModel(object):
                     self.treedata.append(attribs["id"])
                     distribution.attrib["tag"] = f
                 else:
-                    distribution.attrib["spec"] = "AncestralStateLogger"
+                    distribution.attrib["spec"] = "lucl.beast.statereconstruction.AncestralStatesLogger"
                     distribution.attrib["value"] = " ".join(self.pattern_names(f))
                     for label in self.reconstruct_at:
                         self.beastxml.add_taxon_set(distribution, label, self.config.language_groups[label])
