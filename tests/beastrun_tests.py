@@ -112,6 +112,7 @@ def test_basic():
         ("admin", "mk", "monophyletic", "geo", "geo_prior"),
     ]:
         # To turn each config into a separate test, we
+        _do_test.description = "BeastRun with " + " ".join(configs)
         yield _do_test, configs
 
 
