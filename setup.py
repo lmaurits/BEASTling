@@ -12,7 +12,7 @@ requires = [
     'six',
     'newick>=0.6.0',
     'appdirs',
-    'clldutils',
+    'clldutils~=2.0',
     'pycldf',
 ]
 
