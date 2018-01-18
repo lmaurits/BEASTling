@@ -1053,7 +1053,7 @@ class Configuration(object):
             # identifier
             langs = self.language_group(clade)
 
-            if langs == self.language_group["root"] and originate:
+            if langs == self.language_groups["root"] and originate:
                 raise ValueError("Root has no ancestor, but originate(root) was given a calibration.")
 
             # Figure out what kind of calibration this is and whether it's valid
