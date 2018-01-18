@@ -142,6 +142,11 @@ class Tests(WithConfigAndTempDir):
         cfg.process()
 
     @raises(ValueError)
+    def test_originate_root(self):
+        cfg = self._make_bad_cfg("cal_originate_root")
+        cfg.process()
+
+    @raises(ValueError)
     def test_bad_frequencies(self):
         cfg = self._make_bad_cfg("bad_frequencies")
         cfg.process()
