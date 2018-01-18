@@ -498,7 +498,7 @@ class Configuration(object):
         for name, specification in self.language_group_configs.items():
             taxa = set()
             for already_defined in specification.split(","):
-                taxa |= self.language_groups[already_defined.strip()]
+                taxa |= self.language_group(already_defined.strip())
             self.language_groups[name] = taxa
 
     def load_glottolog_data(self):
@@ -1012,6 +1012,15 @@ class Configuration(object):
         random.seed(",".join(sorted(languages)))
         return random.sample(languages, self.subsample_size)
 
+    def language_group(self, clade):
+        """Look up a language group locally or as a glottolog clade."""
+        try:
+            return self.language_groups[clade]
+        except KeyError:
+            langs = self.get_languages_by_glottolog_clade(clade)
+            self.language_groups[clade] = langs
+            return langs
+
     def instantiate_calibrations(self):
         self.calibrations = {}
         """ Calibration distributions for calibrated clades """
@@ -1022,16 +1031,18 @@ class Configuration(object):
             orig_clade = clade[:]
             originate = False
             is_tip_calibration = False
-            # First parse the clade identifier
-            # Might be "root", or else a Glottolog identifier
-            if clade.lower() == "root":
-                langs = self.languages
-            else:
-                # First check for originate()
-                if clade.lower().startswith("originate(") and clade.endswith(")"):
-                    originate = True
-                    clade = clade[10:-1]
-                langs = self.get_languages_by_glottolog_clade(clade)
+            # Parse the clade identifier
+            # First check for originate()
+            if clade.lower().startswith("originate(") and clade.endswith(")"):
+                originate = True
+                clade = clade[10:-1]
+            # The clade is specified as a language_group, either
+            # explicitly defined or the builtin "root" or a Glottolog
+            # identifier
+            langs = self.language_group(clade)
+
+            if langs == self.language_group["root"] and originate:
+                raise ValueError("Root has no ancestor, but originate(root) was given a calibration.")
 
             # Figure out what kind of calibration this is and whether it's valid
             if len(langs) > 1:
