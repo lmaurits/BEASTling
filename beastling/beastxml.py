@@ -187,7 +187,12 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
     def add_tip_heights(self):
         string_bits = []
         for cal in self.config.tip_calibrations.values():
-            initial_height = cal.mean()
+            if cal.dist in ("normal", "point"):
+                initial_height = cal.param1
+            elif cal.dist == "lognormal":
+                initial_height = exp(cal.param1)
+            elif cal.dist == "uniform":
+                initial_height = (cal.param1  + cal.param2) / 2.0
             string_bits.append("{:s} = {:}".format(next(cal.langs.__iter__()), initial_height))
         trait_string = ",\n".join(string_bits)
 
