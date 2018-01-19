@@ -200,7 +200,7 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
                       {"id": "datetrait",
                        "spec": "beast.evolution.tree.TraitSet",
                        "taxa": "@taxa",
-                       "traitname": "date-backwards"})
+                       "traitname": "date-backward"})
         datetrait.text = trait_string
 
     def add_tree_state(self):
