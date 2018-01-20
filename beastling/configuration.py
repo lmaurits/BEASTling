@@ -510,7 +510,7 @@ class Configuration(object):
         for name, specification in self.language_group_configs.items():
             taxa = set()
             for already_defined in specification.split(","):
-                taxa |= self.language_group(already_defined.strip())
+                taxa |= set(self.language_group(already_defined.strip()))
             self.language_groups[name] = taxa
 
     def load_glottolog_data(self):
@@ -1031,6 +1031,11 @@ class Configuration(object):
         except KeyError:
             langs = self.get_languages_by_glottolog_clade(clade)
             self.language_groups[clade] = langs
+            if not langs:
+                raise ValueError(
+                    "Language group or Glottolog clade {:} not found "
+                    "or was empty for the languages given.".format(
+                        clade))
             return langs
 
     def instantiate_calibrations(self):
@@ -1174,7 +1179,7 @@ class Configuration(object):
         """
         If the provided value is a filename, read the contents and treat it
         as a Newick tree specification.  Otherwise, assume the provided value
-        is a Neick tree specification.  In either case, inspect the tree and
+        is a Newick tree specification.  In either case, inspect the tree and
         make appropriate minor changes so it is suitable for inclusion in the
         BEAST XML file.
         """
