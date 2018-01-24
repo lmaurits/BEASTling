@@ -196,6 +196,15 @@ class Tests(WithConfigAndTempDir):
             ])
         config.process()
 
+    @raises(ValueError)
+    def test_calibration_bad_monophyly(self):
+        config = Configuration(configfile=[
+            config_path("basic").as_posix(),
+            config_path("monophyletic").as_posix(),
+            config_path("bad_cal_monophyly", bad=True).as_posix(),
+            ])
+        config.process()
+
     def test_overlong_chain(self):
         config = self._make_cfg('basic')
         config.chainlength = 9e999

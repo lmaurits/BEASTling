@@ -1061,7 +1061,30 @@ class Configuration(object):
                 ## and skip to the next cal
                 self.messages.append("[INFO] Calibration on clade '%s' matches only one language.  Ignoring due to ambiguity.  Use 'originate(%s)' if this was supposed to be an originate calibration, or explicitly identify the single language using '%s' if this was supposed to be a tip calibration." % (clade, clade, langs[0]))
                 continue
-            
+
+            # Make sure this calibration point, which will induce a monophyly
+            # constraint, does not conflict with the overall monophyly
+            # constraints from Glottolog or a user-tree
+            if self.monophyly and len(langs) > 1:
+                mono_tree = newick.loads(self.monophyly_newick)[0]
+                cal_clade = set(langs)
+                for node in mono_tree.walk():
+                    mono_clade = set(node.get_leaf_names())
+                    # We are happy if the calibration clade is exactly a monophyly clade
+                    if mono_clade == cal_clade:
+                        break
+                    # We are also happy if the calibration clade is a subset of a, umm, "terminal clade"?
+                    elif all((child.is_leaf for child in node.descendants)) and cal_clade.issubset(mono_clade):
+                        break
+                    # We are also happy if the calibration clade is the union of some monophyly clades
+                    elif all(set(child.get_leaf_names()).issubset(cal_clade) or len(set(child.get_leaf_names()).intersection(cal_clade)) == 0 for child in node.descendants):
+                        break
+                else:
+                    # If we didn't break out of this loop, then the languages
+                    # in this calibration do not constitute a clade of the
+                    # monophyly tree
+                    raise ValueError("Calibration on for clade %s violates a monophyly constraint!" % (clade))
+
             # Next parse the calibration string and build a Calibration object
             offset, dist_type, p1, p2 = self.parse_calibration_string(orig_clade, cs, is_tip_calibration)
             cal_obj = Calibration(langs, originate, offset, dist_type, p1, p2)
