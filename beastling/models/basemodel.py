@@ -290,6 +290,8 @@ class BaseModel(object):
 
     def compute_weights(self):
         self.weights = []
+        # Weights feed into a DeltaExchangeOperator, so they need to
+        # be integers. This is currently implicit, not enforced.
         if self.rate_partition:
             parts = list(self.rate_partition.values())
             partition_weights = {p:parts.count(p) for p in parts}
