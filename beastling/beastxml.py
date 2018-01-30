@@ -548,7 +548,7 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             ET.SubElement(self.run, "operator", {"id":"PopulationSizeScaler.t:beastlingTree","spec":"ScaleOperator","parameter":"@popSize.t:beastlingTree", "scaleFactor":"0.5", "weight":"3.0"})
 
         # Add a Tip Date scaling operator if required
-        if self.config.tip_calibrations:
+        if self.config.tip_calibrations and self.config.sample_branch_lengths:
             # Get a list of taxa with non-point tip cals
             tip_taxa = [cal.langs[0] for cal in self.config.tip_calibrations.values() if cal.dist != "point"]
             for taxon in tip_taxa:
