@@ -297,7 +297,7 @@ class BaseModel(object):
                 self.weights.append(partition_weights[part])
         else:
             for f in self.features:
-                self.weights.append(1.0)
+                self.weights.append(1)
 
     def set_ascertained(self):
         """
