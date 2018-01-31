@@ -1107,6 +1107,12 @@ class Configuration(object):
                 self.calibrations[clade_identifier] = cal_obj
 
     def parse_calibration_string(self, orig_clade, cs, is_tip_cal=False):
+        return self.parse_prior_string(
+            "calibration of clade {:}".format(orig_clade),
+            cs, is_tip_cal)
+
+    @staticmethod
+    def parse_prior_string(prior_name, cs, is_point_cal=False):
         orig_cs = cs[:]
         # Find offset
         if cs.count("+") == 1:
@@ -1121,7 +1127,7 @@ class Configuration(object):
             dist_type, cs = cs.split("(", 1)
             dist_type = dist_type.lower()
             if dist_type not in ("uniform", "normal", "lognormal", "rlognormal"):
-                raise ValueError("Calibration \"%s\" for clade %s uses an unknown distribution %s!" % (orig_cs, orig_clade, dist_type))
+                raise ValueError("Prior Specification \"%s\" for %s uses an unknown distribution %s!" % (orig_cs, prior_name, dist_type))
             cs = cs[0:-1]
         else:
             # Default to normal
@@ -1135,7 +1141,7 @@ class Configuration(object):
             # We've got a 95% HPD range
             lower, upper = map(float, cs.split("-"))
             if upper <= lower:
-                raise ValueError("Calibration \"%s\" for clade %s has an upper bound which is not higher than its lower bound!" % (orig_cs, orig_clade))
+                raise ValueError("Prior Specification \"%s\" for %s has an upper bound which is not higher than its lower bound!" % (orig_cs, prior_name))
             mid = (lower+upper) / 2.0
             if dist_type == "normal":
                 p1 = (upper + lower) / 2.0
@@ -1158,21 +1164,21 @@ class Configuration(object):
             else:
                 p1 = float(bound.strip())
                 p2 = sys.maxsize
-        elif is_tip_cal:
+        elif is_point_cal:
             # Last chance: It's a single language pinned to a
             # single date, so make sure to pin it to that date
             # late and nothing else is left to do with this
-            # calibration.
+            # prior specification.
             try:
                 dist_type = "point"
                 p1 = float(cs)
                 p2 = p1
             except ValueError:
-                raise ValueError("Could not parse tip calibration \"%s\" for clade %s" % (orig_cs, orig_clade))
+                raise ValueError("Could not parse prior specification \"%s\" for %s" % (orig_cs, prior_name))
         else:
-            raise ValueError("Could not parse calibration \"%s\" for clade %s" % (orig_cs, orig_clade))
+            raise ValueError("Could not parse prior specification \"%s\" for %s" % (orig_cs, prior_name))
 
-        # If this is a lognormal calibration with the mean in realspace, adjust
+        # If this is a lognormal prior specification with the mean in realspace, adjust
         if dist_type == "rlognormal":
             p1 = math.log(p1)
             dist_type = "lognormal"
