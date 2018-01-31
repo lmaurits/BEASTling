@@ -56,7 +56,7 @@ class BeastlingReport(object):
             lines.append("### Calibration points\n")
             for clade in sorted(self.config.calibrations.keys()):
                 cal = self.config.calibrations[clade]
-                lines.append("* %s: %s(%s, %s)" % (clade, cal.dist.title(), str(cal.param1), str(cal.param2)))
+                lines.append("* %s: %s%s" % (clade, cal.dist.title(), cal.param))
             lines.append("")
                 
         lines.append("## Data\n")

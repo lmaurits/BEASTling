@@ -173,12 +173,12 @@ class Tests(WithConfigAndTempDir):
         config = self._make_cfg('basic', 'calibration_lower_bound')
         config.process()
         self.assertEqual(list(config.calibrations.values())[0].dist, "uniform")
-        self.assertEqual(list(config.calibrations.values())[0].param2, sys.maxsize)
+        self.assertEqual(list(config.calibrations.values())[0].param[1], sys.maxsize)
         # Test upper bound format
         config = self._make_cfg('basic', 'calibration_upper_bound')
         config.process()
         self.assertEqual(list(config.calibrations.values())[0].dist, "uniform")
-        self.assertEqual(list(config.calibrations.values())[0].param1, 0.0)
+        self.assertEqual(list(config.calibrations.values())[0].param[0], 0.0)
 
         # Test range and param formats for all three distributions
         for dist in ('normal', 'lognormal', 'uniform'):

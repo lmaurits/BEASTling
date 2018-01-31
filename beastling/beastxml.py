@@ -188,11 +188,11 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         string_bits = []
         for cal in self.config.tip_calibrations.values():
             if cal.dist in ("normal", "point"):
-                initial_height = cal.param1
+                initial_height = cal.param[0]
             elif cal.dist == "lognormal":
-                initial_height = exp(cal.param1)
+                initial_height = exp(cal.param[0])
             elif cal.dist == "uniform":
-                initial_height = (cal.param1  + cal.param2) / 2.0
+                initial_height = sum(cal.param) / 2.0
             string_bits.append("{:s} = {:}".format(cal.langs[0], initial_height))
         trait_string = ",\n".join(string_bits)
 
@@ -252,9 +252,9 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
                 continue
             # Find the midpoint of this cal
             if cal.dist == "normal":
-                mid = cal.offset + cal.param1
+                mid = cal.offset + cal.param[0]
             elif cal.dist == "lognormal":
-                mid = cal.offset + exp(cal.param1)
+                mid = cal.offset + exp(cal.param[0])
             # Find the Yule birthrate which results in an expected height for
             # a tree of this many taxa which equals the midpoint of the
             # calibration.
@@ -366,12 +366,12 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
                          "uniform": ("Uniform", ("lower", "upper"))}
         # Create "distr" param
         dist_type, ps = DISTRIBUTIONS[cal.dist]
-        attribs = {"id": "PriorFor{:}".format(cal_prior.id),
+        attribs = {"id": "DistributionFor{:}".format(cal_prior.attrib["id"]),
                    "name": "distr",
                    "offset": "0.0"}
         if cal.offset:
             attribs["offset"] = str(cal.offset)
-        for parameter, value in zip(ps, cal.parameters):
+        for parameter, value in zip(ps, cal.param):
             attribs[parameter] = str(value)
         ET.SubElement(cal_prior, dist_type, attribs)
   
