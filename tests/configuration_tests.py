@@ -155,11 +155,9 @@ class Tests(WithConfigAndTempDir):
         self.assertIn('Austronesian', config.calibrations)
         v = config.calibrations['Austronesian']
         xml1 = BeastXml(config).tostring().decode('utf8')
-        print(config.calibrations)
 
         # Now remove one calibration point ...
         del config.calibrations['Austronesian']
-        print(config.calibrations)
         xml2 = BeastXml(config).tostring().decode('utf8')
         self.assertNotEqual(
             len(xml1.split('DistributionForAustronesianMRCA')),
