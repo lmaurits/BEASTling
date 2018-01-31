@@ -10,7 +10,6 @@ from clldutils.path import Path
 
 from beastling import __version__
 import beastling.beast_maps as beast_maps
-from .distributions import add_prior_density_description
 
 def indent(elem, level=0):
     i = "\n" + level*"  "
@@ -188,12 +187,7 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
     def add_tip_heights(self):
         string_bits = []
         for cal in self.config.tip_calibrations.values():
-            if cal.dist in ("normal", "point"):
-                initial_height = cal.param[0]
-            elif cal.dist == "lognormal":
-                initial_height = exp(cal.param[0])
-            elif cal.dist == "uniform":
-                initial_height = sum(cal.param) / 2.0
+            initial_height = cal.mean()
             string_bits.append("{:s} = {:}".format(cal.langs[0], initial_height))
         trait_string = ",\n".join(string_bits)
 
@@ -252,10 +246,7 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             if len(cal.langs) == 1 or cal.dist not in ("normal", "lognormal"):
                 continue
             # Find the midpoint of this cal
-            if cal.dist == "normal":
-                mid = cal.offset + cal.param[0]
-            elif cal.dist == "lognormal":
-                mid = cal.offset + exp(cal.param[0])
+            mid = cal.mean()
             # Find the Yule birthrate which results in an expected height for
             # a tree of this many taxa which equals the midpoint of the
             # calibration.
@@ -358,7 +349,7 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             taxonsetname = clade[:-len("_originate")] if clade.endswith("_originate") else clade
             self.add_taxon_set(cal_prior, taxonsetname, cal.langs)
 
-            add_prior_density_description(cal_prior, cal)
+            cal.generate_xml_element(cal_prior)
             
     def add_taxon_set(self, parent, label, langs, define_taxa=False):
         """

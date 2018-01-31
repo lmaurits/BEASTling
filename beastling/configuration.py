@@ -18,7 +18,7 @@ from clldutils.dsv import reader
 from clldutils.path import Path
 
 from beastling.fileio.datareaders import load_location_data
-from .distributions import parse_prior_string
+from .distributions import Distribution
 import beastling.clocks.strict as strict
 import beastling.clocks.relaxed as relaxed
 import beastling.clocks.random as random_clock
@@ -33,7 +33,13 @@ _BEAST_MAX_LENGTH = 2147483647
 GLOTTOLOG_NODE_LABEL = re.compile(
     "'(?P<name>[^\[]+)\[(?P<glottocode>[a-z0-9]{8})\](\[(?P<isocode>[a-z]{3})\])?(?P<appendix>-l-)?'")
 
-Calibration = collections.namedtuple("Calibration", ["langs", "originate", "offset", "dist", "param"])
+
+class Calibration(
+        collections.namedtuple(
+            "Calibration", ["langs", "originate", "offset", "dist", "param"]),
+        Distribution):
+    pass
+
 
 class URLopener(FancyURLopener):
     def http_error_default(self, url, fp, errcode, errmsg, headers):
@@ -1090,10 +1096,12 @@ class Configuration(object):
                     raise ValueError("Calibration on for clade %s violates a monophyly constraint!" % (clade))
 
             # Next parse the calibration string and build a Calibration object
-            offset, dist_type, parameters = self.parse_calibration_string(
-                orig_clade, cs, is_tip_calibration)
-            cal_obj = Calibration(
-                langs, originate, offset, dist_type, parameters)
+            cal_obj = Calibration.from_string(
+                string=cs,
+                context="calibration of clade {:}".format(orig_clade),
+                is_point=is_tip_calibration,
+                langs=langs,
+                originate=originate)
 
             # Choose a name
             if originate:
@@ -1108,11 +1116,6 @@ class Configuration(object):
                 self.tip_calibrations[clade_identifier] = cal_obj
             else:
                 self.calibrations[clade_identifier] = cal_obj
-
-    def parse_calibration_string(self, orig_clade, cs, is_tip_cal=False):
-        return parse_prior_string(
-            prior_name="calibration of clade {:}".format(orig_clade),
-            cs=cs, is_point=is_tip_cal)
 
     def get_languages_by_glottolog_clade(self, clade):
         """

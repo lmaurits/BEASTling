@@ -1,5 +1,6 @@
 import sys
 import math
+import collections
 
 import xml.etree.ElementTree as ET
 
@@ -197,3 +198,31 @@ def parse_prior_string(cs, prior_name="?", is_point=False):
 
     # All done!
     return offset, dist_type, (p1, p2)
+
+
+class Distribution(collections.namedtuple(
+        "Distribution", ["offset", "dist", "param"])):
+    @classmethod
+    def from_string(cls, string, context=None, is_point=False, **kwargs):
+        """Create a Distribution object from a prior description string.
+
+        """
+        offset, dist, param = parse_prior_string(
+            cs=string, prior_name=context, is_point=is_point)
+        return cls(offset=offset, dist=dist, param=param, **kwargs)
+
+    def generate_xml_element(self, parent):
+        add_prior_density_description(compound_distribution=parent,
+                                      distribution=self)
+
+    def mean(self):
+        if self.dist in ("normal", "point"):
+            return self.offset + self.param[0]
+        elif self.dist == "lognormal":
+            return self.offset + math.exp(self.param[0])
+        elif self.dist == "uniform":
+            return self.offset + sum(self.param) / 2.0
+        elif self.dist == "point":
+            return self.param[0]
+        else:
+            raise NotImplementedError
