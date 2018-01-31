@@ -1213,9 +1213,13 @@ class Configuration(object):
             elif sign == ">":
                 p1 = float(bound.strip())
                 p2 = sys.maxsize
+<<<<<<< HEAD
             else:
                 raise ValueError("Could not parse prior specification \"%s\" for %s" % (orig_cs, prior_name))
         elif is_point:
+=======
+        elif is_point_cal:
+>>>>>>> 09a57e3... Recognize that parse_calibration_string is a generic prior parser
             # Last chance: It's a single language pinned to a
             # single date, so make sure to pin it to that date
             # late and nothing else is left to do with this
