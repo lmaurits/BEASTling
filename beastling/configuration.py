@@ -21,6 +21,7 @@ from beastling.fileio.datareaders import load_location_data
 import beastling.clocks.strict as strict
 import beastling.clocks.relaxed as relaxed
 import beastling.clocks.random as random_clock
+import beastling.clocks.prior as prior_clock
 
 import beastling.models.geo as geo
 import beastling.models.bsvs as bsvs
@@ -810,7 +811,9 @@ class Configuration(object):
         self.clocks_by_name = {}
         for config in self.clock_configs:
             if config["type"].lower() == "strict":
-                clock = strict.StrictClock(config, self) 
+                clock = strict.StrictClock(config, self)
+            elif config["type"].lower() == "strict_with_prior":
+                clock = prior_clock.StrictClockWithPrior(config, self)
             elif config["type"].lower() == "relaxed":
                 clock = relaxed.relaxed_clock_factory(config, self)
             elif config["type"].lower() == "random":
