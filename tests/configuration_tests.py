@@ -149,27 +149,6 @@ class Tests(WithConfigAndTempDir):
         # when the model is constructed as XML.
         BeastXml(cfg)
 
-    def test_calibration(self):
-        config = self._make_cfg('basic', 'calibration')
-        config.process()
-        self.assertIn('Austronesian', config.calibrations)
-        v = config.calibrations['Austronesian']
-        xml1 = BeastXml(config).tostring().decode('utf8')
-
-        # Now remove one calibration point ...
-        del config.calibrations['Austronesian']
-        xml2 = BeastXml(config).tostring().decode('utf8')
-        self.assertNotEqual(
-            len(xml1.split('DistributionForAustronesianMRCA')),
-            len(xml2.split('DistributionForAustronesianMRCA')))
-
-        # ... and add it back in with using the glottocode:
-        config.calibrations['aust1307'] = v
-        xml2 = BeastXml(config).tostring().decode('utf8')
-        self.assertEqual(
-            len(xml1.split('DistributionForAustronesianMRCA')),
-            len(xml2.split('DistributionForaust1307MRCA')))
-
     def test_calibration_string_formats(self):
         # Test lower bound format
         config = self._make_cfg('basic', 'calibration_lower_bound')
@@ -212,14 +191,6 @@ class Tests(WithConfigAndTempDir):
         config.chainlength = 9e999
         config.process()
         self.assertEqual(config.chainlength, _BEAST_MAX_LENGTH)
-
-    def test_file_embedding(self):
-        config = self._make_cfg('glottolog_families_from_file','embed_data')
-        xml = BeastXml(config).tostring().decode('utf8')
-        # Check for evidence of data
-        self.assertTrue("aari1239,1,1,1,1,1,1,?,1,?,1" in xml)
-        # Check for evidence of families
-        self.assertTrue("Malayo-Polynesian" in xml)
 
     def test_minimum_data(self):
         # f8 has 60% missing data.  By default it should be included...
@@ -276,15 +247,6 @@ class Tests(WithConfigAndTempDir):
         config.model_configs[0]["remove_constant_features"] = False
         with self.assertRaises(ValueError):
             config.process()
-
-    def test_binarisation_ascertainment(self):
-        # Even with ascertainment = False, ascertainment should still
-        # be done for recoded data
-        config = self._make_cfg('covarion_binarised','ascertainment_false')
-        config.process()
-        xml = BeastXml(config).tostring().decode('utf8')
-        self.assertTrue("ascertained=\"true\"" in xml)
-        self.assertTrue("excludeto=\"1\"" in xml)
 
     def test_user_locations(self):
         # First check that we correctly load Glottolog's locations for aiw and abp
@@ -358,3 +320,53 @@ class Tests(WithConfigAndTempDir):
     def test_nonexisting_language_group(self):
         config = self._make_cfg('basic', 'reconstruct_one')
         config.process()
+
+
+class XMLTests(WithConfigAndTempDir):
+    def _make_cfg(self, *names):
+        return self.make_cfg([config_path(name).as_posix() for name in names])
+
+    @classmethod
+    def assert_in_xml(cls, string, config):
+        xml = BeastXml(config).tostring().decode('utf8')
+        cls.assertIn(string, xml)
+
+    def test_calibration(self):
+        config = self._make_cfg('basic', 'calibration')
+        config.process()
+        self.assertIn('Austronesian', config.calibrations)
+        v = config.calibrations['Austronesian']
+        self.assert_in_xml('DistributionForAustronesianMRCA', config)
+
+        # Now remove one calibration point ...
+        del config.calibrations['Austronesian']
+        xml2 = BeastXml(config).tostring().decode('utf8')
+        self.assertNotIn(
+            'DistributionForAustronesianMRCA',
+            xml2)
+
+        # ... and add it back in with using the glottocode:
+        config.calibrations['aust1307'] = v
+        self.assert_in_xml(
+            'DistributionForaust1307MRCA',
+            config)
+
+    def test_tip_calibration_with_offset(self):
+        config = self._make_cfg('basic', 'calibration_tip_offset')
+        config.process()
+        self.assert_in_xml("aal = 40.0", config)
+
+    def test_binarisation_ascertainment(self):
+        # Even with ascertainment = False, ascertainment should still
+        # be done for recoded data
+        config = self._make_cfg('covarion_binarised', 'ascertainment_false')
+        config.process()
+        self.assert_in_xml('ascertained="true"', config)
+        self.assert_in_xml('excludeto="1"', config)
+
+    def test_file_embedding(self):
+        config = self._make_cfg('glottolog_families_from_file', 'embed_data')
+        # Check for evidence of data
+        self.assert_in_xml("aari1239,1,1,1,1,1,1,?,1,?,1", config)
+        # Check for evidence of families
+        self.assert_in_xml("Malayo-Polynesian", config)
