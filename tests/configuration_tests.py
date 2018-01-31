@@ -155,18 +155,22 @@ class Tests(WithConfigAndTempDir):
         self.assertIn('Austronesian', config.calibrations)
         v = config.calibrations['Austronesian']
         xml1 = BeastXml(config).tostring().decode('utf8')
+        print(config.calibrations)
 
         # Now remove one calibration point ...
         del config.calibrations['Austronesian']
+        print(config.calibrations)
         xml2 = BeastXml(config).tostring().decode('utf8')
         self.assertNotEqual(
-            len(xml1.split('CalibrationDistribution.')), len(xml2.split('CalibrationDistribution.')))
+            len(xml1.split('DistributionForAustronesianMRCA')),
+            len(xml2.split('DistributionForAustronesianMRCA')))
 
         # ... and add it back in with using the glottocode:
         config.calibrations['aust1307'] = v
         xml2 = BeastXml(config).tostring().decode('utf8')
         self.assertEqual(
-            len(xml1.split('CalibrationDistribution.')), len(xml2.split('CalibrationDistribution.')))
+            len(xml1.split('DistributionForAustronesianMRCA')),
+            len(xml2.split('DistributionForaust1307MRCA')))
 
     def test_calibration_string_formats(self):
         # Test lower bound format
