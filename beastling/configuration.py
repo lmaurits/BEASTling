@@ -368,8 +368,13 @@ class Configuration(object):
         for key, value in p[section].items():
             if key in ('estimate_mean', 'estimate_rate','estimate_variance', 'correlated'):
                 value = p.getboolean(section, key)
-            elif key in ('mean','rate','variance'):
+            elif key in ('mean','variance'):
                 value = p.getfloat(section, key)
+            elif key in ('rate',):
+                try:
+                    value = p.getfloat(section, key)
+                except ValueError:
+                    pass # and hope it's a prior clock
             cfg[key] = value
         return cfg
 
