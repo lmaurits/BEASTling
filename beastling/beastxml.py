@@ -10,6 +10,7 @@ from clldutils.path import Path
 
 from beastling import __version__
 import beastling.beast_maps as beast_maps
+from .distributions import add_prior_density_description
 
 def indent(elem, level=0):
     i = "\n" + level*"  "
@@ -357,24 +358,8 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             taxonsetname = clade[:-len("_originate")] if clade.endswith("_originate") else clade
             self.add_taxon_set(cal_prior, taxonsetname, cal.langs)
 
-            self.add_prior_density_description(cal_prior, cal)
+            add_prior_density_description(cal_prior, cal)
             
-    @staticmethod
-    def add_prior_density_description(cal_prior, cal):
-        DISTRIBUTIONS = {"normal": ("Normal", ("mean", "sigma")),
-                         "lognormal": ("LogNormal", ("M", "S")),
-                         "uniform": ("Uniform", ("lower", "upper"))}
-        # Create "distr" param
-        dist_type, ps = DISTRIBUTIONS[cal.dist]
-        attribs = {"id": "DistributionFor{:}".format(cal_prior.attrib["id"]),
-                   "name": "distr",
-                   "offset": "0.0"}
-        if cal.offset:
-            attribs["offset"] = str(cal.offset)
-        for parameter, value in zip(ps, cal.param):
-            attribs[parameter] = str(value)
-        ET.SubElement(cal_prior, dist_type, attribs)
-  
     def add_taxon_set(self, parent, label, langs, define_taxa=False):
         """
         Add a TaxonSet element with the specified set of languages.
