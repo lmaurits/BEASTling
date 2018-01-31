@@ -326,10 +326,9 @@ class XMLTests(WithConfigAndTempDir):
     def _make_cfg(self, *names):
         return self.make_cfg([config_path(name).as_posix() for name in names])
 
-    @classmethod
-    def assert_in_xml(cls, string, config):
+    def assert_in_xml(self, string, config):
         xml = BeastXml(config).tostring().decode('utf8')
-        cls.assertIn(string, xml)
+        self.assertIn(string, xml)
 
     def test_calibration(self):
         config = self._make_cfg('basic', 'calibration')
