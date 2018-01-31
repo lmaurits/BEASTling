@@ -332,8 +332,6 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         """
         Add timing calibrations to prior distribution.
         """
-        p1_names = {"Normal":"mean", "LogNormal":"M","Uniform":"lower"}
-        p2_names = {"Normal":"sigma", "LogNormal":"S","Uniform":"upper"}
         # This itertools.cchain is a bit ugly, I wonder if we can get away with sticking them all in one list...
         for clade, cal in sorted(itertools.chain(self.config.calibrations.items(), self.config.tip_calibrations.items())):
             # Don't add an MRCA cal for point calibrations, those only exist to
@@ -359,14 +357,23 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             taxonsetname = clade[:-len("_originate")] if clade.endswith("_originate") else clade
             self.add_taxon_set(cal_prior, taxonsetname, cal.langs)
 
-            # Create "distr" param for MRCAPrior
-            dist_type = {"normal":"Normal","lognormal":"LogNormal","uniform":"Uniform"}[cal.dist]
-            attribs = {"id":"CalibrationDistribution.%s" % clade, "name":"distr", "offset":"0.0"}
-            if cal.offset:
-                attribs["offset"] = str(cal.offset)
-            attribs[p1_names[dist_type]] = str(cal.param1)
-            attribs[p2_names[dist_type]] = str(cal.param2)
-            ET.SubElement(cal_prior, dist_type, attribs)
+            self.add_prior_density_description(cal_prior, cal)
+            
+    @staticmethod
+    def add_prior_density_description(cal_prior, cal):
+        DISTRIBUTIONS = {"normal": ("Normal", ("mean", "sigma")),
+                         "lognormal": ("LogNormal", ("M", "S")),
+                         "uniform": ("Uniform", ("lower", "upper"))}
+        # Create "distr" param
+        dist_type, ps = DISTRIBUTIONS[cal.dist]
+        attribs = {"id": "PriorFor{:}".format(cal_prior.id),
+                   "name": "distr",
+                   "offset": "0.0"}
+        if cal.offset:
+            attribs["offset"] = str(cal.offset)
+        for parameter, value in zip(ps, cal.parameters):
+            attribs[parameter] = str(value)
+        ET.SubElement(cal_prior, dist_type, attribs)
   
     def add_taxon_set(self, parent, label, langs, define_taxa=False):
         """

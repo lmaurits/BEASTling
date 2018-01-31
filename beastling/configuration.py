@@ -32,7 +32,7 @@ _BEAST_MAX_LENGTH = 2147483647
 GLOTTOLOG_NODE_LABEL = re.compile(
     "'(?P<name>[^\[]+)\[(?P<glottocode>[a-z0-9]{8})\](\[(?P<isocode>[a-z]{3})\])?(?P<appendix>-l-)?'")
 
-Calibration = collections.namedtuple("Calibration", ["langs", "originate", "offset", "dist", "param1", "param2"])
+Calibration = collections.namedtuple("Calibration", ["langs", "originate", "offset", "dist", "param"])
 
 class URLopener(FancyURLopener):
     def http_error_default(self, url, fp, errcode, errmsg, headers):
@@ -1089,8 +1089,10 @@ class Configuration(object):
                     raise ValueError("Calibration on for clade %s violates a monophyly constraint!" % (clade))
 
             # Next parse the calibration string and build a Calibration object
-            offset, dist_type, p1, p2 = self.parse_calibration_string(orig_clade, cs, is_tip_calibration)
-            cal_obj = Calibration(langs, originate, offset, dist_type, p1, p2)
+            offset, dist_type, parameters = self.parse_calibration_string(
+                orig_clade, cs, is_tip_calibration)
+            cal_obj = Calibration(
+                langs, originate, offset, dist_type, parameters)
 
             # Choose a name
             if originate:
@@ -1108,11 +1110,58 @@ class Configuration(object):
 
     def parse_calibration_string(self, orig_clade, cs, is_tip_cal=False):
         return self.parse_prior_string(
-            "calibration of clade {:}".format(orig_clade),
-            cs, is_tip_cal)
+            prior_name="calibration of clade {:}".format(orig_clade),
+            cs=cs, is_point=is_tip_cal)
 
     @staticmethod
-    def parse_prior_string(prior_name, cs, is_point_cal=False):
+    def parse_prior_string(cs, prior_name="?", is_point=False):
+        """Parse a prior-describing string.
+
+        The basic format of such a string is [offset + ]distribution
+        Offset is a number, distribution can describe a probability
+        density function of normal, lognormal (including rlognormal, a
+        reparametrization where the mean is given in real space, not
+        in log space) or uniform type in one of the following
+        ways. Pseudo-densities with infinite interval are permitted.
+
+        >>> parse = Configuration.parse_prior_string
+        >>> # Parameters of a normal distribution
+        >>> parse("0, 1")
+        (0.0, 'normal', (0.0, 1.0))
+        >>> # Parameters of some other distribution
+        >>> parse(" rlognormal(1, 1)")
+        (0.0, 'lognormal', (0.0, 1.0))
+        >>> # A distribution shape and its 95%-interval
+        >>> parse("normal (1-5)")
+        (0.0, 'normal', (3.0, 1.0204081632653061))
+        >>> parse("1 - 5")
+        (0.0, 'normal', (3.0, 1.0204081632653061))
+        >>> parse(">1200")
+        (0.0, 'uniform', (1200.0, 9223372036854775807))
+        >>> parse("< 1200")
+        (0.0, 'uniform', (0.0, 1200.0))
+
+        ====
+        Note
+        ====
+
+        For uniform distributions, "uniform(0-1) does not give the 95%
+        interval, but the lower and upper bounds.
+        
+        While the ">1" and "<1" notations generate uniform
+        distributions, the bare "0-1" notation generates a normal
+        distribution.
+
+        =======
+        Returns
+        =======
+        offset: int
+        type: str
+            A known distribution type
+        parameters: tuple of floats
+            The parameters for that distribution
+
+        """
         orig_cs = cs[:]
         # Find offset
         if cs.count("+") == 1:
@@ -1125,7 +1174,7 @@ class Configuration(object):
         # Parse distribution
         if cs.count("(") == 1 and cs.count(")") == 1:
             dist_type, cs = cs.split("(", 1)
-            dist_type = dist_type.lower()
+            dist_type = dist_type.strip().lower()
             if dist_type not in ("uniform", "normal", "lognormal", "rlognormal"):
                 raise ValueError("Prior Specification \"%s\" for %s uses an unknown distribution %s!" % (orig_cs, prior_name, dist_type))
             cs = cs[0:-1]
@@ -1157,14 +1206,16 @@ class Configuration(object):
         elif (cs.count("<") == 1 or cs.count(">") == 1) and not any([x in cs for x in (",", "-")]):
             # We've got a single bound
             dist_type = "uniform"
-            sign, bound = cs.split()
-            if sign.strip() == "<":
+            sign, bound = cs[0], cs[1:]
+            if sign == "<":
                 p1 = 0.0
                 p2 = float(bound.strip())
-            else:
+            elif sign == ">":
                 p1 = float(bound.strip())
                 p2 = sys.maxsize
-        elif is_point_cal:
+            else:
+                raise ValueError("Could not parse prior specification \"%s\" for %s" % (orig_cs, prior_name))
+        elif is_point:
             # Last chance: It's a single language pinned to a
             # single date, so make sure to pin it to that date
             # late and nothing else is left to do with this
@@ -1184,7 +1235,7 @@ class Configuration(object):
             dist_type = "lognormal"
 
         # All done!
-        return offset, dist_type, p1, p2
+        return offset, dist_type, (p1, p2)
 
     def get_languages_by_glottolog_clade(self, clade):
         """
