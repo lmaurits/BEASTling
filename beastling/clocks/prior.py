@@ -10,7 +10,11 @@ from .strict import StrictClock
 class RatePriorClock (BaseClock):
     # Class stub for putting priors on clock rates
     def __init__(self, clock_config, global_config):
-        super().__init__(clock_config, global_config)
+        try:
+            super().__init__(clock_config, global_config)
+        except TypeError:
+            # Python 2 has no argument-less super()
+            super(RatePriorClock, self).__init__(clock_config, global_config)
         self.distribution = Distribution.from_string(
             clock_config.get(
                 "rate", "lognormal(-6.9077552789821368, 2.3025850929940459)"),
