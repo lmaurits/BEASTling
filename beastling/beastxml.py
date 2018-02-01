@@ -187,12 +187,7 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
     def add_tip_heights(self):
         string_bits = []
         for cal in self.config.tip_calibrations.values():
-            if cal.dist in ("normal", "point"):
-                initial_height = cal.param1
-            elif cal.dist == "lognormal":
-                initial_height = exp(cal.param1)
-            elif cal.dist == "uniform":
-                initial_height = (cal.param1  + cal.param2) / 2.0
+            initial_height = cal.mean()
             string_bits.append("{:s} = {:}".format(cal.langs[0], initial_height))
         trait_string = ",\n".join(string_bits)
 
@@ -251,10 +246,7 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             if len(cal.langs) == 1 or cal.dist not in ("normal", "lognormal"):
                 continue
             # Find the midpoint of this cal
-            if cal.dist == "normal":
-                mid = cal.offset + cal.param1
-            elif cal.dist == "lognormal":
-                mid = cal.offset + exp(cal.param1)
+            mid = cal.mean()
             # Find the Yule birthrate which results in an expected height for
             # a tree of this many taxa which equals the midpoint of the
             # calibration.
@@ -332,8 +324,6 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         """
         Add timing calibrations to prior distribution.
         """
-        p1_names = {"Normal":"mean", "LogNormal":"M","Uniform":"lower"}
-        p2_names = {"Normal":"sigma", "LogNormal":"S","Uniform":"upper"}
         # This itertools.cchain is a bit ugly, I wonder if we can get away with sticking them all in one list...
         for clade, cal in sorted(itertools.chain(self.config.calibrations.items(), self.config.tip_calibrations.items())):
             # Don't add an MRCA cal for point calibrations, those only exist to
@@ -359,15 +349,8 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             taxonsetname = clade[:-len("_originate")] if clade.endswith("_originate") else clade
             self.add_taxon_set(cal_prior, taxonsetname, cal.langs)
 
-            # Create "distr" param for MRCAPrior
-            dist_type = {"normal":"Normal","lognormal":"LogNormal","uniform":"Uniform"}[cal.dist]
-            attribs = {"id":"CalibrationDistribution.%s" % clade, "name":"distr", "offset":"0.0"}
-            if cal.offset:
-                attribs["offset"] = str(cal.offset)
-            attribs[p1_names[dist_type]] = str(cal.param1)
-            attribs[p2_names[dist_type]] = str(cal.param2)
-            ET.SubElement(cal_prior, dist_type, attribs)
-  
+            cal.generate_xml_element(cal_prior)
+            
     def add_taxon_set(self, parent, label, langs, define_taxa=False):
         """
         Add a TaxonSet element with the specified set of languages.

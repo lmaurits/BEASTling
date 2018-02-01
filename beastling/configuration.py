@@ -18,9 +18,11 @@ from clldutils.dsv import reader
 from clldutils.path import Path
 
 from beastling.fileio.datareaders import load_location_data
+from .distributions import Distribution
 import beastling.clocks.strict as strict
 import beastling.clocks.relaxed as relaxed
 import beastling.clocks.random as random_clock
+import beastling.clocks.prior as prior_clock
 
 import beastling.models.geo as geo
 import beastling.models.bsvs as bsvs
@@ -31,7 +33,13 @@ _BEAST_MAX_LENGTH = 2147483647
 GLOTTOLOG_NODE_LABEL = re.compile(
     "'(?P<name>[^\[]+)\[(?P<glottocode>[a-z0-9]{8})\](\[(?P<isocode>[a-z]{3})\])?(?P<appendix>-l-)?'")
 
-Calibration = collections.namedtuple("Calibration", ["langs", "originate", "offset", "dist", "param1", "param2"])
+
+class Calibration(
+        collections.namedtuple(
+            "Calibration", ["langs", "originate", "offset", "dist", "param"]),
+        Distribution):
+    pass
+
 
 class URLopener(FancyURLopener):
     def http_error_default(self, url, fp, errcode, errmsg, headers):
@@ -360,8 +368,13 @@ class Configuration(object):
         for key, value in p[section].items():
             if key in ('estimate_mean', 'estimate_rate','estimate_variance', 'correlated'):
                 value = p.getboolean(section, key)
-            elif key in ('mean','rate','variance'):
+            elif key in ('mean','variance'):
                 value = p.getfloat(section, key)
+            elif key in ('rate',):
+                try:
+                    value = p.getfloat(section, key)
+                except ValueError:
+                    pass # and hope it's a prior clock
             cfg[key] = value
         return cfg
 
@@ -810,7 +823,9 @@ class Configuration(object):
         self.clocks_by_name = {}
         for config in self.clock_configs:
             if config["type"].lower() == "strict":
-                clock = strict.StrictClock(config, self) 
+                clock = strict.StrictClock(config, self)
+            elif config["type"].lower() == "strict_with_prior":
+                clock = prior_clock.StrictClockWithPrior(config, self)
             elif config["type"].lower() == "relaxed":
                 clock = relaxed.relaxed_clock_factory(config, self)
             elif config["type"].lower() == "random":
@@ -1086,8 +1101,12 @@ class Configuration(object):
                     raise ValueError("Calibration on for clade %s violates a monophyly constraint!" % (clade))
 
             # Next parse the calibration string and build a Calibration object
-            offset, dist_type, p1, p2 = self.parse_calibration_string(orig_clade, cs, is_tip_calibration)
-            cal_obj = Calibration(langs, originate, offset, dist_type, p1, p2)
+            cal_obj = Calibration.from_string(
+                string=cs,
+                context="calibration of clade {:}".format(orig_clade),
+                is_point=is_tip_calibration,
+                langs=langs,
+                originate=originate)
 
             # Choose a name
             if originate:
@@ -1102,80 +1121,6 @@ class Configuration(object):
                 self.tip_calibrations[clade_identifier] = cal_obj
             else:
                 self.calibrations[clade_identifier] = cal_obj
-
-    def parse_calibration_string(self, orig_clade, cs, is_tip_cal=False):
-        orig_cs = cs[:]
-        # Find offset
-        if cs.count("+") == 1:
-            os, dist = cs.split("+")
-            offset = float(os.strip())
-            cs = dist.strip()
-        else:
-            offset = 0.0
-
-        # Parse distribution
-        if cs.count("(") == 1 and cs.count(")") == 1:
-            dist_type, cs = cs.split("(", 1)
-            dist_type = dist_type.lower()
-            if dist_type not in ("uniform", "normal", "lognormal", "rlognormal"):
-                raise ValueError("Calibration \"%s\" for clade %s uses an unknown distribution %s!" % (orig_cs, orig_clade, dist_type))
-            cs = cs[0:-1]
-        else:
-            # Default to normal
-            dist_type = "normal"
-
-        # Parse / infer params
-        if cs.count(",") == 1 and not any([x in cs for x in ("<", ">")]):
-            # We've got explicit params
-            p1, p2 = map(float,cs.split(","))
-        elif cs.count("-") == 1 and not any([x in cs for x in (",", "<", ">")]):
-            # We've got a 95% HPD range
-            lower, upper = map(float, cs.split("-"))
-            if upper <= lower:
-                raise ValueError("Calibration \"%s\" for clade %s has an upper bound which is not higher than its lower bound!" % (orig_cs, orig_clade))
-            mid = (lower+upper) / 2.0
-            if dist_type == "normal":
-                p1 = (upper + lower) / 2.0
-                p2 = (upper - mid) / 1.96
-            elif dist_type == "lognormal":
-                p1 = math.log(mid)
-                p2a = (p1 - math.log(lower)) / 1.96
-                p2b = (math.log(upper) - p1) / 1.96
-                p2 = (p2a+p2b)/2.0
-            elif dist_type == "uniform":
-                p1 = lower
-                p2 = upper
-        elif (cs.count("<") == 1 or cs.count(">") == 1) and not any([x in cs for x in (",", "-")]):
-            # We've got a single bound
-            dist_type = "uniform"
-            sign, bound = cs.split()
-            if sign.strip() == "<":
-                p1 = 0.0
-                p2 = float(bound.strip())
-            else:
-                p1 = float(bound.strip())
-                p2 = sys.maxsize
-        elif is_tip_cal:
-            # Last chance: It's a single language pinned to a
-            # single date, so make sure to pin it to that date
-            # late and nothing else is left to do with this
-            # calibration.
-            try:
-                dist_type = "point"
-                p1 = float(cs)
-                p2 = p1
-            except ValueError:
-                raise ValueError("Could not parse tip calibration \"%s\" for clade %s" % (orig_cs, orig_clade))
-        else:
-            raise ValueError("Could not parse calibration \"%s\" for clade %s" % (orig_cs, orig_clade))
-
-        # If this is a lognormal calibration with the mean in realspace, adjust
-        if dist_type == "rlognormal":
-            p1 = math.log(p1)
-            dist_type = "lognormal"
-
-        # All done!
-        return offset, dist_type, p1, p2
 
     def get_languages_by_glottolog_clade(self, clade):
         """
