@@ -373,6 +373,9 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             if langs == taxa:
                 ET.SubElement(parent, "taxonset", {"idref" : idref})
                 return
+        if len(langs) == 1 and label == langs[0]:
+            # Single taxa are IDs already. They cannot also be taxon set ids.
+            label = "tx_{:}".format(label)
         # Otherwise, create and register a new TaxonSet
         taxonset = ET.SubElement(parent, "taxonset", {"id" : label, "spec":"TaxonSet"})
         ## If the taxonset is more than 3 languages in size, use plate notation to minimise XML filesize

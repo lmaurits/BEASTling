@@ -338,21 +338,21 @@ class XMLTests(WithConfigAndTempDir):
     def test_calibration(self):
         config = self._make_cfg('basic', 'calibration')
         config.process()
-        self.assertIn('Austronesian', config.calibrations)
-        v = config.calibrations['Austronesian']
-        self.assert_in_xml('DistributionForAustronesianMRCA', config)
+        self.assertEqual({'Cushitic'}, set(config.calibrations))
+        v = config.calibrations['Cushitic']
+        self.assert_in_xml('DistributionForCushiticMRCA', config)
 
         # Now remove one calibration point ...
-        del config.calibrations['Austronesian']
+        del config.calibrations['Cushitic']
         xml2 = BeastXml(config).tostring().decode('utf8')
         self.assertNotIn(
-            'DistributionForAustronesianMRCA',
+            'DistributionForCushiticMRCA',
             xml2)
 
         # ... and add it back in with using the glottocode:
-        config.calibrations['aust1307'] = v
+        config.calibrations['cush1243'] = v
         self.assert_in_xml(
-            'DistributionForaust1307MRCA',
+            'DistributionForcush1243MRCA',
             config)
 
     def test_tip_calibration_with_offset(self):
