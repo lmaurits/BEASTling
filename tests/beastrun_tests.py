@@ -100,7 +100,7 @@ def test_basic():
         ("admin", "mk", "calibration", "random"),
         ("admin", "mk", "calibration_tip"),
         ("admin", "mk", "calibration_tip_multiple"),
-        ("admin", "mk", "calibration_tip_originate"),
+        ("admin", "mk", "calibration_tip_originate_explicit"),
         ("admin", "mk", "calibration_tip_fixed"),
         ("admin", "mk", "calibration_tip_before"),
         ("admin", "mk", "calibration_tip_after"),

@@ -188,7 +188,7 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         string_bits = []
         for cal in self.config.tip_calibrations.values():
             initial_height = cal.mean()
-            string_bits.append("{:s} = {:}".format(cal.langs[0], initial_height))
+            string_bits.append("{:s} = {:}".format(next(cal.langs.__iter__()), initial_height))
         trait_string = ",\n".join(string_bits)
 
         datetrait = ET.SubElement(self.tree, "trait",
@@ -373,6 +373,9 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             if langs == taxa:
                 ET.SubElement(parent, "taxonset", {"idref" : idref})
                 return
+        if len(langs) == 1 and label == langs[0]:
+            # Single taxa are IDs already. They cannot also be taxon set ids.
+            label = "tx_{:}".format(label)
         # Otherwise, create and register a new TaxonSet
         taxonset = ET.SubElement(parent, "taxonset", {"id" : label, "spec":"TaxonSet"})
         ## If the taxonset is more than 3 languages in size, use plate notation to minimise XML filesize
@@ -533,7 +536,7 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         # Add a Tip Date scaling operator if required
         if self.config.tip_calibrations and self.config.sample_branch_lengths:
             # Get a list of taxa with non-point tip cals
-            tip_taxa = [cal.langs[0] for cal in self.config.tip_calibrations.values() if cal.dist != "point"]
+            tip_taxa = [next(cal.langs.__iter__()) for cal in self.config.tip_calibrations.values() if cal.dist != "point"]
             for taxon in tip_taxa:
                 tiprandomwalker = ET.SubElement(self.run, "operator",
                     {"id": "TipDatesandomWalker:%s" % taxon,

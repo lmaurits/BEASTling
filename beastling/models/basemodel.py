@@ -290,6 +290,8 @@ class BaseModel(object):
 
     def compute_weights(self):
         self.weights = []
+        # Weights feed into a DeltaExchangeOperator, so they need to
+        # be integers. This is currently implicit, not enforced.
         if self.rate_partition:
             parts = list(self.rate_partition.values())
             partition_weights = {p:parts.count(p) for p in parts}
@@ -456,7 +458,8 @@ class BaseModel(object):
                     distribution.attrib["spec"] = "lucl.beast.statereconstruction.AncestralStatesLogger"
                     distribution.attrib["value"] = " ".join(self.pattern_names(f))
                     for label in self.reconstruct_at:
-                        self.beastxml.add_taxon_set(distribution, label, self.config.language_groups[label])
+                        langs = self.config.language_group(label)
+                        self.beastxml.add_taxon_set(distribution, label, langs)
                     self.metadata.append(attribs["id"])
                 distribution.attrib["useAmbiguities"] = "false"
 
