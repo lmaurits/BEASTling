@@ -49,7 +49,7 @@ class MKModel(BaseModel):
         rounded_freqs = [round(f,1) for f in freqs]
         if sum(rounded_freqs) == 1:
             freqs = rounded_freqs
-        assert sum(freqs) == 1
+        assert abs(1 - sum(freqs) < 1e-10)
         freq_string = " ".join([str(f) for f in freqs])
         return freq_string
 
