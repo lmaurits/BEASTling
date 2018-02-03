@@ -46,6 +46,7 @@ def test_basic():
         ("admin", "mk", "strictclockwithprior"),
         ("admin", "covarion_multistate"),
         ("admin", "covarion_multistate", "covarion_per_feature_params"),
+        ("admin", "covarion_multistate", "ascertainment_true"),
         ("admin", "covarion_true_binary"),
         ("admin", "covarion_binarised"),
         ("admin", "bsvs", "robust_eigen"),
