@@ -157,7 +157,7 @@ class Tests(WithConfigAndTempDir):
     @raises(ValueError)
     def test_mistyped_tree_filename(self):
         cfg = self._make_bad_cfg("bad_wrong_tree_filename")
-        cfg.prcocess()
+        cfg.process()
         
     def test_calibration_string_formats(self):
         # Test lower bound format
