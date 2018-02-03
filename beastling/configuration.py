@@ -1176,12 +1176,21 @@ class Configuration(object):
         return langs
 
     def handle_user_supplied_tree(self, value, tree_type):
-        """
-        If the provided value is a filename, read the contents and treat it
-        as a Newick tree specification.  Otherwise, assume the provided value
-        is a Newick tree specification.  In either case, inspect the tree and
-        make appropriate minor changes so it is suitable for inclusion in the
-        BEAST XML file.
+        """Load a tree from file or parse a string, and simplify.
+
+        If the provided value is the name of an existing file, read
+        the contents and treat it as a Newick tree
+        specification. Otherwise, assume the provided value is a
+        Newick tree specification.
+
+        Trees consisting of only one leaf are considered errors,
+        because they are never useful and can easily arise when a
+        non-existing file name is parsed as tree, leading to confusing
+        error messages down the line.
+
+        In either case, inspect the tree and make appropriate minor
+        changes so it is suitable for inclusion in the BEAST XML file.
+
         """
         # Make sure we've got a legitimate tree type
         tree_type = tree_type.lower()
@@ -1193,7 +1202,16 @@ class Configuration(object):
                 value = fp.read().strip()
         # Sanitise
         if value:
-            value = self.sanitise_tree(value, tree_type)
+            if ")" in value:
+                # A tree with only one node – which is the only Newick
+                # string without bracket – is not a useful tree
+                # specification.
+                value = self.sanitise_tree(value, tree_type)
+            else:
+                raise ValueError(
+                    "Starting tree specification {:} is neither an existing"
+                    " file nor does it look like a useful tree.".format(
+                        value))
         # Done
         return value
 
