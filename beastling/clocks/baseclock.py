@@ -40,10 +40,10 @@ class BaseClock(object):
         sub_prior = ET.SubElement(prior, "prior", {"id":"clockPrior:%s" % self.name, "name":"distribution","x":"@clockRate.c:%s" % self.name})
         uniform = ET.SubElement(sub_prior, "Uniform", {"id":"UniformClockPrior:%s" % self.name, "name":"distr", "upper":"Infinity"})
 
-    def add_branchrate_model(self, beast):
+    def add_branchrate_model(self, beast): # pragma: no cover
         pass
 
-    def add_pruned_branchrate_model(self, distribution, name, tree_id):
+    def add_pruned_branchrate_model(self, distribution, name, tree_id): # pragma: no cover
         raise Exception("This clock is not compatible with PrunedTrees!")
 
     def add_operators(self, run):

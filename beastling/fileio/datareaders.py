@@ -29,7 +29,7 @@ def sniff(filename):
         while True:
             try:
                 return csv.Sniffer().sniff(sample, [",", "\t"])
-            except csv.Error:
+            except csv.Error: # pragma: no cover
                 blob = fp.read(1024)
                 sample += blob
                 if not blob:
@@ -128,8 +128,11 @@ def load_location_data(filename):
             try:
                 dialect = csv.Sniffer().sniff(sample, [",","\t"])
                 break
-            except csv.Error:
-                sample += fp.read(1024)
+            except csv.Error: # pragma: no cover
+                blob = fp.read(1024)
+                sample += blob
+                if not blob:
+                    raise
 
     # Read
     with UnicodeDictReader(filename, dialect=dialect) as reader:
