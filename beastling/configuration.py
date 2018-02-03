@@ -1203,8 +1203,8 @@ class Configuration(object):
         # Sanitise
         if value:
             if ")" in value:
-                # A tree with only one node – which is the only Newick
-                # string without bracket – is not a useful tree
+                # A tree with only one node (which is the only Newick
+                # string without bracket) is not a useful tree
                 # specification.
                 value = self.sanitise_tree(value, tree_type)
             else:
