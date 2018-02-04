@@ -154,6 +154,11 @@ class Tests(WithConfigAndTempDir):
         # when the model is constructed as XML.
         BeastXml(cfg)
 
+    @raises(ValueError)
+    def test_mistyped_tree_filename(self):
+        cfg = self._make_bad_cfg("bad_wrong_tree_filename")
+        cfg.process()
+        
     def test_calibration_string_formats(self):
         # Test lower bound format
         config = self._make_cfg('basic', 'calibration_lower_bound')

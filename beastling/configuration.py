@@ -875,7 +875,8 @@ class Configuration(object):
                 if "mk_used" not in self.message_flags:
                     self.message_flags.append("mk_used")
                     self.messages.append(mk.MKModel.package_notice)
-            elif config["model"].lower() == "dollo":
+            elif config["model"].lower() == "dollo": # pragma: no cover
+                raise NotImplementedError("The stochastic Dollo model is not implemented yet.")
                 model = dollo.StochasticDolloModel(config, self)
                 if dollo.StochasticDolloModel.package_notice not in self.messages:
                     self.messages.append(dollo.StochasticDolloModel.package_notice)
@@ -1065,9 +1066,12 @@ class Configuration(object):
             if len(langs) > 1:
                 ## Calibrations on multiple taxa are always valid
                 pass
-            elif not langs:
-                ## Calibrations on zero taxa are never valid, so abort and skip
-                ## to the next cal
+            elif not langs: # pragma: no cover
+                # Calibrations on zero taxa are never valid, so abort
+                # and skip to the next cal. This should never happen,
+                # because empty calibrations can only be specified by
+                # empty language groups, which should be caught before
+                # this.
                 self.messages.append("[INFO] Calibration on clade '%s' ignored as no matching languages in analysis." % clade)
                 continue
             # At this point we know that len(langs) == 1, so that condition is
@@ -1083,13 +1087,18 @@ class Configuration(object):
                 self.messages.append("[INFO] Calibration on '%s' taken as tip age calibration." % clade)
                 is_tip_calibration = True
                 self.tree_prior = "coalescent"
-            else:
-                ## At this point we have a non-originate calibration on a single
-                ## taxa, which is not the result of specifically asking for only
-                ## this taxa.  Probably the user did not expect to get here.
-                ## They might want this to be an originate cal, or a tip cal, but
-                ## we can't tell with what we know and shouldn't guess.  Abort
-                ## and skip to the next cal
+            else: # pragma: no cover
+                # At this point we have a non-originate calibration on
+                # a single taxa, which is not the result of
+                # specifically asking for only this taxa. Probably the
+                # user did not expect to get here. They might want
+                # this to be an originate cal, or a tip cal, but we
+                # can't tell with what we know and shouldn't
+                # guess. Abort and skip to the next cal. This should
+                # never happen, because empty calibrations can only be
+                # specified by empty language groups, which should be
+                # caught before this.
+
                 self.messages.append("[INFO] Calibration on clade '%s' matches only one language.  Ignoring due to ambiguity.  Use 'originate(%s)' if this was supposed to be an originate calibration, or explicitly identify the single language using '%s' if this was supposed to be a tip calibration." % (clade, clade, langs[0]))
                 continue
 
@@ -1176,12 +1185,21 @@ class Configuration(object):
         return langs
 
     def handle_user_supplied_tree(self, value, tree_type):
-        """
-        If the provided value is a filename, read the contents and treat it
-        as a Newick tree specification.  Otherwise, assume the provided value
-        is a Newick tree specification.  In either case, inspect the tree and
-        make appropriate minor changes so it is suitable for inclusion in the
-        BEAST XML file.
+        """Load a tree from file or parse a string, and simplify.
+
+        If the provided value is the name of an existing file, read
+        the contents and treat it as a Newick tree
+        specification. Otherwise, assume the provided value is a
+        Newick tree specification.
+
+        Trees consisting of only one leaf are considered errors,
+        because they are never useful and can easily arise when a
+        non-existing file name is parsed as tree, leading to confusing
+        error messages down the line.
+
+        In either case, inspect the tree and make appropriate minor
+        changes so it is suitable for inclusion in the BEAST XML file.
+
         """
         # Make sure we've got a legitimate tree type
         tree_type = tree_type.lower()
@@ -1193,7 +1211,16 @@ class Configuration(object):
                 value = fp.read().strip()
         # Sanitise
         if value:
-            value = self.sanitise_tree(value, tree_type)
+            if ")" in value:
+                # A tree with only one node (which is the only Newick
+                # string without bracket) is not a useful tree
+                # specification.
+                value = self.sanitise_tree(value, tree_type)
+            else:
+                raise ValueError(
+                    "Starting tree specification {:} is neither an existing"
+                    " file nor does it look like a useful tree.".format(
+                        value))
         # Done
         return value
 
