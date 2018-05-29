@@ -77,6 +77,10 @@ class GeoModel(object):
         else:
             attribs["spec"] = "sphericalGeo.ApproxMultivariateTraitLikelihood"
         distribution = ET.SubElement(likelihood, "distribution",attribs)
+        # Add data first, as this may trigger the creation of additional
+        # sampling points (for langs with missing locations data)
+        self.add_data(distribution)
+        # Now add geopriors
         if self.sampling_points:
             multi = ET.SubElement(distribution, "multiGeoprior", {
                 "id":"multiGeoPrior",
@@ -97,7 +101,12 @@ class GeoModel(object):
                     "spec":"sphericalGeo.GeoPrior",
                     "location":"@location.geo",
                     "tree":"@Tree.t:beastlingTree"})
-                self.beastxml.add_taxon_set(geoprior, "%s.geo" % clade, langs)
+                if len(langs) > 1:
+                    self.beastxml.add_taxon_set(geoprior, "%s.geo" % clade, langs)
+                else:
+                    ET.SubElement(geoprior, "taxon", {"idref":langs[0]})
+                    # Drop back to F, not F2, so singletons can be sampled
+                    distribution.set("spec", "sphericalGeo.ApproxMultivariateTraitLikelihoodF")
                 # Also add the KML file if we have an actual constraint
                 if clade in self.geo_priors:
                     kml = self.geo_priors[clade]
@@ -107,7 +116,6 @@ class GeoModel(object):
 
         self.add_sitemodel(distribution)
         ET.SubElement(distribution, "branchRateModel", {"idref": self.clock.branchrate_model_id})
-        self.add_data(distribution)
 
     def add_sitemodel(self, distribution):
 
@@ -146,9 +154,14 @@ class GeoModel(object):
         param.text = "0.0 0.0"
         loc_data_text_bits = []
         for lang in self.config.languages:
-            lat, lon = self.config.locations[lang]
-            bit = "%s=%.2f %.2f" % (lang, lat, lon)
-            loc_data_text_bits.append(bit)
+            lat, lon = self.config.locations.get(lang, ("?", "?"))
+            if "?" in (lat, lon):
+                if lang not in self.sampling_points:
+                    self.sampling_points.append(lang)
+                    self.messages.append("""[INFO] Geo model: Location of language %s will be sampled.  You may wish to add a prior.""" % lang)
+            else:
+                bit = "%s=%.2f %.2f" % (lang, lat, lon)
+                loc_data_text_bits.append(bit)
         traitmap.text = ",\n".join(loc_data_text_bits)
         ET.SubElement(data, "userDataType", {
             "id":"LocationDataType",

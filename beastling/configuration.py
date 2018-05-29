@@ -674,9 +674,6 @@ class Configuration(object):
             return False
         if self.exclusions and l in self.exclusions:
             return False
-        if self.geo_config and (l not in self.locations or "?" in self.locations[l]):
-            self.messages.append("""[INFO] All models: Language %s excluded due to lack of location data.""" % l)
-            return False
         if l in self.sparse_languages:
             return False
         return True
