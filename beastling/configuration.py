@@ -636,8 +636,8 @@ class Configuration(object):
         """
         # Load requirements
         self.languages = self.handle_file_or_list(self.languages)
-        if len(self.families) == 1:
-            self.messages.append("""[WARNING] value of 'families' has length 1: have you misspelled a filename?""")
+        if len(self.languages) == 1:
+            self.messages.append("""[WARNING] value of 'languages' has length 1: have you misspelled a filename?""")
         self.families = self.handle_file_or_list(self.families)
 
         self.exclusions = set(self.handle_file_or_list(self.exclusions))
