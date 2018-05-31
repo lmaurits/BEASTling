@@ -93,7 +93,7 @@ def parse_prior_string(cs, prior_name="?", is_point=False):
     but in addition, point distributions support fixed values.
 
     >>> parse("300", is_point=True)
-    (0.0, 'point', (300,))
+    (0.0, 'point', (300, 300))
 
     In some cases, in particular for lognormal distributions, it may
     be useful to specify an offset. This is possibly with the syntax
