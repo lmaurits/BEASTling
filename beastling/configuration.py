@@ -890,7 +890,7 @@ class Configuration(object):
 
     def process_models(self):
         for model in self.models:
-            model.process()
+            model.process(self.language_filter)
             self.messages.extend(model.messages)
 
     def link_clocks_to_models(self):

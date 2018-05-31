@@ -104,12 +104,12 @@ class BaseModel(object):
         elif self.reconstruct:
             self.reconstruct_at=["root"]
 
-    def process(self):
+    def process(self, language_filter=lambda l: True):
         """
         Subsample the data set to include only those languages and features
         which are compatible with the settings.
         """
-        self.apply_language_filter()
+        self.apply_language_filter(language_filter)
         self.compute_feature_properties()
         self.remove_unwanted_features()
         self.load_rate_partition()
@@ -125,13 +125,13 @@ class BaseModel(object):
         if self.pruned:
             self.messages.append("""[DEPENDENCY] Model %s: Pruned trees are implemented in the BEAST package "BEASTlabs".""" % self.name)
 
-    def apply_language_filter(self):
+    def apply_language_filter(self, language_filter=lambda l: True):
         """
         Remove all languages from the data set which are not part of the
         configured language filter.
         """
         all_langs = self.data.keys()
-        langs_to_remove = [l for l in all_langs if not self.config.filter_language(l)]
+        langs_to_remove = [l for l in all_langs if not language_filter(l)]
         for lang in langs_to_remove:
             self.data.pop(lang)
         # Make sure we've not removed all languages
