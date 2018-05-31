@@ -112,6 +112,8 @@ def test_basic():
         ("admin", "mk", "pruned", "relaxed"),
         ("admin", "mk", "geo"),
         ("admin", "mk", "geo", "geo_user_loc"),
+        ("admin", "mk", "geo", "geo_sampled_tip"),
+        ("admin", "mk", "geo", "geo_tip_prior"),
         ("admin", "mk", "geo_own_clock"),
         ("admin", "mk", "monophyletic", "geo", "geo_sampled"),
         ("admin", "mk", "monophyletic", "geo", "geo_prior"),
