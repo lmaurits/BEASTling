@@ -459,7 +459,7 @@ class Configuration(object):
         self.load_glottolog_data()
         self.load_user_geo()
         self.instantiate_models()
-        self.build_language_filter()
+        self.language_filter = self.build_language_filter()
         self.process_models()
         self.build_language_list()
         self.define_language_groups()
@@ -625,33 +625,38 @@ class Configuration(object):
 
     def build_language_filter(self):
         """
-        Examines the values of various options, including self.languages and
-        self.families, and constructs self.lang_filter.
+        Aggregates the 'static' language filter options into a boolean function.
 
-        self.lang_filter is a Set object containing all ISO and glotto codes
-        which are compatible with the provided settings (e.g. belong to the
-        requested families).  This set is later used as a mask with data sets.
-        Datapoints with language identifiers not in this set will not be used
-        in an analysis.
+		This method examines the data-independent filters on language selection defined in the configuration (`languages`, `families`, `exclusions`, `makroareas`) and returns a filtering function, i.e. a function mapping language identifiers to boolean values describing whether or not that language should be included in the analysis.
+		
+		Returns
+		=======
+		language_filter: function str -> bool
         """
-        # Load requirements
+        # Load options
         self.languages = self.handle_file_or_list(self.languages)
         if len(self.languages) == 1:
             self.messages.append("""[WARNING] value of 'languages' has length 1: have you misspelled a filename?""")
         self.families = self.handle_file_or_list(self.families)
 
-        self.exclusions = set(self.handle_file_or_list(self.exclusions))
+        self.exclusions = self.handle_file_or_list(self.exclusions)
         self.macroareas = self.handle_file_or_list(self.macroareas)
-        # Enforce minimum data constraint
-        all_langs = set(itertools.chain(*[model.data.keys() for model in self.models]))
-        N = sum([max([len(lang.keys()) for lang in model.data.values()]) for model in self.models])
-        datapoint_props = {}
-        for lang in all_langs:
-            count = 0
-            for model in self.models:
-                count += len([x for x in model.data[lang].values() if x != "?"])
-            datapoint_props[lang] = 1.0*count / N
-        self.sparse_languages = [l for l in all_langs if datapoint_props[l] < self.minimum_data]
+		
+	    # self.minimum_data is deprecated and needs to be handled elsewhere, anyway, because it is not a static filter.
+		
+		def language_filter(l):
+			if self.languages and l not in self.languages:
+				return False
+			if self.families and not any([name in self.families or glottocode in self.families for (name, glottocode) in self.classifications.get(l,[])]):
+				return False
+			if self.macroareas and self.glotto_macroareas.get(l,None) not in self.macroareas:
+				return False
+			if self.exclusions and l in self.exclusions:
+				return False
+			if l in self.sparse_languages:
+				return False
+			return True
+		return language_filter
 
     def handle_file_or_list(self, value):
         if not (isinstance(value, list) or isinstance(value, set)):
@@ -664,19 +669,6 @@ class Configuration(object):
         else:
             result = value
         return result
-
-    def filter_language(self, l):
-        if self.languages and l not in self.languages:
-            return False
-        if self.families and not any([name in self.families or glottocode in self.families for (name, glottocode) in self.classifications.get(l,[])]):
-            return False
-        if self.macroareas and self.glotto_macroareas.get(l,None) not in self.macroareas:
-            return False
-        if self.exclusions and l in self.exclusions:
-            return False
-        if l in self.sparse_languages:
-            return False
-        return True
 
     def handle_monophyly(self):
         """
