@@ -104,7 +104,7 @@ def parse_prior_string(cs, prior_name="?", is_point=False):
     The offset must appear *before* the distribution, the other order
     is not permitted.
 
-    >>> parse("lognormal(1, 1) + 4")
+    >>> parse("lognormal(1, 1) + 4") # doctest: +IGNORE_EXCEPTION_DETAIL
     Traceback (most recent call last):
       File "<stdin>", line 1, in <module>
         parse("lognormal(1, 1) + 4")
