@@ -222,7 +222,5 @@ class Distribution(collections.namedtuple(
             return self.offset + math.exp(self.param[0])
         elif self.dist == "uniform":
             return self.offset + sum(self.param) / 2.0
-        elif self.dist == "point":
-            return self.param[0]
         else:
             raise NotImplementedError
