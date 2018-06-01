@@ -32,7 +32,6 @@ class Tests(unittest.TestCase):
                 ">12OO",
                 ">1200,",
                 "normal [1-5]",
-                "300",
                 "lognormal(1, 1) + 4"]:
             self.run_with_string.description = "Bad distribution {:}".format(
                 string)
