@@ -1,3 +1,4 @@
+# -*- encoding: utf-8 -*-
 import datetime
 import itertools
 from math import log, exp
@@ -251,7 +252,7 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             # a tree of this many taxa which equals the midpoint of the
             # calibration.
             # The expected height of a Yule tree with n taxa and
-            # birthrate λ is 1/(λ) * (Hn - 1), where Hn is the nth
+            # birthrate λ is 1/λ * (Hn - 1), where Hn is the nth
             # harmonic number.  Hn can be asymptotically approximated
             # by Hn = log(n) + 0.5772156649. So λ = (Hn - 1) / h.
             birthrate = (log(len(cal.langs)) + 0.5772156649 - 1) / mid
