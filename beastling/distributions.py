@@ -66,7 +66,11 @@ def parse_prior_string(cs, prior_name="?", is_point=False):
     density function of normal, lognormal (including rlognormal, a
     reparametrization where the mean is given in real space, not
     in log space) or uniform type in one of the following
-    ways. Pseudo-densities with infinite interval are permitted.
+    ways. Pseudo-densities with infinite integral are permitted.
+    
+    Parameters separated using `,` are directly the parameters of the
+    distribution. A range separated by a `-` gives the 95% interval of
+    that distribution. (This behaviour may change in the future.)
 
     >>> parse = parse_prior_string
     >>> # Parameters of a normal distribution
