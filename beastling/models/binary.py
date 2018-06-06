@@ -22,6 +22,22 @@ class BinaryModel(BaseModel):
         if self.recoded and self.binarised:
             raise ValueError("Data for model '%s' contains features with more than two states, but binarised=True was given.  Have you specified the correct data file or feature list?" % self.name)
 
+    def compute_weights(self):
+        if not self.recoded:
+            BaseModel.compute_weights(self)
+        else:
+            self.weights = []
+            if self.rate_partition:
+                for part in sorted(list(set(self.rate_partition.values()))):
+                    weight = 0
+                    for f in self.features:
+                        if self.rate_partition[f] == part:
+                            weight += self.valuecounts[f]
+                    self.weights.append(weight)
+            else:
+                for f in self.features:
+                    self.weights.append(self.valuecounts[f])
+
     def set_ascertained(self):
         """
         Decide whether or not to do ascertainment correction for non-constant
@@ -65,6 +81,18 @@ class BinaryModel(BaseModel):
                 if not self.ascertained:
                     self.messages.append("""[INFO] Model "%s": Assuming that data source %s contains binary structural data (e.g. absence/presence).  If this is cognate set data which has been pre-binarised, please set "binarised=True" in your config to enable appropriate ascertainment correction for the recoding.  If you don't do this, estimates of branch lengths and clade ages may be biased.""" % (self.name, self.data_filename))
 
+    def pattern_names(self, feature):
+        """Content of the columns corresponding to this feature in the alignment.
+
+        This method is used for displaying helpful column names in ancestral
+        state reconstruction output. It gives column headers for actual value
+        columns as well as for dummy columns used in ascertainment correction,
+        if such columns exist.
+
+        """
+        return (["{:}_dummy{:d}".format(feature, i) for i in range(self.extracolumns[feature])] +
+                ["{:}_{:}".format(feature, i) for i in self.unique_values[feature]])
+
     def format_datapoint(self, feature, point):
         if not self.recoded:
             # This is "true binary" data, and doesn't need to be
@@ -78,6 +106,7 @@ class BinaryModel(BaseModel):
                 # If we are not ascertaining on non-constant data, we still
                 # need to add one "all zeros" column to account for the recoding
                 extra_columns = 1
+            self.extracolumns[feature] = extra_columns
             if point == "?":
                 valuestring = "".join(["?" for i in range(0,self.valuecounts[feature]+extra_columns)])
             else:
@@ -89,8 +118,6 @@ class BinaryModel(BaseModel):
                 # Set the appropriate data column to 1
                 valuestring[extra_columns + self.unique_values[feature].index(point)] = "1"
                 valuestring = "".join(valuestring)
-            # Record the appropriate weight to use for computing mean mutation rate
-            self.weights[feature] = self.valuecounts[feature]
             return valuestring
 
     def add_feature_data(self, distribution, index, feature, fname):

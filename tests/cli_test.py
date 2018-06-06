@@ -5,11 +5,11 @@ import sys
 
 from mock import patch, Mock
 from six import StringIO
-from clldutils.testing import WithTempDir
 from clldutils.path import Path, remove
 
 from beastling.cli import main
 from .util import config_path as _config_path
+from .util import WithTempDir
 
 
 def config_path(*args, **kw):

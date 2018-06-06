@@ -1,5 +1,6 @@
 import io
 import os
+import collections
 import xml.etree.ElementTree as ET
 
 from ..fileio.datareaders import load_data
@@ -10,6 +11,9 @@ class BaseModel(object):
     Implements generic functionality which is common to all substitution
     models, such as rate variation.
     """
+
+    treewide_reconstruction = False
+    """Should ASR be performed on the entire tree (if at all)?"""
 
     def __init__(self, model_config, global_config):
         """
@@ -22,6 +26,8 @@ class BaseModel(object):
         self.data_filename = model_config["data"] 
         self.clock = model_config.get("clock", "")
         self.features = model_config.get("features",["*"])
+        self.reconstruct = model_config.get("reconstruct", None)
+        self.reconstruct_at = model_config.get("reconstruct_at", [])
         self.exclusions = model_config.get("exclusions",None)
         self.constant_feature = False
         self.constant_feature_removed = False
@@ -29,6 +35,7 @@ class BaseModel(object):
         self.pruned = model_config.get("pruned", False)
         self.rate_variation = model_config.get("rate_variation", False)
         self.feature_rates = model_config.get("feature_rates", None)
+        self.rate_partition = model_config.get("rate_partition", None)
         self.ascertained = model_config.get("ascertained", None)
         # Force removal of constant features here
         # This can be set by the user in BinaryModel only
@@ -37,9 +44,11 @@ class BaseModel(object):
         self.substitution_name = self.__class__.__name__
         self.data_separator = ","
         self.use_robust_eigensystem = model_config.get("use_robust_eigensystem", False)
+        self.metadata = []
+        self.treedata = []
 
         # Load the entire dataset from the file
-        self.data = load_data(self.data_filename, file_format=model_config.get("file_format",None), lang_column=model_config.get("language_column",None))
+        self.data = load_data(self.data_filename, file_format=model_config.get("file_format",None), lang_column=model_config.get("language_column",None), value_column=model_config.get("value_column",None))
         # Remove features not wanted in this analysis
         self.build_feature_filter()
         self.apply_feature_filter()
@@ -63,15 +72,56 @@ class BaseModel(object):
             self.features = [f for f in self.features if f not in self.exclusions]
         self.feature_filter = set(self.features)
 
+        if self.reconstruct == ["*"]:
+            self.reconstruct = self.features[:]
+        elif self.reconstruct:
+            fail_to_find = [f for f in self.reconstruct if f not in self.features]
+            if fail_to_find:
+                self.messages.append(
+                    "[WARNING] Model {:s}:"
+                    " Features {:} not found, cannot be reconstructed.""".format(
+                        self.name, fail_to_find))
+            self.reconstruct = [f for f in self.reconstruct if f in self.features]
+            self.messages.append(
+                    "[INFO] Model \"{:s}\":"
+                    " Features {:} will be reconstructed.""".format(
+                        self.name, self.reconstruct))
+            # Note: That is a lie. Features can still be filtered out by
+            # subsequent decisions, eg. because they are constant.
+        else:
+            self.reconstruct = []
+
+        if self.reconstruct_at == ["*"]:
+            self.reconstruct_at = None
+            self.treewide_reconstruction = True
+        elif self.reconstruct_at:
+            if len(self.reconstruct_at) > 1:
+                raise ValueError("Cannot currently reconstruct at more than one location.")
+            for f in self.reconstruct_at:
+                if f not in self.config.language_group_configs:
+                    raise KeyError("Language group {:} is undefined. Valid groups are: {:}".format(
+                        f, ", ".join(self.config.language_groups.keys())))
+        elif self.reconstruct:
+            self.reconstruct_at=["root"]
+
     def process(self):
         """
         Subsample the data set to include only those languages and features
         which are compatible with the settings.
         """
         self.apply_language_filter()
-        self.load_feature_rates()
         self.compute_feature_properties()
         self.remove_unwanted_features()
+        self.load_rate_partition()
+        if self.rate_partition:
+            self.all_rates = sorted(list(set(self.rate_partition.values())))
+        elif self.rate_variation or self.feature_rates:
+            self.all_rates = self.features
+        self.load_feature_rates()
+        if self.rate_partition and not (self.feature_rates or self.rate_variation):
+            self.messages.append("""[WARNING] Model %s: Estimating rates for feature partitions because no fixed rates were provided, is this what you wnated?  Use rate_variation=True to make this implicit.""" % self.name)
+            self.rate_variation = True
+        self.compute_weights()
         if self.pruned:
             self.messages.append("""[DEPENDENCY] Model %s: Pruned trees are implemented in the BEAST package "BEASTlabs".""" % self.name)
 
@@ -90,20 +140,51 @@ class BaseModel(object):
         # Keep a sorted list so that the order of things in XML is deterministic
         self.languages = sorted(list(self.data.keys()))
 
+    def load_rate_partition(self):
+        """
+        Load a partition of features for sharing mutation rates.
+        """
+        if not self.rate_partition:
+            self.rate_partition = {}
+            return
+        if not os.path.exists(self.rate_partition):
+            raise ValueError("Could not find feature rate file %s." % self.rate_partition)
+        fname = self.rate_partition
+        with open(fname) as fp:
+            self.rate_partition = {}
+            for line in fp:
+                name, part = line.split(":",1)
+                name = name.strip()
+                part = [p.strip() for p in part.split(",")]
+                part = [p for p in part if p in self.features]
+                for p in part:
+                    self.rate_partition[p] = name
+
     def load_feature_rates(self):
         """
         Load relative feature rates from .csv file.
         """
         if not self.feature_rates:
+            self.feature_rates = {}
             return
         if not os.path.exists(self.feature_rates):
             raise ValueError("Could not find feature rate file %s." % self.feature_rates)
+        fname = self.feature_rates
         with io.open(self.feature_rates, encoding="UTF-8") as fp:
             self.feature_rates = {}
             for line in fp:
                 feature, rate = line.split(",")
+                feature = feature.strip()
+                # Skip irrelevant things
+                if feature not in self.all_rates:
+                    continue
                 rate = float(rate.strip())
                 self.feature_rates[feature] = rate
+        if not all((rate in self.feature_rates for rate in self.all_rates)):
+            self.messages.append("""[WARNING] Model "%s": Rate file %s does not contain rates for every feature/partition.  Missing rates will default to 1.0, please check that this is okay.""" % (self.name, fname))
+        if not self.feature_rates:
+            self.messages.append("""[WARNING] Model "%s": Could not find any valid feature or partition rates in the file %s, is this the correct file for this analysis?""" % (self.name, fname))
+            return
         norm = sum(self.feature_rates.values()) / len(self.feature_rates.values())
         for f in self.feature_rates:
             self.feature_rates[f] /= norm
@@ -129,6 +210,7 @@ class BaseModel(object):
         """
 
         self.valuecounts = {}
+        self.extracolumns = collections.defaultdict(int)
         self.unique_values = {}
         self.missing_ratios = {}
         self.counts = {}
@@ -208,6 +290,19 @@ class BaseModel(object):
         if self.constant_feature and self.rate_variation:
             self.messages.append("""[WARNING] Model "%s": Rate variation enabled with constant features retained in data.  This *may* skew rate estimates for non-constant features.""" % self.name)
 
+    def compute_weights(self):
+        self.weights = []
+        # Weights feed into a DeltaExchangeOperator, so they need to
+        # be integers. This is currently implicit, not enforced.
+        if self.rate_partition:
+            parts = list(self.rate_partition.values())
+            partition_weights = {p:parts.count(p) for p in parts}
+            for part in sorted(list(set(self.rate_partition.values()))):
+                self.weights.append(partition_weights[part])
+        else:
+            for f in self.features:
+                self.weights.append(1)
+
     def set_ascertained(self):
         """
         Decide whether or not to do ascertainment correction for non-constant
@@ -234,27 +329,36 @@ class BaseModel(object):
         pass
 
     def add_state(self, state):
-        """
+        """Construct the model's state nodes.
+
         Add parameters for Gamma-distributed rate heterogenetiy, if
         configured.
+
         """
+
+        if self.frequencies == "estimate":
+            self.add_frequency_state(state)
+
         if self.rate_variation:
-            if not self.feature_rates:
-                # Set all rates to 1.0 in a big plate
+            if self.feature_rates:
+                # If user specified rates have been provided for either
+                # features or partitions, we need to list each rate
+                # individually
+                for rate in self.all_rates:
+                    param = ET.SubElement(state, "parameter", {
+                        "id":"featureClockRate:%s:%s" % (self.name, rate),
+                        "name":"stateNode"})
+                    param.text=str(self.feature_rates.get(rate,1.0))
+            else:
+                # If not, and everything is initialised to the same
+                # value, we can just whack 'em all in a big plate
                 plate = ET.SubElement(state, "plate", {
-                    "var":"feature",
-                    "range":",".join(self.features)})
+                    "var":"rate",
+                    "range":",".join(self.all_rates)})
                 param = ET.SubElement(plate, "parameter", {
-                    "id":"featureClockRate:%s:$(feature)" % self.name,
+                    "id":"featureClockRate:%s:$(rate)" % self.name,
                     "name":"stateNode"})
                 param.text="1.0"
-            else:
-                # Give each rate a custom value
-                for f in self.features:
-                    param = ET.SubElement(state, "parameter", {
-                        "id":"featureClockRate:%s:%s" % (self.name, f),
-                        "name":"stateNode"})
-                    param.text=str(self.feature_rates.get(f,1.0))
 
             # Give Gamma shape parameter a finite domain
             # Must be > 1.0 for the distribution to be bell-shaped,
@@ -267,6 +371,18 @@ class BaseModel(object):
             parameter = ET.SubElement(state, "parameter", {"id":"featureClockRateGammaScale:%s" % self.name, "name":"stateNode"})
             parameter.text="0.2"
 
+    def add_frequency_state(self, state):
+        for f in self.features:
+            fname = "%s:%s" % (self.name, f)
+            param = ET.SubElement(state,"stateNode",{
+                "id":"feature_freqs_param.s:%s"%fname,
+                "spec":"parameter.RealParameter",
+                "dimension":str(self.valuecounts[f]),
+                "lower":"0.0",
+                "upper":"1.0",
+            })
+            param.text = str(1.0/self.valuecounts[f])
+
     def add_prior(self, prior):
         """
         Add prior distributions for Gamma-distributed rate heterogenetiy, if
@@ -277,10 +393,10 @@ class BaseModel(object):
             sub_prior = ET.SubElement(prior, "prior", {"id":"featureClockRatePrior.s:%s" % self.name, "name":"distribution"})
             compound = ET.SubElement(sub_prior, "input", {"id":"featureClockRateCompound:%s" % self.name, "spec":"beast.core.parameter.CompoundValuable", "name":"x"})
             plate = ET.SubElement(compound, "plate", {
-                "var":"feature",
-                "range":",".join(self.features)})
+                "var":"rate",
+                "range":",".join(self.all_rates)})
             ET.SubElement(plate, "var", {
-                "idref":"featureClockRate:%s:$(feature)" % self.name})
+                "idref":"featureClockRate:%s:$(rate)" % self.name})
             gamma  = ET.SubElement(sub_prior, "input", {"id":"featureClockRatePriorGamma:%s" % self.name, "spec":"beast.math.distributions.Gamma", "name":"distr", "alpha":"@featureClockRateGammaShape:%s" % self.name, "beta":"@featureClockRateGammaScale:%s" % self.name})
             # Exponential hyperprior on scale of Gamma prior
             # Exponential prior favours small scales over large scales, i.e. less rate variation
@@ -293,6 +409,21 @@ class BaseModel(object):
             sub_prior = ET.SubElement(prior, "prior", {"id":"featureClockRateGammaScalePrior.s:%s" % self.name, "name":"distribution", "x":"@featureClockRateGammaScale:%s" % self.name})
             ET.SubElement(sub_prior, "Exponential", {"id":"featureClockRateGammaShapePriorExponential.s:%s" % self.name, "mean":"0.23", "name":"distr"})
 
+    def pattern_names(self, feature):
+        """Content of the columns corresponding to this feature in the alignment.
+
+        This method is used for displaying helpful column names in ancestral
+        state reconstruction output. It gives column headers for actual value
+        columns as well as for dummy columns used in ascertainment correction,
+        if such columns exist.
+
+        """
+        if self.ascertained:
+            return ["{:}_dummy{:d}".format(feature, i)
+                    for i in range(self.extracolumns[feature])] + [feature]
+        else:
+            return [feature]
+
     def add_likelihood(self, likelihood):
         """
         Add likelihood distribution corresponding to all features in the
@@ -300,7 +431,10 @@ class BaseModel(object):
         """
         for n, f in enumerate(self.features):
             fname = "%s:%s" % (self.name, f)
-            attribs = {"id":"featureLikelihood:%s" % fname,"spec":"TreeLikelihood","useAmbiguities":"true"}
+            attribs = {"id": "featureLikelihood:%s" % fname,
+                       "spec": "TreeLikelihood",
+                       "useAmbiguities": "true"}
+
             if self.pruned:
                 distribution = ET.SubElement(likelihood, "distribution",attribs)
                 # Create pruned tree
@@ -315,6 +449,22 @@ class BaseModel(object):
                 attribs["tree"] = "@Tree.t:beastlingTree"
                 distribution = ET.SubElement(likelihood, "distribution",attribs)
 
+            if f in  self.reconstruct:
+                # Use a different likelihood spec (also depending on whether
+                # the whole tree is reconstructed, or only some nodes)
+                if self.treewide_reconstruction:
+                    distribution.attrib["spec"] = "AncestralStateTreeLikelihood"
+                    self.treedata.append(attribs["id"])
+                    distribution.attrib["tag"] = f
+                else:
+                    distribution.attrib["spec"] = "AncestralStateLogger"
+                    distribution.attrib["value"] = " ".join(self.pattern_names(f))
+                    for label in self.reconstruct_at:
+                        langs = self.config.language_group(label)
+                        self.beastxml.add_taxon_set(distribution, label, langs)
+                    self.metadata.append(attribs["id"])
+                distribution.attrib["useAmbiguities"] = "false"
+
             # Sitemodel
             self.add_sitemodel(distribution, f, fname)
 
@@ -326,7 +476,6 @@ class BaseModel(object):
 
     def add_master_data(self, beast):
         self.filters = {}
-        self.weights = {}
         data = ET.SubElement(beast, "data", {
             "id":"data_%s" % self.name,
             "name":"data_%s" % self.name,
@@ -353,7 +502,6 @@ class BaseModel(object):
                 "value":value_string})
 
     def format_datapoint(self, feature, point):
-        self.weights[feature] = 1
         if self.ascertained:
             return self._ascertained_format_datapoint(feature, point)
         else:
@@ -367,6 +515,7 @@ class BaseModel(object):
 
     def _ascertained_format_datapoint(self, feature, point):
         extra_cols = self.valuecounts[feature]
+        self.extracolumns[feature] = extra_cols
         if point == "?":
             return self.data_separator.join(["?" for i in range(0, extra_cols + 1)])
         else:
@@ -401,17 +550,42 @@ class BaseModel(object):
     def get_userdatatype(self, feature, fname):
         return ET.Element("userDataType", {"id":"featureDataType.%s"%fname,"spec":"beast.evolution.datatype.UserDataType","codeMap":self.codemaps[feature],"codelength":"-1","states":str(self.valuecounts[feature])})
 
+    def get_mutation_rate(self, feature, fname):
+        """
+        Get a string which can be used as the mutationRate for a sitemodel.
+        """
+        if self.rate_variation:
+            if self.rate_partition:
+                mr = "@featureClockRate:%s:%s" % (self.name, self.rate_partition[feature])
+            else:
+                mr = "@featureClockRate:%s" % fname
+        elif self.feature_rates:
+            if self.rate_partition:
+                mr = str(self.feature_rates.get(self.rate_partition[feature], 1.0))
+            else:
+                mr = str(self.feature_rates.get(feature, 1.0))
+        else:
+            mr = "1.0"
+        return mr
+
     def add_operators(self, run):
         """
         Add <operators> for individual feature substitution rates if rate
         variation is configured.
         """
+        if self.frequencies == "estimate":
+            self.add_frequency_operators(run)
         if self.rate_variation:
             # UpDownOperator to scale the Gamma distribution for this model's
             # feature rates
             updown = ET.SubElement(run, "operator", {"id":"featureClockRateGammaUpDown:%s" % self.name, "spec":"UpDownOperator", "scaleFactor":"0.5","weight":"0.3"})
             ET.SubElement(updown, "parameter", {"idref":"featureClockRateGammaShape:%s" % self.name, "name":"up"})
             ET.SubElement(updown, "parameter", {"idref":"featureClockRateGammaScale:%s" % self.name, "name":"down"})
+
+    def add_frequency_operators(self, run):
+        for f in self.features:
+            fname = "%s:%s" % (self.name, f)
+            ET.SubElement(run, "operator", {"id":"estimatedFrequencyOperator:%s" % fname, "spec":"DeltaExchangeOperator", "parameter":"@feature_freqs_param.s:%s" % fname, "delta":"0.01","weight":"0.1"})
 
     def add_param_logs(self, logger):
         """
@@ -428,12 +602,19 @@ class BaseModel(object):
                 ET.SubElement(logger,"log",{"idref":"featureClockRatePrior.s:%s" % self.name})
                 ET.SubElement(logger,"log",{"idref":"featureClockRateGammaScalePrior.s:%s" % self.name})
 
+        if self.frequencies == "estimate":
+            self.add_frequency_logs(logger)
         if self.rate_variation:
             plate = ET.SubElement(logger, "plate", {
-                "var":"feature",
-                "range":",".join(self.features)})
+                "var":"rate",
+                "range":",".join(self.all_rates)})
             ET.SubElement(plate, "log", {
-                "idref":"featureClockRate:%s:$(feature)" % self.name})
+                "idref":"featureClockRate:%s:$(rate)" % self.name})
             # Log the scale, but not the shape, as it is always 1 / scale
             # We prefer the scale because it is positively correlated with extent of variation
-            ET.SubElement(logger,"log",{"idref":"featureClockRateGammaScale:%s" % self.name})
+            ET.SubElement(logger,"log",{"idref":"featureClockRateGammaShape:%s" % self.name})
+
+    def add_frequency_logs(self, logger):
+        for f in self.features:
+            fname = "%s:%s" % (self.name, f)
+            ET.SubElement(logger,"log",{"idref":"feature_freqs_param.s:%s" % fname})

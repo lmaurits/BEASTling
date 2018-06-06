@@ -94,10 +94,7 @@ class BSVSModel(BaseModel):
     def add_sitemodel(self, distribution, feature, fname):
 
             # Sitemodel
-            if self.rate_variation:
-                mr = "@featureClockRate:%s" % fname
-            else:
-                mr = "1.0"
+            mr = self.get_mutation_rate(feature, fname)
             sitemodel = ET.SubElement(distribution, "siteModel", {"id":"SiteModel.%s"%fname,"spec":"SiteModel", "mutationRate":mr,"shape":"1","proportionInvariant":"0"})
 
             if self.symmetric:
@@ -107,10 +104,16 @@ class BSVSModel(BaseModel):
             if self.use_robust_eigensystem:
                 substmodel.set("eigenSystem","beast.evolution.substitutionmodel.RobustEigenSystem")
 
-            freq = ET.SubElement(substmodel,"frequencies",{"id":"feature_freqs.s:%s"%fname,"spec":"Frequencies"})
-            if self.frequencies == "uniform":
+            attribs = {
+                    "id":"feature_freqs.s:%s"%fname,
+                    "spec":"Frequencies",
+            }
+            if self.frequencies == "estimate":
+                attribs["frequencies"] = "@feature_freqs_param.s:%s"%fname
+            elif self.frequencies == "uniform":
                 freq_string = str(1.0/self.valuecounts[feature])
             elif self.frequencies == "empirical":
+                #TODO: Do this in the BEAStly way
                 freqs = [
                     self.counts[feature].get(
                         self.unique_values[feature][v], 0)
@@ -126,10 +129,12 @@ class BSVSModel(BaseModel):
                 raise ValueError(
                     "Model BSVS does not recognize frequencies %r, "
                     "should be 'uniform' or 'empirical'." % self.frequencies)
-            ET.SubElement(freq,"parameter",{
-                "dimension":str(self.valuecounts[feature]),
-                "id":"feature_frequencies.s:%s"%fname,
-                "name":"frequencies"}).text=freq_string
+            freq = ET.SubElement(substmodel,"frequencies", attribs)
+            if self.frequencies != "estimate":
+                ET.SubElement(freq,"parameter",{
+                    "dimension":str(self.valuecounts[feature]),
+                    "id":"feature_frequencies.s:%s"%fname,
+                    "name":"frequencies"}).text=freq_string
 
     def add_operators(self, run):
 

@@ -5,6 +5,7 @@ import io
 import itertools
 import math
 import os
+import random
 import re
 import six
 import sys
@@ -14,22 +15,32 @@ from appdirs import user_data_dir
 from six.moves.urllib.request import FancyURLopener
 from clldutils.inifile import INI
 from clldutils.dsv import reader
+from clldutils.path import Path
 
+from beastling.fileio.datareaders import load_location_data
+from .distributions import Distribution
 import beastling.clocks.strict as strict
 import beastling.clocks.relaxed as relaxed
-import beastling.clocks.random as random
+import beastling.clocks.random as random_clock
+import beastling.clocks.prior as prior_clock
 
 import beastling.models.geo as geo
 import beastling.models.bsvs as bsvs
 import beastling.models.covarion as covarion
 import beastling.models.mk as mk
 
-
 _BEAST_MAX_LENGTH = 2147483647
 GLOTTOLOG_NODE_LABEL = re.compile(
-    "'(?P<name>[^\[]+)\[(?P<glottocode>[a-z0-9]{8})\](\[(?P<isocode>[a-z]{3})\])?'")
+    "'(?P<name>[^\[]+)\[(?P<glottocode>[a-z0-9]{8})\](\[(?P<isocode>[a-z]{3})\])?(?P<appendix>-l-)?'")
 
-Calibration = collections.namedtuple("Calibration", ["langs", "originate", "dist", "param1", "param2"])
+
+class Calibration(
+        collections.namedtuple(
+            "Calibration", ["langs", "originate", "offset", "dist", "param"]),
+        Distribution):
+    pass
+
+
 class URLopener(FancyURLopener):
     def http_error_default(self, url, fp, errcode, errmsg, headers):
         raise ValueError()  # pragma: no cover
@@ -82,6 +93,8 @@ class Configuration(object):
         """
 
         # Options set by the user, with default values
+        self.alpha = 0.3
+        """Alpha parameter for path sampling intervals."""
         self.basename = basename+"_prior" if prior else basename
         """This will be used as a common prefix for output filenames (e.g. the log will be called basename.log)."""
         self.calibration_configs = {}
@@ -90,6 +103,8 @@ class Configuration(object):
         """Number of iterations to run the Markov chain for."""
         self.clock_configs = []
         """A list of dictionaries, each of which specifies the configuration for a single clock model."""
+        self.do_not_run = False
+        """A boolean value, controlling whether or not BEAST should run path sampling analyses or just generate the file and scripts to do so."""
         self.embed_data = False
         """A list of languages to exclude from the analysis, or a name of a file containing such a list."""
         self.exclusions = ""
@@ -98,14 +113,20 @@ class Configuration(object):
         """List of families to filter down to, or name of a file containing such a list."""
         self.geo_config = {}
         """A dictionary with keys and values corresponding to a [geography] section in a configuration file."""
-        self.glottolog_release = '2.7'
+        self.glottolog_release = '3.0'
         """A string representing a Glottolog release number."""
         self.languages = []
         """List of languages to filter down to, or name of a file containing such a list."""
+        self.language_group_configs = collections.OrderedDict()
+        """An ordered dictionary whose keys are language group names and whose values are language group definitions."""
+        self.language_groups = {}
+        """A dictionary giving names to arbitrary collections of tip languages."""
         self.location_data = None
         """Name of a file containing latitude/longitude data."""
-        self.log_all = False
-        """A boolean value, setting this True is a shortcut for setting log_params, log_probabilities and log_trees True."""
+        self._log_all = False
+        """A boolean value, setting this True is a shortcut for setting log_params, log_probabilities, log_fine_probs and log_trees True."""
+        self.log_burnin = 50
+        """Proportion of logs to discard as burnin when calculating marginal likelihood from path sampling."""
         self.log_dp = 4
         """An integer value, setting the number of decimal points to use when logging rates, locations, etc.  Defaults to 4.  Use -1 to enable full precision."""
         self.log_every = 0
@@ -115,7 +136,7 @@ class Configuration(object):
         self.log_probabilities = True
         """A boolean value, controlling whether or not to log the prior, likelihood and posterior of the analysis."""
         self.log_fine_probs = False
-        """A boolean value, controlling whether or not to log individual components of the prior and likelihood."""
+        """A boolean value, controlling whether or not to log individual components of the prior and likelihood.  Setting this True automatically sets log_probabilities True."""
         self.log_trees = True
         """A boolean value, controlling whether or not to log the sampled trees."""
         self.log_pure_tree = False
@@ -125,7 +146,7 @@ class Configuration(object):
         self.minimum_data = 0.0
         """List of Glottolog macro-areas to filter down to, or name of a file containing such a list."""
         self.model_configs = []
-        """A list of dictionaries, each of which specifies the configuration for a single clock model."""
+        """A list of dictionaries, each of which specifies the configuration for a single evolutionary model."""
         self.monophyly = False
         """A boolean parameter, controlling whether or not to enforce monophyly constraints derived from Glottolog's classification."""
         self.monophyly_start_depth = 0
@@ -140,6 +161,10 @@ class Configuration(object):
         """Either a Newick tree string or the name of a file containing a Newick tree string which represents the desired monophyly constraints if a classification other than Glottolog is required."""
         self.overlap = "union"
         """Either the string 'union' or the string 'intersection', controlling how to handle multiple datasets with non-equal language sets."""
+        self.path_sampling = False
+        """A boolean value, controlling whether to do a standard MCMC run or a Path Sampling analysis for marginal likelihood estimation."""
+        self.preburnin = 10
+        """Percentage of chainlength to discard as burnin for the first step in a path sampling analysis."""
         self.sample_branch_lengths = True
         """A boolean value, controlling whether or not to estimate tree branch lengths."""
         self.sample_from_prior = False
@@ -150,7 +175,14 @@ class Configuration(object):
         """A boolean parameter, controlling whether or not to log some basic output to stdout."""
         self.starting_tree = ""
         """A starting tree in Newick format, or the name of a file containing the same."""
+        self.steps = 8
+        """Number of steps between prior and posterior in path sampling analysis."""
         self.stdin_data = stdin_data
+        """A boolean value, controlling whether or not to read data from stdin as opposed to the file given in the config."""
+        self.subsample_size = 0
+        """Number of languages to subsample from the set defined by the dataset(s) and other filtering options like "families" or "macroareas"."""
+        self.tree_prior = "yule"
+        """Tree prior.  Should generally not be set manually."""
 
         # Glottolog data
         self.glottolog_loaded = False
@@ -166,10 +198,24 @@ class Configuration(object):
         self.configfile = None
         self.files_to_embed = []
         self.messages = []
+        self.urgent_messages = []
         self.message_flags = []
 
         if configfile:
             self.read_from_file(configfile)
+
+    @property
+    def log_all(self):
+        return self._log_all
+
+    @log_all.setter
+    def log_all(self, log_all):
+        self._log_all = log_all
+        if log_all:
+            self.log_trees = True
+            self.log_params = True
+            self.log_probabilities = True
+            self.log_fine_probs = True
 
     def read_from_file(self, configfile):
         """
@@ -187,12 +233,15 @@ class Configuration(object):
                 self.configfile.read(conf)
         p = self.configfile
 
+        # Set some logging options according to log_all
+        # Note that these can still be overridden later
+        self.log_all = p.get("admin", "log_all", fallback=False)
+
         for sec, opts in {
             'admin': {
                 'basename': p.get,
                 'embed_data': p.getboolean,
                 'screenlog': p.getboolean,
-                'log_all': p.getboolean,
                 'log_dp': p.getint,
                 'log_every': p.getint,
                 'log_probabilities': p.getboolean,
@@ -203,8 +252,14 @@ class Configuration(object):
                 'glottolog_release': p.get,
             },
             'MCMC': {
+                'alpha': p.getfloat,
                 'chainlength': p.getint,
+                'do_not_run': p.getboolean,
+                'log_burnin': p.getint,
+                'path_sampling': p.getboolean,
+                'preburnin': p.getint,
                 'sample_from_prior': p.getboolean,
+                'steps': p.getint,
             },
             'languages': {
                 'exclusions': p.get,
@@ -216,6 +271,7 @@ class Configuration(object):
                 'starting_tree': p.get,
                 'sample_branch_lengths': p.getboolean,
                 'sample_topology': p.getboolean,
+                'subsample_size': p.getint,
                 'monophyly_start_depth': p.getint,
                 'monophyly_end_depth': p.getint,
                 'monophyly_levels': p.getint,
@@ -224,10 +280,21 @@ class Configuration(object):
         }.items():
             for opt, getter in opts.items():
                 if p.has_option(sec, opt):
+                    if opt == "location_data":
+                        self.urgent_messages.append("[WARNING] Specifying location data via 'location_data' in [languages] is deprecated!  Please use 'data' in [geography] instead.  Your current config will work for now but may not in future releases.")
+                        pass # Deprecation warning
                     setattr(self, opt, getter(sec, opt))
+
+        # Handle some logical implications
+        if self.log_fine_probs:
+            self.log_probabilities = True
 
         ## MCMC
         self.sample_from_prior |= self.prior
+        if self.prior and self.path_sampling:
+            raise ValueError(
+                "Cannot sample from the prior during a path sampling analysis."
+            )
         if self.prior and not self.basename.endswith("_prior"):
             self.basename += "_prior"
 
@@ -251,6 +318,11 @@ class Configuration(object):
         if p.has_option(sec,'minimum_data'):
             self.minimum_data = p.getfloat(sec, "minimum_data")
 
+        ## Language groups
+        if p.has_section("language_groups"):
+            for name, components_string in p.items("language_groups"):
+                self.language_group_configs[name] = components_string
+
         ## Calibration
         if p.has_section("calibration"):
             for clade, calibration in p.items("calibration"):
@@ -265,6 +337,7 @@ class Configuration(object):
         model_sections = [s for s in p.sections() if s.lower().startswith("model")]
         for section in model_sections:
             self.model_configs.append(self.get_model_config(p, section))
+
         # Geography
         if p.has_section("geography"):
             self.geo_config = self.get_geo_config(p, "geography")
@@ -295,8 +368,13 @@ class Configuration(object):
         for key, value in p[section].items():
             if key in ('estimate_mean', 'estimate_rate','estimate_variance', 'correlated'):
                 value = p.getboolean(section, key)
-            elif key in ('mean','rate','variance'):
+            elif key in ('mean','variance'):
                 value = p.getfloat(section, key)
+            elif key in ('rate',):
+                try:
+                    value = p.getfloat(section, key)
+                except ValueError:
+                    pass # and hope it's a prior clock
             cfg[key] = value
         return cfg
 
@@ -313,7 +391,7 @@ class Configuration(object):
             if key in ('binarised', 'binarized'):
                 value = p.getboolean(section, key)
                 key = 'binarised'
-            if key in ("features", "exclusions"):
+            if key in ("features", "reconstruct", "exclusions", "reconstruct_at"):
                 value = self.handle_file_or_list(value)
             if key in ['ascertained','pruned','rate_variation', 'remove_constant_features', 'use_robust_eigensystem']:
                 value = p.getboolean(section, key)
@@ -321,6 +399,8 @@ class Configuration(object):
             if key in ['minimum_data']:
                 value = p.getfloat(section, key)
 
+            if key in ['data']:
+                value = Path(value)
             cfg[key] = value
         return cfg
 
@@ -336,6 +416,10 @@ class Configuration(object):
                 value = p.getboolean(section, key)
             elif key == "sampling_points":
                 value = self.handle_file_or_list(value)
+            elif key == "data":
+                # Just set the Configuration class attribute, don't put it in this dict
+                self.location_data = value
+                continue 
             cfg[key] = value
         return cfg
 
@@ -353,9 +437,11 @@ class Configuration(object):
         problems.
         """
 
-        # Add dependency notice if required
+        # Add dependency notices if required
         if self.monophyly and not self.starting_tree:
             self.messages.append("[DEPENDENCY] ConstrainedRandomTree is implemented in the BEAST package BEASTLabs.")
+        if self.path_sampling:
+            self.messages.append("[DEPENDENCY] Path sampling is implemented in the BEAST package MODEL_SELECTION.")
 
         # BEAST can't handle really long chains
         if self.chainlength > _BEAST_MAX_LENGTH:
@@ -376,6 +462,7 @@ class Configuration(object):
         self.build_language_filter()
         self.process_models()
         self.build_language_list()
+        self.define_language_groups()
         self.handle_monophyly()
         self.instantiate_calibrations()
         # At this point, we can tell whether or not the tree's length units
@@ -405,6 +492,27 @@ class Configuration(object):
         else:
             self.tree_logging_pointless = False
 
+    def define_language_groups(self):
+        """Parse the [language_groups] section.
+
+        Every individual language is a language group of size one. Additional
+        groups can be specified as comma-separated lists of already-defined
+        groups. (This does of course include comma-separated lists of
+        languages, but definitions can be nested.)
+
+        TODO: In the future, the [languages] section should gain a property
+        such that language groups can be specified using external sources.
+
+        """
+        self.language_groups = {language: {language} for language in self.languages}
+        self.language_groups["root"] = set(self.languages)
+
+        for name, specification in self.language_group_configs.items():
+            taxa = set()
+            for already_defined in specification.split(","):
+                taxa |= set(self.language_group(already_defined.strip()))
+            self.language_groups[name] = taxa
+
     def load_glottolog_data(self):
         """
         Loads the Glottolog classification information from the appropriate
@@ -431,8 +539,11 @@ class Configuration(object):
                 match.group('isocode'))
 
         def get_classification(node):
-            res = []
             ancestor = node.ancestor
+            if not ancestor:
+                # Node is root of some family
+                return [label2name[node.name]]
+            res = []
             while ancestor:
                 res.append(label2name[ancestor.name])
                 ancestor = ancestor.ancestor
@@ -456,8 +567,6 @@ class Configuration(object):
                 self.glotto_macroareas[t.glottocode] = t.macroarea
                 for isocode in t.isocodes.split():
                     self.glotto_macroareas[isocode] = t.macroarea
-            if self.location_data:
-                continue # Use user-supplied data instead
 
             if t.latitude and t.longitude:
                 latlon = (float(t.latitude), float(t.longitude))
@@ -465,15 +574,14 @@ class Configuration(object):
                 for isocode in t.isocodes.split():
                     self.locations[isocode] = latlon
 
-        if self.location_data:
-            return
-
         # Second pass of geographic data to handle dialects, which inherit
         # their parent language's location
         for t in reader(
                 get_glottolog_data('geo', self.glottolog_release), namedtuples=True):
             if t.level == "dialect":
                 failed = False
+                if node not in glottocode2node:
+                    continue
                 node = glottocode2node[t.glottocode]
                 ancestor = node.ancestor
                 while label2name[ancestor.name][1] not in self.locations:
@@ -509,12 +617,11 @@ class Configuration(object):
     def load_user_geo(self):
         if not self.location_data:
             return
-        with io.open(self.location_data, encoding="UTF-8") as fp:
-            # Skip header
-            fp.readline()
-            for line in fp:
-                iso, lat, lon = line.split(",")
-                self.locations[iso.strip().lower()] = float(lat), float(lon)
+        # Read location data from file, patching (rather than replacing) Glottolog
+        location_files = [x.strip() for x in self.location_data.split(",")]
+        for loc_file in location_files:
+            for language, location in load_location_data(loc_file).items():
+                self.locations[language] = location
 
     def build_language_filter(self):
         """
@@ -566,9 +673,6 @@ class Configuration(object):
         if self.macroareas and self.glotto_macroareas.get(l,None) not in self.macroareas:
             return False
         if self.exclusions and l in self.exclusions:
-            return False
-        if self.geo_config and l not in self.locations:
-            self.messages.append("""[INFO] All models: Language %s excluded due to lack of location data.""" % l)
             return False
         if l in self.sparse_languages:
             return False
@@ -645,13 +749,14 @@ class Configuration(object):
                 i = i[0] if i else ''
             return d, i
 
+        N = len(langs)
         # Find the ancestor of all the given languages at at particular depth
         # (i.e. look `depth` nodes below the root of the Glottolog tree)
-        levels = list(set([subgroup(l, depth) for l in langs]))
-        if len(levels) == 1:
+        groupings = list(set([subgroup(l, depth) for l in langs]))
+        if len(groupings) == 1:
             # If all languages belong to the same classificatio at this depth,
             # there are two possibilities
-            if levels[0] == "":
+            if groupings[0] == "":
                 # If the common classification is an empty string, then we know
                 # that there is no further refinement possible, so stop
                 # the recursion here.
@@ -667,8 +772,16 @@ class Configuration(object):
             # up accordingly and then break down each classification
             # individually.
 
-            partition = [[l for l in langs if subgroup(l, depth) == level] for level in levels]
+            # Group up those languages which share a non-blank Glottolog classification
+            partition = [[l for l in langs if subgroup(l, depth) == group] for group in groupings if group != ""]
+            # Add those languages with blank classifications in their own isolate groups
+            for l in langs:
+                if subgroup(l, depth) == "":
+                    partition.append([l,])
+            # Get rid of any empty sets we may have accidentally created
             partition = [part for part in partition if part]
+            # Make sure we haven't lost any langs
+            assert sum((len(p) for p in partition)) == N
             return sorted(
                 [self.make_monophyly_structure(group, depth+1, maxdepth)
                  for group in partition],
@@ -707,11 +820,13 @@ class Configuration(object):
         self.clocks_by_name = {}
         for config in self.clock_configs:
             if config["type"].lower() == "strict":
-                clock = strict.StrictClock(config, self) 
+                clock = strict.StrictClock(config, self)
+            elif config["type"].lower() == "strict_with_prior":
+                clock = prior_clock.StrictClockWithPrior(config, self)
             elif config["type"].lower() == "relaxed":
                 clock = relaxed.relaxed_clock_factory(config, self)
             elif config["type"].lower() == "random":
-                clock = random.RandomLocalClock(config, self) 
+                clock = random_clock.RandomLocalClock(config, self)
             self.clocks.append(clock)
             self.clocks_by_name[clock.name] = clock
         # Create default clock if necessary
@@ -757,6 +872,11 @@ class Configuration(object):
                 if "mk_used" not in self.message_flags:
                     self.message_flags.append("mk_used")
                     self.messages.append(mk.MKModel.package_notice)
+            elif config["model"].lower() == "dollo": # pragma: no cover
+                raise NotImplementedError("The stochastic Dollo model is not implemented yet.")
+                model = dollo.StochasticDolloModel(config, self)
+                if dollo.StochasticDolloModel.package_notice not in self.messages:
+                    self.messages.append(dollo.StochasticDolloModel.package_notice)
             else:
                 try:
                     sys.path.insert(0, os.getcwd())
@@ -767,7 +887,6 @@ class Configuration(object):
                     raise ValueError("Unknown model type '%s' for model section '%s', and failed to import a third-party model." % (config["model"], config["name"]))
                 model = UserClass(config, self)
 
-            self.messages.extend(model.messages)
             self.models.append(model)
             
         if self.geo_config:
@@ -780,6 +899,7 @@ class Configuration(object):
     def process_models(self):
         for model in self.models:
             model.process()
+            self.messages.extend(model.messages)
 
     def link_clocks_to_models(self):
         """
@@ -803,7 +923,7 @@ class Configuration(object):
 
         # Disable pruned trees in models using RLCs
         for model in self.models:
-            if model.pruned and isinstance(model.clock, random.RandomLocalClock):
+            if model.pruned and isinstance(model.clock, random_clock.RandomLocalClock):
                 model.pruned = False
                 self.messages.append("""[INFO] Disabling pruned trees in model %s because associated clock %s is a RandomLocalClock.  Pruned trees are currently only compatible with StrictClocks and RelaxedClocks.""" % (model.name, model.clock.name))
 
@@ -876,91 +996,212 @@ class Configuration(object):
 
         ## Convert back into a sorted list
         self.languages = sorted(self.languages)
+
+        ## Perform subsampling, if requested
+        self.languages = sorted(self.subsample_languages(self.languages))
         self.messages.append("[INFO] %d languages included in analysis." % len(self.languages))
+
+        ## SPREAD THE WORD!
+        for m in self.models:
+            m.languages = [l for l in m.languages if l in self.languages]
+
+    def subsample_languages(self, languages):
+        """
+        Return a random subsample of languages with a specified size
+        """
+        if not self.subsample_size:
+            return languages
+        if self.subsample_size > len(languages):
+            self.messages.append("[INFO] Requested subsample size is %d, but only %d languages to work with!  Disabling subsampling." % (self.subsample_size, len(languages)))
+            return languages
+        # Seed PRNG with sorted language names
+        # Python will convert to an integer hash
+        # This means we always take the same subsample for a particular
+        # initial language set.
+        self.messages.append("[INFO] Subsampling %d languages down to %d." % (len(languages), self.subsample_size))
+        random.seed(",".join(sorted(languages)))
+        return random.sample(languages, self.subsample_size)
+
+    def language_group(self, clade):
+        """Look up a language group locally or as a glottolog clade."""
+        try:
+            return self.language_groups[clade]
+        except KeyError:
+            langs = self.get_languages_by_glottolog_clade(clade)
+            self.language_groups[clade] = langs
+            if not langs:
+                raise ValueError(
+                    "Language group or Glottolog clade {:} not found "
+                    "or was empty for the languages given.".format(
+                        clade))
+            return langs
 
     def instantiate_calibrations(self):
         self.calibrations = {}
+        """ Calibration distributions for calibrated clades """
+        self.tip_calibrations = {}
+        """ Starting heights for calibrated tips """
         useless_calibrations = []
         for clade, cs in self.calibration_configs.items():
             orig_clade = clade[:]
-            orig_cs = cs[:]
             originate = False
-            # First parse the clade identifier
-            # Might be "root", or else a Glottolog identifier
-            if clade.lower() == "root":
-                langs = self.languages
-            else:
-                # First check for originate()
-                if clade.lower().startswith("originate(") and clade.endswith(")"):
-                    originate = True
-                    clade = clade[10:-1]
-                langs = self.get_languages_by_glottolog_clade(clade)
-            if not langs or (len(langs) == 1 and not originate):
-                self.messages.append("[INFO] Calibration on clade %s MRCA ignored as one or zero matching languages in analysis." % clade)
-                continue
-            
-            # Next parse the calibration string
-            if cs.count("(") == 1 and cs.count(")") == 1:
-                dist_type, cs = cs.split("(", 1)
-                dist_type = dist_type.lower()
-                cs = cs[0:-1]
-            else:
-                # Default to normal
-                dist_type = "normal"
+            is_tip_calibration = False
+            # Parse the clade identifier
+            # First check for originate()
+            if clade.lower().startswith("originate(") and clade.endswith(")"):
+                originate = True
+                clade = clade[10:-1]
+            # The clade is specified as a language_group, either
+            # explicitly defined or the builtin "root" or a Glottolog
+            # identifier
+            langs = self.language_group(clade)
 
-            if cs.count(",") == 1 and not any([x in cs for x in ("<", ">")]):
-                # We've got explicit params
-                p1, p2 = map(float,cs.split(","))
-            elif cs.count("-") == 1 and not any([x in cs for x in (",", "<", ">")]):
-                # We've got a 95% HPD range
-                lower, upper = map(float, cs.split("-"))
-                mid = (lower+upper) / 2.0
-                if dist_type == "normal":
-                    p1 = (upper + lower) / 2.0
-                    p2 = (upper - mid) / 1.96
-                elif dist_type == "lognormal":
-                    p1 = math.log(mid)
-                    p2a = (p1 - math.log(lower)) / 1.96
-                    p2b = (math.log(upper) - p1) / 1.96
-                    p2 = (p2a+p2b)/2.0
-                elif dist_type == "uniform":
-                    p1 = lower
-                    p2 = upper
-            elif (cs.count("<") == 1 or cs.count(">") == 1) and not any([x in cs for x in (",", "-")]):
-                # We've got a single bound
-                dist_type = "uniform"
-                sign, bound = cs.split()
-                if sign.strip() == "<":
-                    p1 = 0.0
-                    p2 = float(bound.strip())
+            if langs == self.language_groups["root"] and originate:
+                raise ValueError("Root has no ancestor, but originate(root) was given a calibration.")
+
+            # Figure out what kind of calibration this is and whether it's valid
+            if len(langs) > 1:
+                ## Calibrations on multiple taxa are always valid
+                pass
+            elif not langs: # pragma: no cover
+                # Calibrations on zero taxa are never valid, so abort
+                # and skip to the next cal. This should never happen,
+                # because empty calibrations can only be specified by
+                # empty language groups, which should be caught before
+                # this.
+                self.messages.append("[INFO] Calibration on clade '%s' ignored as no matching languages in analysis." % clade)
+                continue
+            # At this point we know that len(langs) == 1, so that condition is
+            # implicit in the conditions for all the branches below
+            elif originate:
+                ## Originate calibrations on single taxa are always valid
+                pass
+            elif "," not in clade and clade in self.languages:
+                ## This looks like a tip calibration, i.e. the user has specified
+                ## only one identifier, not a comma-separated list, and that
+                ## identifier matches a language, not a Glottolog family that we
+                ## happen to only have one language for
+                self.messages.append("[INFO] Calibration on '%s' taken as tip age calibration." % clade)
+                is_tip_calibration = True
+                self.tree_prior = "coalescent"
+            else: # pragma: no cover
+                # At this point we have a non-originate calibration on
+                # a single taxa, which is not the result of
+                # specifically asking for only this taxa. Probably the
+                # user did not expect to get here. They might want
+                # this to be an originate cal, or a tip cal, but we
+                # can't tell with what we know and shouldn't
+                # guess. Abort and skip to the next cal. This should
+                # never happen, because empty calibrations can only be
+                # specified by empty language groups, which should be
+                # caught before this.
+
+                self.messages.append("[INFO] Calibration on clade '%s' matches only one language.  Ignoring due to ambiguity.  Use 'originate(%s)' if this was supposed to be an originate calibration, or explicitly identify the single language using '%s' if this was supposed to be a tip calibration." % (clade, clade, langs[0]))
+                continue
+
+            # Make sure this calibration point, which will induce a monophyly
+            # constraint, does not conflict with the overall monophyly
+            # constraints from Glottolog or a user-tree
+            if self.monophyly and len(langs) > 1:
+                mono_tree = newick.loads(self.monophyly_newick)[0]
+                cal_clade = set(langs)
+                for node in mono_tree.walk():
+                    mono_clade = set(node.get_leaf_names())
+                    # If the calibration clade is not a subset of this monophyly clade, keep searching
+                    if not cal_clade.issubset(mono_clade):
+                        continue
+                    # At this point, we can take it for granted the cal clade is a subset of the mono_clade
+                    # We are happy if the calibration clade is exactly this monophyly clade
+                    if mono_clade == cal_clade:
+                        break
+                    # We are also happy if this mono_clade is a "terminal clade", i.e. has no finer structure
+                    # which the calibration clade may violate
+                    elif all((child.is_leaf for child in node.descendants)):
+                        break
+                    # We are also happy if the calibration clade is a union of descendant mono clades
+                    elif all(set(child.get_leaf_names()).issubset(cal_clade) or len(set(child.get_leaf_names()).intersection(cal_clade)) == 0 for child in node.descendants):
+                        break
                 else:
-                    p1 = float(bound.strip())
-                    p2 = str(sys.maxsize)
+                    # If we didn't break out of this loop, then the languages
+                    # in this calibration do not constitute a clade of the
+                    # monophyly tree
+                    raise ValueError("Calibration on for clade %s violates a monophyly constraint!" % (clade))
+
+            # Next parse the calibration string and build a Calibration object
+            cal_obj = Calibration.from_string(
+                string=cs,
+                context="calibration of clade {:}".format(orig_clade),
+                is_point=is_tip_calibration,
+                langs=langs,
+                originate=originate)
+
+            # Choose a name
+            if originate:
+                clade_identifier = "%s_originate" % clade
+            elif is_tip_calibration:
+                clade_identifier = "%s_tip" % clade
             else:
-                raise ValueError("Could not parse calibration \"%s\" for clade %s" % (orig_cs, orig_clade))
-            clade_identifier = "%s_originate" % clade if originate else clade
-            self.calibrations[clade_identifier] = Calibration(langs, originate, dist_type, p1, p2)
+                clade_identifier = clade
+
+            # Store the Calibration object under the chosen name
+            if is_tip_calibration:
+                self.tip_calibrations[clade_identifier] = cal_obj
+            else:
+                self.calibrations[clade_identifier] = cal_obj
 
     def get_languages_by_glottolog_clade(self, clade):
+        """
+        Given a comma-separated list of Glottolog ids, return a list of all
+        languages descended from the corresponding Glottolog nodes.
+        """
         langs = []
-        clade = [c.strip() for c in clade.split(",")]
+        clades = [c.strip() for c in clade.split(",")]
+        matched_clades = []
+        # First look for clades which are actually language identifiers
+        for clade in clades:
+            if clade in self.languages:
+                langs.append(clade)
+                matched_clades.append(clade)
+
+        # Once a clade has matched against a language name, don't let it
+        # subsequently match against anything in Glottolog!
+        for clade in matched_clades:
+            clades.remove(clade)
+
+        # If all clades matched against language names, don't bother
+        # searching Glottolog.
+        if not clades:
+            return langs
+
+        # Now search against Glottolog
+        clades = [c.lower() for c in clades]
         for l in self.languages:
-            if l in clade:
-                langs.append(l)
+            # No repeated matching!
+            if l in langs:
                 continue
             for name, glottocode in self.classifications.get(l.lower(),""):
-                if any([c.lower() == name.lower() or c.lower() == glottocode for c in clade]):
+                if name.lower() in clades or glottocode in clades:
                     langs.append(l)
                     break
+
         return langs
 
     def handle_user_supplied_tree(self, value, tree_type):
-        """
-        If the provided value is a filename, read the contents and treat it
-        as a Newick tree specification.  Otherwise, assume the provided value
-        is a Neick tree specification.  In either case, inspect the tree and
-        make appropriate minor changes so it is suitable for inclusion in the
-        BEAST XML file.
+        """Load a tree from file or parse a string, and simplify.
+
+        If the provided value is the name of an existing file, read
+        the contents and treat it as a Newick tree
+        specification. Otherwise, assume the provided value is a
+        Newick tree specification.
+
+        Trees consisting of only one leaf are considered errors,
+        because they are never useful and can easily arise when a
+        non-existing file name is parsed as tree, leading to confusing
+        error messages down the line.
+
+        In either case, inspect the tree and make appropriate minor
+        changes so it is suitable for inclusion in the BEAST XML file.
+
         """
         # Make sure we've got a legitimate tree type
         tree_type = tree_type.lower()
@@ -972,7 +1213,16 @@ class Configuration(object):
                 value = fp.read().strip()
         # Sanitise
         if value:
-            value = self.sanitise_tree(value, tree_type)
+            if ")" in value:
+                # A tree with only one node (which is the only Newick
+                # string without bracket) is not a useful tree
+                # specification.
+                value = self.sanitise_tree(value, tree_type)
+            else:
+                raise ValueError(
+                    "Starting tree specification {:} is neither an existing"
+                    " file nor does it look like a useful tree.".format(
+                        value))
         # Done
         return value
 
@@ -1006,11 +1256,12 @@ class Configuration(object):
             miss_string = ",".join(missing_langs)
             raise ValueError("Some languages in the data are not in the %s tree: %s" % (tree_type, miss_string))
         # If the trees' language set is a proper superset, prune the tree to fit the analysis
-        if not tree_langs == self.languages:
+        if not tree_langs == set(self.languages):
             tree.prune_by_names(self.languages, inverse=True)
             self.messages.append("[INFO] %s tree includes languages not present in any data set and will be pruned." % tree_type.capitalize())
         # Get the tree looking nice
         tree.remove_redundant_nodes()
+        tree.remove_internal_names()
         if tree_type == "starting":
             tree.resolve_polytomies()
         # Remove lengths for a monophyly tree

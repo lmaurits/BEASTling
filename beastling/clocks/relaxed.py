@@ -76,11 +76,8 @@ class LogNormalRelaxedClock(RelaxedClock):
 
     def add_branchrate_model(self, beast):
         RelaxedClock.add_branchrate_model(self, beast)
-        lognormal = ET.SubElement(self.branchrate, "LogNormal", {"id":"LogNormalDistributionModel.c:%s"%self.name,
-            "S":"@ucldSdev.c:%s" % self.name, "meanInRealSpace":"true", "name":"distr"})
-        # Fix mean to 1.0
-        param = ET.SubElement(lognormal, "parameter", {"id":"LogNormalM.p:%s" % self.name, "name":"M", "estimate":"false", "lower":"0.0","upper":"1.0"})
-        param.text = "1.0"
+        ET.SubElement(self.branchrate, "LogNormal", {"id":"LogNormalDistributionModel.c:%s"%self.name,
+            "M":"1.0", "S":"@ucldSdev.c:%s" % self.name, "meanInRealSpace":"true", "name":"distr"})
 
     def add_operators(self, run):
         RelaxedClock.add_operators(self, run)

@@ -33,27 +33,49 @@ def test_basic():
     BEAST.xml, and feed it to BEAST, testing for a zero return
     value, which suggests no deeply mangled XML."""
     for configs in [
+        ("admin", "mk", "subsample"),
+        ("admin", "mk", "cldf_data_with_nonstandard_value_column"),
         ("admin", "mk"),
+        ("admin", "mk_as_if_addon"),
         ("admin", "cldf_data"),
+        ("admin", "cldf1_wordlist"),
+        ("admin", "cldf1_wordlist_external_codes"),
+        ("admin", "cldf1_structure"),
         ("admin", "nonnumeric"),
         ("admin", "noncode"),
         ("admin", "bsvs"),
+        ("admin", "mk", "strictclockwithprior"),
         ("admin", "covarion_multistate"),
+        ("admin", "covarion_multistate", "covarion_per_feature_params"),
+        ("admin", "covarion_multistate", "ascertainment_true"),
+        ("admin", "covarion_multistate", "rate_var"),
+        ("admin", "covarion_multistate", "estimated_freqs"),
+        ("admin", "covarion_multistate", "do_not_share_params"),
         ("admin", "covarion_true_binary"),
         ("admin", "covarion_binarised"),
         ("admin", "bsvs", "robust_eigen"),
         ("admin", "covarion_multistate", "robust_eigen"),
         ("admin", "mk", "families"),
         ("admin", "mk", "features"),
+        ("admin", "mk", "estimated_freqs"),
+        ("admin", "mk", "approx_freqs"),
+        ("admin", "mk", "uniform_freqs"),
+        ("admin", "bsvs", "estimated_freqs"),
+        ("admin", "covarion_multistate", "estimated_freqs"),
         ("admin", "mk", "rate_var"),
         ("admin", "mk", "rate_var", "rate_var_user_rates"),
+        ("admin", "mk", "rate_var", "rate_partition"),
+        ("admin", "mk", "rate_var", "rate_partition", "rate_partition_user_rates"),
+        ("admin", "mk", "rate_partition", "rate_partition_user_rates"),
         ("admin", "mk", "monophyletic"),
         ("admin", "mk", "monophyletic-bottom-up"),
         ("admin", "mk", "monophyletic-partial"),
         ("admin", "mk", "no_screen_logging"),
         ("admin", "mk", "no_file_logging"),
         ("admin", "mk", "starting_tree"),
+        ("admin", "mk", "starting_tree_with_internal_names"),
         ("admin", "mk", "monophyly_tree"),
+        ("admin", "mk", "monophyly_tree_with_internal_names"),
         ("admin", "mk", "sample_prior"),
         ("admin", "mk", "union"),
         ("admin", "mk", "intersection"),
@@ -81,15 +103,26 @@ def test_basic():
         ("admin", "mk", "calibration_lower_bound"),
         ("admin", "mk", "calibration", "relaxed"),
         ("admin", "mk", "calibration", "random"),
+        ("admin", "mk", "calibration", "monophyletic"),
+        ("admin", "mk", "calibration_tip"),
+        ("admin", "mk", "calibration_tip_multiple"),
+        ("admin", "mk", "calibration_tip_originate_explicit"),
+        ("admin", "mk", "calibration_tip_fixed"),
+        ("admin", "mk", "calibration_tip_before"),
+        ("admin", "mk", "calibration_tip_after"),
+        ("admin", "mk", "calibration_tip_uniform"),
         ("admin", "mk", "pruned"),
         ("admin", "mk", "pruned", "relaxed"),
         ("admin", "mk", "geo"),
         ("admin", "mk", "geo", "geo_user_loc"),
+        ("admin", "mk", "geo", "geo_sampled_tip"),
+        ("admin", "mk", "geo", "geo_tip_prior"),
         ("admin", "mk", "geo_own_clock"),
         ("admin", "mk", "monophyletic", "geo", "geo_sampled"),
         ("admin", "mk", "monophyletic", "geo", "geo_prior"),
     ]:
         # To turn each config into a separate test, we
+        _do_test.description = "BeastRun with " + " ".join(configs)
         yield _do_test, configs
 
 
@@ -105,7 +138,7 @@ skip = [
     ]
 
 
-def _do_test(config_files):
+def _do_test(config_files, inspector=None):
     config = TEST_CASE.make_cfg([config_path(cf).as_posix() for cf in config_files])
     xml = beastling.beastxml.BeastXml(config)
     temp_filename = TEST_CASE.tmp_path('test').as_posix()
@@ -119,7 +152,7 @@ def _do_test(config_files):
             if config_files in skip:
                 raise SkipTest
             check_call(
-                ['beast', '-overwrite', temp_filename],
+                ['beast', '-java', '-overwrite', temp_filename],
                 cwd=TEST_CASE.tmp.as_posix(),
                 stdout=PIPE,
                 stderr=PIPE)
@@ -128,3 +161,93 @@ def _do_test(config_files):
                 "Beast run on {:} returned non-zero exit status "
                 "{:d}".format(
                     config_files, e.returncode))
+        if inspector:
+            inspector(TEST_CASE.tmp)
+
+
+def test_asr_root_output_files():
+    """Test the root ASR output.
+
+    Generate a Beast config file for ASR at the root and run Beast. Check that
+    beast returns a `0` return value, and check some properties of the data
+    generated.
+
+    """
+    def assert_asr_logfile(dir):
+        assert dir.joinpath("beastling_test_reconstructed.log").exists()
+    _do_test((
+        "admin", "mk", "ancestral_state_reconstruction", "ascertainment_false"
+    ), inspector=assert_asr_logfile)
+
+
+def test_asr_binary_root_output_files():
+    """Test the root ASR output under a binary (covarion) model.
+
+    Generate a Beast config file for ASR at the root and run Beast. Check that
+    beast returns a `0` return value, and check some properties of the data
+    generated.
+
+    """
+    def assert_asr_logfile(dir):
+        assert dir.joinpath("beastling_test_reconstructed.log").exists()
+    _do_test((
+        "admin", "covarion_multistate", "ancestral_state_reconstruction", "ascertainment_false"
+    ), inspector=assert_asr_logfile)
+
+
+def test_ascertained_asr_root_output_files():
+    """Test the root ASR output under a Mk model with ascertainment correction.
+
+    Generate a Beast config file for ASR at the root and run Beast. Check that
+    beast returns a `0` return value, and check some properties of the data
+    generated.
+
+    """
+    def assert_asr_logfile(dir):
+        assert dir.joinpath("beastling_test_reconstructed.log").exists()
+    _do_test((
+        "admin", "mk", "ancestral_state_reconstruction", "ascertainment_true"
+    ), inspector=assert_asr_logfile)
+
+
+def test_ascertained_asr_binary_root_output_files():
+    """Test the root ASR output under a binary model with ascertainment correction.
+
+    Generate a Beast config file for ASR at the root and run Beast. Check that
+    beast returns a `0` return value, and check some properties of the data
+    generated.
+
+    """
+    def assert_asr_logfile(dir):
+        assert dir.joinpath("beastling_test_reconstructed.log").exists()
+    _do_test((
+        "admin", "covarion_multistate", "ancestral_state_reconstruction", "ascertainment_true"
+    ), inspector=assert_asr_logfile)
+
+
+def test_asr_tree_output():
+    """Test the full-tree ASR output.
+
+    Generate a Beast config file for ASR in every node of the tree and run
+    Beast. Check that beast returns a `0` return value, and check some
+    properties of the data generated.
+
+    """
+    def assert_asr_logfile(dir):
+        assert dir.joinpath("beastling_test_reconstructed.nex").exists()
+    _do_test(("admin", "mk", "ancestral_state_reconstruction", "taxa", "reconstruct_all"), inspector=assert_asr_logfile)
+
+
+def test_asr_clade_output():
+    """Test the clade ASR output.
+
+    Generate a Beast config file for ASR at the MRCA of a taxonset and run
+    Beast. Check that beast returns a `0` return value, and check some
+    properties of the data generated.
+
+    """
+    def assert_asr_logfile(dir):
+        assert dir.joinpath("beastling_test_reconstructed.log").exists()
+    _do_test(("admin", "mk", "ancestral_state_reconstruction", "taxa", "reconstruct_one"), inspector=assert_asr_logfile)
+
+

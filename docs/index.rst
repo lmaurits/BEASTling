@@ -23,4 +23,5 @@ Contents
    modelling
    clocks
    substitution
+   advanced
    scripting
