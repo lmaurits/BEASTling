@@ -1,3 +1,5 @@
+import collections
+
 import xml.etree.ElementTree as ET
 
 from .basemodel import BaseModel
@@ -82,6 +84,51 @@ class BinaryModel(BaseModel):
                 if not self.ascertained:
                     self.messages.append("""[INFO] Model "%s": Assuming that data source %s contains binary structural data (e.g. absence/presence).  If this is cognate set data which has been pre-binarised, please set "binarised=True" in your config to enable appropriate ascertainment correction for the recoding.  If you don't do this, estimates of branch lengths and clade ages may be biased.""" % (self.name, self.data_filename))
 
+    def compute_feature_properties(self):
+        """Compute various items of metadata for all remaining features.
+
+        This is very similar to the `compute_feature_probability` method of
+        BaseModel, but accounts for the possibility of having multiple values
+        present.
+
+        """
+
+        self.valuecounts = {}
+        self.extracolumns = collections.defaultdict(int)
+        self.unique_values = {}
+        self.missing_ratios = {}
+        self.counts = {}
+        self.codemaps = {}
+        for f in self.features:
+            # Compute various things
+            all_values = [self.data[l].get(f, []) for l in self.data]
+            missing_data_ratio = all_values.count([]) / (1.0 * len(all_values))
+            non_q_values = [v for vs in all_values for v in vs]
+            counts = {}
+            for v in non_q_values:
+                counts[v] = non_q_values.count(v)
+            unique_values = list(set(non_q_values))
+            # Sort unique_values carefully.
+            # Possibly all feature values are numeric strings, e.g. "1", "2", "3".
+            # If we sort these as strings then we get weird things like "10" < "2".
+            # This can actually matter for things like ordinal models.
+            # So convert these to ints first...
+            if all([v.isdigit() for v in unique_values]):
+                unique_values = list(map(int, unique_values))
+                unique_values.sort()
+                unique_values = list(map(str, unique_values))
+            # ...otherwise, just sort normally
+            else:
+                unique_values.sort()
+            self.unique_values[f] = unique_values
+
+            N = len(unique_values)
+            self.valuecounts[f] = N
+            self.missing_ratios[f] = missing_data_ratio
+            self.counts[f] = counts
+            self.codemaps[f] = self.build_codemap(unique_values)
+
+
     def pattern_names(self, feature):
         """Content of the columns corresponding to this feature in the alignment.
 
@@ -117,7 +164,8 @@ class BinaryModel(BaseModel):
                 if self.ascertained:
                     valuestring[1] = "1"
                 # Set the appropriate data column to 1
-                valuestring[extra_columns + self.unique_values[feature].index(point)] = "1"
+                for subpoint in point:
+                    valuestring[extra_columns + self.unique_values[feature].index(subpoint)] = "1"
                 valuestring = "".join(valuestring)
             return valuestring
 
