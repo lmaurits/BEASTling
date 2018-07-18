@@ -276,6 +276,7 @@ class Configuration(object):
                 'monophyly_end_depth': p.getint,
                 'monophyly_levels': p.getint,
                 'monophyly_direction': lambda s, o: p.get(s, o).lower(),
+                'tree_prior': p.get,
             },
         }.items():
             for opt, getter in opts.items():
