@@ -68,7 +68,7 @@ def parse_prior_string(cs, prior_name="?", is_point=False):
     in log space) or uniform type in one of the following
     ways. Pseudo-densities with infinite interval are permitted.
 
-    >>> parse = Configuration.parse_prior_string
+    >>> parse = parse_prior_string
     >>> # Parameters of a normal distribution
     >>> parse("0, 1")
     (0.0, 'normal', (0.0, 1.0))
@@ -85,7 +85,33 @@ def parse_prior_string(cs, prior_name="?", is_point=False):
     >>> parse("< 1200")
     (0.0, 'uniform', (0.0, 1200.0))
 
-    ====
+    All of these strings can also be used for point distributions
+
+    >>> parse("normal (1-5)", is_point=True)
+    (0.0, 'normal', (3.0, 1.0204081632653061))
+
+    but in addition, point distributions support fixed values.
+
+    >>> parse("300", is_point=True)
+    (0.0, 'point', (300.0, 300.0))
+
+    In some cases, in particular for lognormal distributions, it may
+    be useful to specify an offset. This is possibly with the syntax
+
+    >>> parse("4 + lognormal(1, 1)")
+    (4.0, 'lognormal', (1.0, 1.0))
+
+    The offset must appear *before* the distribution, the other order
+    is not permitted.
+
+    >>> parse("lognormal(1, 1) + 4") # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+        parse("lognormal(1, 1) + 4")
+      File "beastling/distributions.py", line 148, in parse_prior_string
+        offset = float(os.strip())
+    ValueError: could not convert string to float: 'lognormal(1, 1)'
+
     Note
     ====
 
@@ -96,7 +122,17 @@ def parse_prior_string(cs, prior_name="?", is_point=False):
     distributions, the bare "0-1" notation generates a normal
     distribution.
 
-    =======
+    Parameters
+    ==========
+    cs: str
+        A string describing a single-value probability distribution.
+    name: str
+        The name of the prior distribution, used only for error
+        reporting purposes.
+    is_point: bool
+        defines whether the distribution is permitted to be a constant
+        (point) distribution.
+
     Returns
     =======
     offset: int
@@ -222,7 +258,5 @@ class Distribution(collections.namedtuple(
             return self.offset + math.exp(self.param[0])
         elif self.dist == "uniform":
             return self.offset + sum(self.param) / 2.0
-        elif self.dist == "point":
-            return self.param[0]
         else:
             raise NotImplementedError
