@@ -27,6 +27,7 @@ import beastling.clocks.prior as prior_clock
 import beastling.models.geo as geo
 import beastling.models.bsvs as bsvs
 import beastling.models.covarion as covarion
+import beastling.models.pseudodollocovarion as pseudodollocovarion
 import beastling.models.mk as mk
 
 _BEAST_MAX_LENGTH = 2147483647
@@ -870,6 +871,9 @@ class Configuration(object):
                     self.messages.append(bsvs.BSVSModel.package_notice)
             elif config["model"].lower() == "covarion":
                 model = covarion.CovarionModel(config, self)
+            elif config["model"].lower() == "pseudodollocovarion":
+                model = pseudodollocovarion.PseudoDolloCovarionModel(
+                    config, self)
             elif config["model"].lower() == "mk":
                 model = mk.MKModel(config, self)
                 if "mk_used" not in self.message_flags:
@@ -1082,10 +1086,10 @@ class Configuration(object):
                 ## happen to only have one language for
                 self.messages.append("[INFO] Calibration on '%s' taken as tip age calibration." % clade)
                 is_tip_calibration = True
-                self.tree_prior = "coalescent"
+                # self.tree_prior = "coalescent"
             else:
                 ## At this point we have a non-originate calibration on a single
-                ## taxa, which is not the result of specifically asking for only
+                ## taxon, which is not the result of specifically asking for only
                 ## this taxa.  Probably the user did not expect to get here.
                 ## They might want this to be an originate cal, or a tip cal, but
                 ## we can't tell with what we know and shouldn't guess.  Abort
