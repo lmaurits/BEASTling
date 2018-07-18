@@ -36,7 +36,7 @@ def sniff(filename):
                     raise
 
 
-def load_data(filename, file_format=None, lang_column=None, value_column=None):
+def load_data(filename, file_format=None, lang_column=None, value_column=None, expect_multiple=False):
     # Handle CSV dialect issues
     if str(filename) == 'stdin':
         filename = sys.stdin
@@ -44,7 +44,7 @@ def load_data(filename, file_format=None, lang_column=None, value_column=None):
         # the best
         dialect = "excel" # Default dialect for csv module
     elif file_format and file_format.lower() == "cldf":
-        return read_cldf_dataset(filename, value_column)
+        return read_cldf_dataset(filename, value_column, expect_multiple=expect_multiple)
     elif file_format and file_format.lower() == "cldf-legacy":
         # CLDF pre-1.0 standard says delimiter is indicated by file extension
         if filename.suffix.lower() == ".csv" or str(filename) == "stdin":
@@ -56,7 +56,7 @@ def load_data(filename, file_format=None, lang_column=None, value_column=None):
     elif filename.suffix == ".json" or filename.name in {"forms.csv", "values.csv"}:
         # TODO: Should we just let the pycldf module try its hands on the file
         # and fall back to other formats if that doesn't work?
-        return read_cldf_dataset(filename, value_column)
+        return read_cldf_dataset(filename, value_column, expect_multiple=expect_multiple)
     else:
         # Use CSV dialect sniffer in all other cases
         dialect = sniff(filename)
@@ -71,9 +71,9 @@ def load_data(filename, file_format=None, lang_column=None, value_column=None):
 
         # Load data
         if file_format == 'cldf-legacy':
-            data = load_cldf_data(reader, value_column, filename)
+            data = load_cldf_data(reader, value_column, filename, expect_multiple=expect_multiple)
         elif file_format == 'beastling':
-            data = load_beastling_data(reader, lang_column, filename)
+            data = load_beastling_data(reader, lang_column, filename, expect_multiple=expect_multiple)
         else:
             raise ValueError("File format specification '{:}' not understood".format(file_format))
     return data
@@ -81,7 +81,7 @@ def load_data(filename, file_format=None, lang_column=None, value_column=None):
 _language_column_names = ("iso", "iso_code", "glotto", "glottocode", "language", "language_id", "lang", "lang_id")
 
 
-def load_beastling_data(reader, lang_column, filename):
+def load_beastling_data(reader, lang_column, filename, expect_multiple=False):
     if not lang_column:
         for candidate in reader.fieldnames:
             if candidate.lower() in _language_column_names:
@@ -95,11 +95,14 @@ def load_beastling_data(reader, lang_column, filename):
         if row[lang_column] in data:
             raise ValueError("Duplicated language identifier '%s' found in data file %s" % (row[lang_column], filename))
         lang = row.pop(lang_column)
-        data[lang] = collections.defaultdict(lambda : "?", row)
+        if expect_multiple:
+            data[lang] = collections.defaultdict(lambda : "?", {key: [value] for key, value in row.items()})
+        else:
+            data[lang] = collections.defaultdict(lambda : "?", row)
     return data
 
 
-def load_cldf_data(reader, value_column, filename):
+def load_cldf_data(reader, value_column, filename, expect_multiple=False):
     if not value_column:
         value_column = "Value"
     if "Feature_ID" in reader.fieldnames:
@@ -112,8 +115,14 @@ def load_cldf_data(reader, value_column, filename):
     for row in reader:
         lang = row["Language_ID"]
         if lang not in data:
-            data[lang] = collections.defaultdict(lambda :"?")
-        data[lang][row[feature_column]] = row[value_column]
+            if expect_multiple:
+                data[lang] = collections.defaultdict(lambda: [])
+            else:
+                data[lang] = collections.defaultdict(lambda: "?")
+        if expect_multiple:
+            data[lang][row[feature_column]].append(row[value_column])
+        else:
+            data[lang][row[feature_column]] = row[value_column]
     return data
 
 
@@ -197,7 +206,7 @@ def get_dataset(fname):
     return pycldf.dataset.Dataset.from_data(fname)
 
 
-def read_cldf_dataset(filename, code_column=None):
+def read_cldf_dataset(filename, code_column=None, expect_multiple=False):
     """Load a CLDF dataset.
 
     Load the file as `json` CLDF metadata description file, or as metadata-free
@@ -218,7 +227,10 @@ def read_cldf_dataset(filename, code_column=None):
     Dataset
     """
     dataset = get_dataset(filename)
-    data = collections.defaultdict(lambda: collections.defaultdict(lambda: "?"))
+    if expect_multiple:
+        data = collections.defaultdict(lambda: collections.defaultdict(lambda: []))
+    else:
+        data = collections.defaultdict(lambda: collections.defaultdict(lambda: "?"))
     if dataset.module == "Wordlist":
         if code_column:
             cognate_column_in_form_table = True
@@ -248,16 +260,29 @@ def read_cldf_dataset(filename, code_column=None):
 
         for row in dataset["FormTable"].iterdicts():
             if cognate_column_in_form_table:
-                data[row[language_column]][row[parameter_column]] = row[code_column]
+                if expect_multiple:
+                    data[row[language_column]][row[parameter_column]].append(
+                        row[code_column])
+                else:
+                    data[row[language_column]][row[parameter_column]] = (
+                        row[code_column])
             else:
-                data[row[language_column]][row[parameter_column]] = cognatesets[row[form_column]]
+                if expect_multiple:
+                    data[row[language_column]][row[parameter_column]].append(
+                        cognatesets[row[form_column]])
+                else:
+                    data[row[language_column]][row[parameter_column]] = (
+                        cognatesets[row[form_column]])
         return data
     elif dataset.module == "StructureDataset":
         language_column = dataset["ValueTable", "languageReference"].name
         parameter_column = dataset["ValueTable", "parameterReference"].name
         code_column = code_column or dataset["ValueTable", "codeReference"].name
         for row in dataset["ValueTable"].iterdicts():
-            data[row[language_column]][row[parameter_column]] = row[code_column]
+            if expect_multiple:
+                data[row[language_column]][row[parameter_column]].append(row[code_column])
+            else:
+                data[row[language_column]][row[parameter_column]] = row[code_column]
         return data
     else:
         raise ValueError("Beastling does not know how to interpret CLDF {:} data.".format(

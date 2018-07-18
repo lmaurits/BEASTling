@@ -649,7 +649,7 @@ class Configuration(object):
         for lang in all_langs:
             count = 0
             for model in self.models:
-                count += len([x for x in model.data[lang].values() if x != "?"])
+                count += len([x for x in model.data[lang].values() if x])
             datapoint_props[lang] = 1.0*count / N
         self.sparse_languages = [l for l in all_langs if datapoint_props[l] < self.minimum_data]
 
