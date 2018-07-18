@@ -204,12 +204,20 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         """
         self.tree = ET.SubElement(self.state, "tree", {"id":"Tree.t:beastlingTree", "name":"stateNode"})
         self.add_taxon_set(self.tree, "taxa", self.config.languages, define_taxa=True)
-        if self.config.tree_prior == "yule":
+        if self.config.tree_prior in ["yule", "birthdeath"]:
             param = ET.SubElement(self.state, "parameter", {"id":"birthRate.t:beastlingTree","name":"stateNode"})
             if self.birthrate_estimate is not None:
                 param.text=str(self.birthrate_estimate)
             else:
                 param.text="1.0"
+            if self.config.tree_prior in ["birthdeath"]:
+                ET.SubElement(self.state, "parameter",
+                              {"id": "deathRate.t:beastlingTree",
+                               "name": "stateNode"}).text = "0.5"
+                ET.SubElement(self.state, "parameter",
+                              {"id": "sampling.t:beastlingTree",
+                               "name": "stateNode"}).text = "0.2"
+
         elif self.config.tree_prior == "coalescent":
             param = ET.SubElement(self.state, "parameter", {"id":"popSize.t:beastlingTree","name":"stateNode"})
             param.text="1.0"
@@ -393,8 +401,58 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
     def add_tree_prior(self):
         if self.config.tree_prior.lower() == "yule":
             self.add_yule_tree_prior()
+        elif self.config.tree_prior.lower() == "birthdeath":
+            self.add_birthdeath_tree_prior()
         elif self.config.tree_prior.lower() == "coalescent":
             self.add_coalescent_tree_prior()
+
+    def add_birthdeath_tree_prior(self):
+        """Add a (calibrated) birth-death tree prior."""
+        # Tree prior
+
+        attribs = {}
+        attribs["id"] = "BirthDeathModel.t:beastlingTree"
+        attribs["tree"] = "@Tree.t:beastlingTree"
+        attribs["spec"] = "beast.evolution.speciation.CalibratedBirthDeathModel"
+        attribs["birthRate"] = "@birthRate.t:beastlingTree"
+        attribs["relativeDeathRate"] = "@deathRate.t:beastlingTree"
+        attribs["sampleProbability"] = "@sampling.t:beastlingTree"
+        ET.SubElement(self.prior, "distribution", attribs)
+
+        # Birth rate prior
+        attribs = {}
+        attribs["id"] = "BirthRatePrior.t:beastlingTree"
+        attribs["name"] = "distribution"
+        attribs["x"] = "@birthRate.t:beastlingTree"
+        sub_prior = ET.SubElement(self.prior, "prior", attribs)
+        uniform = ET.SubElement(sub_prior, "Uniform",
+                                {"id": "Uniform.0",
+                                 "name": "distr",
+                                 "upper": "Infinity"})
+
+        # Relative death rate prior
+        attribs = {}
+        attribs["id"] = "relativeDeathRatePrior.t:beastlingTree"
+        attribs["name"] = "distribution"
+        attribs["x"] = "@deathRate.t:beastlingTree"
+        sub_prior = ET.SubElement(self.prior, "prior", attribs)
+        uniform = ET.SubElement(sub_prior, "Uniform",
+                                {"id": "Uniform.1",
+                                 "name": "distr",
+                                 "upper": "Infinity"})
+
+        # Sample probability prior
+        attribs = {}
+        attribs["id"] = "samplingPrior.t:beastlingTree"
+        attribs["name"] = "distribution"
+        attribs["x"] = "@sampling.t:beastlingTree"
+        sub_prior = ET.SubElement(self.prior, "prior", attribs)
+        uniform = ET.SubElement(sub_prior, "Uniform",
+                                {"id": "Uniform.3",
+                                 "name": "distr",
+                                 "lower": "0",
+                                 "upper": "1"})
+
 
     def add_yule_tree_prior(self):
         """
@@ -516,7 +574,7 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             ET.SubElement(self.run, "operator", {"id":"treeScaler.t:beastlingTree","scaleFactor":"0.5","spec":"ScaleOperator","tree":"@Tree.t:beastlingTree","weight":"3.0"})
             ET.SubElement(self.run, "operator", {"id":"treeRootScaler.t:beastlingTree","scaleFactor":"0.5","spec":"ScaleOperator","tree":"@Tree.t:beastlingTree","rootOnly":"true","weight":"3.0"})
             ## Up/down operator which scales tree height
-            if self.config.tree_prior == "yule":
+            if self.config.tree_prior in ["yule", "birthdeath"]:
                 updown = ET.SubElement(self.run, "operator", {"id":"UpDown","spec":"UpDownOperator","scaleFactor":"0.5", "weight":"3.0"})
                 ET.SubElement(updown, "tree", {"idref":"Tree.t:beastlingTree", "name":"up"})
                 ET.SubElement(updown, "parameter", {"idref":"birthRate.t:beastlingTree", "name":"down"})
@@ -526,13 +584,27 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
                         if clock.estimate_rate:
                             ET.SubElement(updown, "parameter", {"idref":clock.mean_rate_id, "name":"down"})
 
-        if self.config.tree_prior == "yule":
+        if self.config.tree_prior in ["yule", "birthdeath"]:
             # Birth rate scaler
             # Birth rate is *always* scaled.
             ET.SubElement(self.run, "operator", {"id":"YuleBirthRateScaler.t:beastlingTree","spec":"ScaleOperator","parameter":"@birthRate.t:beastlingTree", "scaleFactor":"0.5", "weight":"3.0"})
         elif self.config.tree_prior == "coalescent":
             ET.SubElement(self.run, "operator", {"id":"PopulationSizeScaler.t:beastlingTree","spec":"ScaleOperator","parameter":"@popSize.t:beastlingTree", "scaleFactor":"0.5", "weight":"3.0"})
 
+        if self.config.tree_prior in ["birthdeath"]:
+            ET.SubElement(self.run, "operator",
+                          {"id": "SamplingScaler.t:beastlingTree",
+                           "spec": "ScaleOperator",
+                           "parameter": "@sampling.t:beastlingTree",
+                           "scaleFactor": "0.8",
+                           "weight": "1.0"})
+            ET.SubElement(self.run, "operator",
+                          {"id": "DeathRateScaler.t:beastlingTree",
+                           "spec": "ScaleOperator",
+                           "parameter": "@deathRate.t:beastlingTree",
+                           "scaleFactor": "0.5",
+                           "weight": "3.0"})
+ 
         # Add a Tip Date scaling operator if required
         if self.config.tip_calibrations and self.config.sample_branch_lengths:
             # Get a list of taxa with non-point tip cals
@@ -585,8 +657,13 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             ET.SubElement(tracer_logger,"log",{"idref":"posterior"})
         # Log Yule birth rate
         if self.config.log_params:
-            if self.config.tree_prior == "yule":
+            if self.config.tree_prior in ["yule", "birthdeath"]:
                 ET.SubElement(tracer_logger,"log",{"idref":"birthRate.t:beastlingTree"})
+                if self.config.tree_prior in ["birthdeath"]:
+                    ET.SubElement(tracer_logger, "log",
+                                  {"idref": "deathRate.t:beastlingTree"})
+                    ET.SubElement(tracer_logger, "log",
+                                  {"idref": "sampling.t:beastlingTree"})
             elif self.config.tree_prior == "coalescent":
                 ET.SubElement(tracer_logger,"log",{"idref":"popSize.t:beastlingTree"})
             for clock in self.config.clocks:
