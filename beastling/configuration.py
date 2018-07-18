@@ -675,9 +675,6 @@ class Configuration(object):
             return False
         if self.exclusions and l in self.exclusions:
             return False
-        if self.geo_config and (l not in self.locations or "?" in self.locations[l]):
-            self.messages.append("""[INFO] All models: Language %s excluded due to lack of location data.""" % l)
-            return False
         if l in self.sparse_languages:
             return False
         return True
@@ -1111,13 +1108,18 @@ class Configuration(object):
                 cal_clade = set(langs)
                 for node in mono_tree.walk():
                     mono_clade = set(node.get_leaf_names())
-                    # We are happy if the calibration clade is exactly a monophyly clade
+                    # If the calibration clade is not a subset of this monophyly clade, keep searching
+                    if not cal_clade.issubset(mono_clade):
+                        continue
+                    # At this point, we can take it for granted the cal clade is a subset of the mono_clade
+                    # We are happy if the calibration clade is exactly this monophyly clade
                     if mono_clade == cal_clade:
                         break
-                    # We are also happy if the calibration clade is a subset of a, umm, "terminal clade"?
-                    elif all((child.is_leaf for child in node.descendants)) and cal_clade.issubset(mono_clade):
+                    # We are also happy if this mono_clade is a "terminal clade", i.e. has no finer structure
+                    # which the calibration clade may violate
+                    elif all((child.is_leaf for child in node.descendants)):
                         break
-                    # We are also happy if the calibration clade is the union of some monophyly clades
+                    # We are also happy if the calibration clade is a union of descendant mono clades
                     elif all(set(child.get_leaf_names()).issubset(cal_clade) or len(set(child.get_leaf_names()).intersection(cal_clade)) == 0 for child in node.descendants):
                         break
                 else:

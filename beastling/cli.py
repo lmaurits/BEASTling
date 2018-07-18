@@ -102,7 +102,7 @@ def do_generate(args):
     try:
         config = beastling.configuration.Configuration(
             configfile=args.config, stdin_data=args.stdin, prior=args.prior)
-    except Exception as e:
+    except Exception as e: # PRAGMA: NO COVER
         errmsg("Error encountered while parsing configuration file:\n")
         traceback.print_exc()
         sys.exit(2)
