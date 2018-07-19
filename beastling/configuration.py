@@ -27,7 +27,7 @@ import beastling.clocks.prior as prior_clock
 import beastling.models.geo as geo
 import beastling.models.bsvs as bsvs
 import beastling.models.covarion as covarion
-import beastling.models.pseudodollocovarion as pseudodollocovarion
+# import beastling.models.pseudodollocovarion as pseudodollocovarion
 import beastling.models.mk as mk
 
 _BEAST_MAX_LENGTH = 2147483647

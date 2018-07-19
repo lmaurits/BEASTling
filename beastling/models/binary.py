@@ -100,7 +100,14 @@ class BinaryModel(BaseModel):
         self.codemaps = {}
         for f in self.features:
             # Compute various things
-            all_values = [self.data[l].get(f, []) for l in self.data]
+            all_values = []
+            for l, values in self.data.items():
+                if f in values:
+                    raw = values[f]
+                    while "-" in raw:
+                        raw.remove("-")
+                    all_values.append(raw)
+            print(f, all_values)
             missing_data_ratio = all_values.count([]) / (1.0 * len(all_values))
             non_q_values = [v for vs in all_values for v in vs]
             counts = {}
