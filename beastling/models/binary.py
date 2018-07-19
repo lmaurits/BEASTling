@@ -107,7 +107,6 @@ class BinaryModel(BaseModel):
                     while "-" in raw:
                         raw.remove("-")
                     all_values.append(raw)
-            print(f, all_values)
             missing_data_ratio = 1 - len(all_values) / len(self.data)
             non_q_values = [v for vs in all_values for v in vs]
             counts = {}
