@@ -424,7 +424,6 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         attribs["birthRate"] = "@birthRate.t:beastlingTree"
         attribs["relativeDeathRate"] = "@deathRate.t:beastlingTree"
         attribs["sampleProbability"] = "@sampling.t:beastlingTree"
-        attribs["type"] = "restricted"
 
         # Birth rate prior
         attribs = {}

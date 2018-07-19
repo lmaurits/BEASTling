@@ -27,6 +27,7 @@ import beastling.clocks.prior as prior_clock
 import beastling.models.geo as geo
 import beastling.models.bsvs as bsvs
 import beastling.models.covarion as covarion
+import beastling.models.pseudodollocovarion as pseudodollocovarion
 import beastling.models.mk as mk
 
 _BEAST_MAX_LENGTH = 2147483647
@@ -650,7 +651,7 @@ class Configuration(object):
         for lang in all_langs:
             count = 0
             for model in self.models:
-                count += len([x for x in model.data[lang].values() if x != "?"])
+                count += len([x for x in model.data[lang].values() if x])
             datapoint_props[lang] = 1.0*count / N
         self.sparse_languages = [l for l in all_langs if datapoint_props[l] < self.minimum_data]
 
@@ -868,6 +869,9 @@ class Configuration(object):
                     self.messages.append(bsvs.BSVSModel.package_notice)
             elif config["model"].lower() == "covarion":
                 model = covarion.CovarionModel(config, self)
+            elif config["model"].lower() == "pseudodollocovarion":
+                model = pseudodollocovarion.PseudoDolloCovarionModel(
+                    config, self)
             elif config["model"].lower() == "mk":
                 model = mk.MKModel(config, self)
                 if "mk_used" not in self.message_flags:
@@ -1096,7 +1100,6 @@ class Configuration(object):
                 # never happen, because empty calibrations can only be
                 # specified by empty language groups, which should be
                 # caught before this.
-
                 self.messages.append("[INFO] Calibration on clade '%s' matches only one language.  Ignoring due to ambiguity.  Use 'originate(%s)' if this was supposed to be an originate calibration, or explicitly identify the single language using '%s' if this was supposed to be a tip calibration." % (clade, clade, langs[0]))
                 continue
 

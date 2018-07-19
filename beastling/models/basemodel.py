@@ -48,7 +48,12 @@ class BaseModel(object):
         self.treedata = []
 
         # Load the entire dataset from the file
-        self.data = load_data(self.data_filename, file_format=model_config.get("file_format",None), lang_column=model_config.get("language_column",None), value_column=model_config.get("value_column",None))
+        self.data = load_data(self.data_filename,
+                              file_format=model_config.get("file_format", None),
+                              lang_column=model_config.get("language_column", None),
+                              value_column=model_config.get("value_column", None),
+                              expect_multiple=True)
+
         # Remove features not wanted in this analysis
         self.build_feature_filter()
         self.apply_feature_filter()
@@ -217,9 +222,15 @@ class BaseModel(object):
         self.codemaps = {}
         for f in self.features:
             # Compute various things
-            all_values = [self.data[l].get(f,"?") for l in self.data]
-            missing_data_ratio = all_values.count("?") / (1.0*len(all_values))
-            non_q_values = [v for v in all_values if v != "?"]
+            all_values = [self.data[l].get(f, []) for l in self.data]
+            missing_data_ratio = all_values.count([]) / (1.0 * len(all_values))
+            # Possible transformations if multiple values are given for one data point:
+            # Take the
+            #  - first, i.e. lambda x: x[0]
+            #  - last, i.e. lambda x: x[-1]
+            #  - set, i.e. lambda x: tuple(set(x))
+            # `last` ist compatible with the behaviour up until now.
+            non_q_values = [v[-1] for v in all_values if v]
             counts = {}
             for v in non_q_values:
                 counts[v] = non_q_values.count(v)
@@ -508,20 +519,26 @@ class BaseModel(object):
             return self._standard_format_datapoint(feature, point)
 
     def _standard_format_datapoint(self, feature, point):
-        if point == "?":
-            return point
+        if point:
+            # Taking the last entry is not the only option, but it is the most
+            # obvious and backward-compatible one.
+            selected_value = point[-1]
+            return str(self.unique_values[feature].index(selected_value))
         else:
-            return str(self.unique_values[feature].index(point))
+            return point
 
     def _ascertained_format_datapoint(self, feature, point):
         extra_cols = self.valuecounts[feature]
         self.extracolumns[feature] = extra_cols
-        if point == "?":
-            return self.data_separator.join(["?" for i in range(0, extra_cols + 1)])
-        else:
+        if point:
+            # Taking the last entry is not the only option, but it is the most
+            # obvious and backward-compatible one.
+            selected_value = point[-1]
             cols = list(range(0, extra_cols))
-            cols.append(self.unique_values[feature].index(point))
+            cols.append(self.unique_values[feature].index(selected_value))
             return self.data_separator.join(map(str, cols))
+        else:
+            return self.data_separator.join(["?" for i in range(0, extra_cols + 1)])
 
     def add_feature_data(self, distribution, index, feature, fname):
         """
