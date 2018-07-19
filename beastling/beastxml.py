@@ -407,6 +407,11 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             self.add_birthdeath_tree_prior()
         elif self.config.tree_prior.lower() == "coalescent":
             self.add_coalescent_tree_prior()
+        elif self.config.tree_prior.lower() == "uniform":
+            pass
+        else:
+            raise ValueError("Tree prior {:} is unknown.".format(
+                self.config.tree_prior.lower()))
 
     def add_birthdeath_tree_prior(self):
         """Add a (calibrated) birth-death tree prior."""
@@ -415,11 +420,11 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         attribs = {}
         attribs["id"] = "BirthDeathModel.t:beastlingTree"
         attribs["tree"] = "@Tree.t:beastlingTree"
-        attribs["spec"] = "beast.evolution.speciation.CalibratedBirthDeathModel"
+        attribs["spec"] = "beast.evolution.speciation.BirthDeathGernhard08Model"
         attribs["birthRate"] = "@birthRate.t:beastlingTree"
         attribs["relativeDeathRate"] = "@deathRate.t:beastlingTree"
         attribs["sampleProbability"] = "@sampling.t:beastlingTree"
-        ET.SubElement(self.prior, "distribution", attribs)
+        attribs["type"] = "restricted"
 
         # Birth rate prior
         attribs = {}
