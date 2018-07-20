@@ -413,54 +413,6 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             raise ValueError("Tree prior {:} is unknown.".format(
                 self.config.tree_prior.lower()))
 
-    def add_birthdeath_tree_prior(self):
-        """Add a (calibrated) birth-death tree prior."""
-        # Tree prior
-
-        attribs = {}
-        attribs["id"] = "BirthDeathModel.t:beastlingTree"
-        attribs["tree"] = "@Tree.t:beastlingTree"
-        attribs["spec"] = "beast.evolution.speciation.BirthDeathGernhard08Model"
-        attribs["birthRate"] = "@birthRate.t:beastlingTree"
-        attribs["relativeDeathRate"] = "@deathRate.t:beastlingTree"
-        attribs["sampleProbability"] = "@sampling.t:beastlingTree"
-        attribs["type"] = "restricted"
-
-        # Birth rate prior
-        attribs = {}
-        attribs["id"] = "BirthRatePrior.t:beastlingTree"
-        attribs["name"] = "distribution"
-        attribs["x"] = "@birthRate.t:beastlingTree"
-        sub_prior = ET.SubElement(self.prior, "prior", attribs)
-        uniform = ET.SubElement(sub_prior, "Uniform",
-                                {"id": "Uniform.0",
-                                 "name": "distr",
-                                 "upper": "Infinity"})
-
-        # Relative death rate prior
-        attribs = {}
-        attribs["id"] = "relativeDeathRatePrior.t:beastlingTree"
-        attribs["name"] = "distribution"
-        attribs["x"] = "@deathRate.t:beastlingTree"
-        sub_prior = ET.SubElement(self.prior, "prior", attribs)
-        uniform = ET.SubElement(sub_prior, "Uniform",
-                                {"id": "Uniform.1",
-                                 "name": "distr",
-                                 "upper": "Infinity"})
-
-        # Sample probability prior
-        attribs = {}
-        attribs["id"] = "samplingPrior.t:beastlingTree"
-        attribs["name"] = "distribution"
-        attribs["x"] = "@sampling.t:beastlingTree"
-        sub_prior = ET.SubElement(self.prior, "prior", attribs)
-        uniform = ET.SubElement(sub_prior, "Uniform",
-                                {"id": "Uniform.3",
-                                 "name": "distr",
-                                 "lower": "0",
-                                 "upper": "1"})
-
-
     def add_yule_tree_prior(self):
         """
         Add Yule birth-process tree prior.
