@@ -101,18 +101,13 @@ class BinaryModel(BaseModel):
         for f in self.features:
             # Compute various things
             all_values = []
-            missing_data_ratio = 0
             for l, values in self.data.items():
-                raw = values.get(f, None)
-                if raw is None:
-                    missing_data_ratio += 1
-                elif raw:
-                    try:
+                if f in values:
+                    raw = values[f]
+                    while "-" in raw:
                         raw.remove("-")
-                    except ValueError:
-                        pass
                     all_values.append(raw)
-            missing_data_ratio /= (1.0 * missing_data_ratio + len(all_values))
+            missing_data_ratio = 1 - len(all_values) / len(self.data)
             non_q_values = [v for vs in all_values for v in vs]
             counts = {}
             for v in non_q_values:

@@ -52,7 +52,7 @@ class BaseModel(object):
             self.data_filename,
             file_format=model_config.get("file_format", None),
             lang_column=model_config.get("language_column", None),
-            value_column=model_config.get("value_column",None),
+            value_column=model_config.get("value_column", None),
             expect_multiple=True)
         # Remove features not wanted in this analysis
         self.build_feature_filter()
