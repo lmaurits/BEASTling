@@ -431,10 +431,9 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         attribs["name"] = "distribution"
         attribs["x"] = "@birthRate.t:beastlingTree"
         sub_prior = ET.SubElement(self.prior, "prior", attribs)
-        uniform = ET.SubElement(sub_prior, "Uniform",
-                                {"id": "Uniform.0",
-                                 "name": "distr",
-                                 "upper": "Infinity"})
+        uniform = ET.SubElement(sub_prior, "OneOnX",
+                                {"id": "LimitBirthRate.0",
+                                 "name": "distr"})
 
         # Relative death rate prior
         attribs = {}
@@ -445,7 +444,8 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         uniform = ET.SubElement(sub_prior, "Uniform",
                                 {"id": "Uniform.1",
                                  "name": "distr",
-                                 "upper": "Infinity"})
+                                 "lower": "0",
+                                 "upper": "1"})
 
         # Sample probability prior
         attribs = {}
