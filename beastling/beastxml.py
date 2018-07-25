@@ -431,9 +431,16 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         attribs["name"] = "distribution"
         attribs["x"] = "@birthRate.t:beastlingTree"
         sub_prior = ET.SubElement(self.prior, "prior", attribs)
-        uniform = ET.SubElement(sub_prior, "OneOnX",
+        birth_rate_distr = ET.SubElement(sub_prior, "LogNormal",
                                 {"id": "LimitBirthRate.0",
-                                 "name": "distr"})
+                                 "name": "distr",
+                                 "M": "-1.75",
+                                 "S": "4.25"})
+        # Presumably, clock rates are often in terms of years or millenia.
+        # Provide a distribution that is very flat in the range between
+        # one-per-generation and one-per-200-years, for either of these scales.
+        # Given how people usually don't even specify a prior on this, we don't
+        # expect it do make much difference.
 
         # Relative death rate prior
         attribs = {}
