@@ -209,6 +209,15 @@ class BaseModel(object):
                 language.pop(feat)
         self.features = sorted(list(self.features))
 
+    def reduce_multivalue_data(self, list_of_data_points):
+        """Reduce a list of data points to a single one.
+
+        Given a list of data points (for a feature in a language), select the
+        last of these data points as the one to be included in the analysis.
+
+        """
+        return list_of_data_points[-1]
+
     def compute_feature_properties(self):
         """
         Compute various items of metadata for all remaining features.
@@ -222,7 +231,10 @@ class BaseModel(object):
         self.codemaps = {}
         for f in self.features:
             # Compute various things
-            all_values = [self.data[l].get(f, "?") for l in self.data]
+            all_values = []
+            for l in self.data:
+                point = self.reduce_multivalue_data(self.data[l].get(f, ["?"]))
+                all_values.append(point)
             missing_data_ratio = all_values.count("?") / (1.0*len(all_values))
             non_q_values = [v for v in all_values if v != "?"]
             counts = {}
@@ -486,7 +498,10 @@ class BaseModel(object):
             "name":"data_%s" % self.name,
             "dataType":"integer"})
         for lang in self.languages:
-            formatted_points = [self.format_datapoint(f, self.data[lang][f]) for f in self.features]
+            formatted_points = [
+                self.format_datapoint(
+                    f, self.data[lang].get(f, ["?"]))
+                for f in self.features]
             value_string = self.data_separator.join(formatted_points)
             if not self.filters:
                 n = 1
@@ -507,6 +522,7 @@ class BaseModel(object):
                 "value":value_string})
 
     def format_datapoint(self, feature, point):
+        point = self.reduce_multivalue_data(point)
         if self.ascertained:
             return self._ascertained_format_datapoint(feature, point)
         else:
