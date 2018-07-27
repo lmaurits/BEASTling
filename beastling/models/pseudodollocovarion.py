@@ -1,64 +1,20 @@
 import xml.etree.ElementTree as ET
 
-from .binary import BinaryModel
+from .binary import BinaryModelWithShareParams as BinaryModel
 
 
 class PseudoDolloCovarionModel(BinaryModel):
     def __init__(self, model_config, global_config):
         BinaryModel.__init__(self, model_config, global_config)
         self.subst_model_id = None
-        self.share_params = model_config.get("share_params", True)
         self.messages.append(
             """[DEPENDENCY] Model %s: Pseudo-Dollo Covarion is implemented in"""
             """ the BEAST package "Babel".""" % self.name)
 
-    def build_freq_str(self, feature=None):
-        # TODO: I think this should probably go in BinaryModel
-        # But right now it is (loosely) coupled to Covarion via
-        # self.share_params
-        assert feature or self.share_params
-
-        if feature is None:
-            features = self.features
-        else:
-            features = [feature]
-
-        all_data = []
-        if self.binarised:
-            for f in features:
-                for lang in self.data:
-                    if self.data[lang][f] == "?":
-                        continue
-                    dpoint, index = self.data[lang][f], self.unique_values[f].index(self.data[lang][f])
-                    all_data.append(index)
-        else:
-            for f in features:
-                for lang in self.data:
-                    if self.data[lang].get(f,"?") == "?":
-                        valuestring = "".join(["?" for i in range(0,len(self.unique_values[f])+1)])
-                    else:
-                        valuestring = ["0" for i in range(0,len(self.unique_values[f])+1)]
-                        valuestring[self.unique_values[f].index(self.data[lang][f])+1] = "1"
-                        all_data.extend(valuestring)
-
-        all_data = [d for d in all_data if d !="?"]
-        all_data = [int(d) for d in all_data]
-        zerf = 1.0*all_data.count(0) / len(all_data)
-        onef = 1.0*all_data.count(1) / len(all_data)
-        assert abs(1.0 - (zerf+onef)) < 1e-6
-        return "%.2f %.2f" % (zerf, onef)
-
-    def _fnames(self):
-        if self.share_params:
-            return [self.name]
-        else:
-            return ["{:s}:{:s}".format(self.name, f)
-                      for f in features]
-
     def add_state(self, state):
         BinaryModel.add_state(self, state)
 
-        for fname in self._fnames():
+        for fname in self.parameter_identifiers():
             # One param for all features
             ET.SubElement(
                 state, "parameter",
@@ -82,7 +38,7 @@ class PseudoDolloCovarionModel(BinaryModel):
                  "upper": "1.0"}).text="1.0 0.1"
 
     def add_frequency_state(self, state):
-        for fname in self._fnames():
+        for fname in self.parameter_identifiers():
             ET.SubElement(
                 state, "parameter",
                 {"id": "%s:visiblefrequencies.s" % fname,
@@ -182,12 +138,8 @@ class PseudoDolloCovarionModel(BinaryModel):
 
     def add_prior(self, prior):
         BinaryModel.add_prior(self, prior)
-        if self.share_params:
-            self._add_prior(prior, self.name)
-        else:
-            for f in self.features:
-                fname = "%s:%s" % (self.name, f)
-                self._add_prior(prior, fname)
+        for fname in self.parameter_identifiers():
+            self._add_prior(prior, fname)
 
     def _add_prior(self, prior, name):
         switch_prior = ET.SubElement(
@@ -233,12 +185,8 @@ class PseudoDolloCovarionModel(BinaryModel):
 
     def add_operators(self, run):
         BinaryModel.add_operators(self, run)
-        if self.share_params:
-            self._add_operators(run, self.name)
-        else:
-            for f in self.features:
-                fname = "%s:%s" % (self.name, f)
-                self._add_operators(run, fname)
+        for fname in self.parameter_identifiers():
+            self._add_operators(run, fname)
 
     def _add_operators(self, run, name):
         ET.SubElement(
@@ -261,7 +209,7 @@ class PseudoDolloCovarionModel(BinaryModel):
              "scaleFactor": "0.75","weight": "0.1"})
 
     def add_frequency_operators(self, run):
-        for fname in self._fnames():
+        for fname in self.parameter_identifiers():
             ET.SubElement(
                 run, "operator",
                 {"id": "%s:pdcovarion_frequency_sampler.s" % fname,
@@ -271,7 +219,7 @@ class PseudoDolloCovarionModel(BinaryModel):
 
     def add_param_logs(self, logger):
         BinaryModel.add_param_logs(self, logger)
-        for fname in self._fnames():
+        for fname in self.parameter_identifiers():
             ET.SubElement(logger, "log", {"idref": "%s:pdcovarion_s.s" % fname})
             ET.SubElement(logger, "log", {"idref": "%s:pdcovarion_origin.s" % fname})
             ET.SubElement(logger, "log", {"idref": "%s:pdcovarion_death.s" % fname})
@@ -281,9 +229,5 @@ class PseudoDolloCovarionModel(BinaryModel):
                 ET.SubElement(logger, "log", {"idref": "%s:pdcovarion_death_prior.s" % fname})
 
     def add_frequency_logs(self, logger):
-        if self.share_params:
-            ET.SubElement(logger, "log", {"idref": "%s:visiblefrequencies.s" % self.name})
-        else:
-            for f in self.features:
-                fname = "%s: %s" % (self.name, f)
-                ET.SubElement(logger, "log", {"idref": "%s:visiblefrequencies.s" % fname})
+        for fname in self.parameter_identifiers():
+            ET.SubElement(logger, "log", {"idref": "%s:visiblefrequencies.s" % fname})
