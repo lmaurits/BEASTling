@@ -161,7 +161,7 @@ class BinaryModel(BaseModel):
                 # need to add one "all zeros" column to account for the recoding
                 extra_columns = 1
             self.extracolumns[feature] = extra_columns
-            if point == "?":
+            if point == "?" or point == ["?"]:
                 valuestring = "".join(["?" for i in range(0,self.valuecounts[feature]+extra_columns)])
             else:
                 # Start with all zeros
@@ -171,7 +171,9 @@ class BinaryModel(BaseModel):
                     valuestring[1] = "1"
                 # Set the appropriate data column to 1
                 for subpoint in point:
-                    valuestring[extra_columns + self.unique_values[feature].index(subpoint)] = "1"
+                    valuestring[
+                        extra_columns +
+                        self.unique_values[feature].index(subpoint)] = "1"
                 valuestring = "".join(valuestring)
             return valuestring
 
