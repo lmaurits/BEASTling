@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as ET
 
 from .basemodel import BaseModel
+from clldutils.inifile import INI
 
 
 class BinaryModel(BaseModel):
@@ -129,3 +130,57 @@ class BinaryModel(BaseModel):
                 data.set("excludeto", "2")
             else:
                 data.set("excludeto", "1")
+
+class BinaryModelWithShareParams(BinaryModel):
+    def __init__(self, model_config, global_config):
+        BinaryModel.__init__(self, model_config, global_config)
+        try:
+            share_params = model_config.get("share_params", "True")
+            self.share_params = INI.BOOLEAN_STATES[share_params.lower().strip()]
+        except KeyError:
+            raise ValueError("Invalid setting of 'share_params' (%s) for model %s, not a boolean" % (share_params, self.name))
+
+    def build_freq_str(self, feature=None):
+        # TODO: I think this should probably go in BinaryModel
+        # But right now it is (loosely) coupled to Covarion via
+        # self.share_params
+        assert feature or self.share_params
+
+        if feature is None:
+            features = self.features
+        else:
+            features = [feature]
+
+        all_data = []
+        if self.binarised:
+            for f in features:
+                for lang in self.data:
+                    if self.data[lang][f] == "?":
+                        continue
+                    dpoint, index = self.data[lang][f], self.unique_values[f].index(self.data[lang][f])
+                    all_data.append(index)
+        else:
+            for f in features:
+                for lang in self.data:
+                    all_data_points = set(self.data[lang].get(f, ["?"]))
+                    if "?" in all_data_points:
+                        valuestring = "".join(["?" for i in range(0,len(self.unique_values[f])+1)])
+                    else:
+                        valuestring = ["0" for i in range(0,len(self.unique_values[f])+1)]
+                    for value in all_data_points - {"?"}:
+                        valuestring[self.unique_values[f].index(value)+1] = "1"
+                    all_data.extend(valuestring)
+
+        all_data = [d for d in all_data if d !="?"]
+        all_data = [int(d) for d in all_data]
+        zerf = 1.0*all_data.count(0) / len(all_data)
+        onef = 1.0*all_data.count(1) / len(all_data)
+        assert abs(1.0 - (zerf+onef)) < 1e-6
+        return "%.2f %.2f" % (zerf, onef)
+
+    def parameter_identifiers(self):
+        if self.share_params:
+            return [self.name]
+        else:
+            return ["{:s}:{:s}".format(self.name, f) for f in self.features]
+
