@@ -11,6 +11,7 @@ from beastling.report import BeastlingGeoJSON
 import beastling.configuration
 from beastling.extractor import extract
 
+wrap_errors = Exception
 
 def errmsg(msg):
     sys.stderr.write(msg)
@@ -81,7 +82,7 @@ def do_extract(args):
         sys.exit(2)
     try:
         messages = extract(args.config[0], args.overwrite)
-    except Exception as e:
+    except wrap_errors as e:
         errmsg("Error encountered while extracting BEASTling config and/or data files:\n")
         traceback.print_exc()
         sys.exit(3)
@@ -102,7 +103,7 @@ def do_generate(args):
     try:
         config = beastling.configuration.Configuration(
             configfile=args.config, stdin_data=args.stdin, prior=args.prior)
-    except Exception as e: # PRAGMA: NO COVER
+    except wrap_errors as e: # PRAGMA: NO COVER
         errmsg("Error encountered while parsing configuration file:\n")
         traceback.print_exc()
         sys.exit(2)
@@ -117,7 +118,7 @@ def do_generate(args):
     # the time to process the config object
     try:
         config.process()
-    except Exception as e:
+    except wrap_errors as e:
         errmsg("Error encountered while parsing configuration file:\n")
         traceback.print_exc()
         sys.exit(2)
@@ -134,7 +135,7 @@ def do_generate(args):
     # Build XML file
     try:
         xml = BeastXml(config)
-    except Exception as e:
+    except wrap_errors as e:
         errmsg("Error encountered while building BeastXML object:\n")
         traceback.print_exc()
         sys.exit(3)
