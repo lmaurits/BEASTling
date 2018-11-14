@@ -29,6 +29,8 @@ import beastling.models.bsvs as bsvs
 import beastling.models.covarion as covarion
 import beastling.models.mk as mk
 
+from beastling.treepriors.base import TreePrior
+
 _BEAST_MAX_LENGTH = 2147483647
 GLOTTOLOG_NODE_LABEL = re.compile(
     "'(?P<name>[^\[]+)\[(?P<glottocode>[a-z0-9]{8})\](\[(?P<isocode>[a-z]{3})\])?(?P<appendix>-l-)?'")
@@ -183,6 +185,8 @@ class Configuration(object):
         """Number of languages to subsample from the set defined by the dataset(s) and other filtering options like "families" or "macroareas"."""
         self.tree_prior = "yule"
         """Tree prior.  Should generally not be set manually."""
+        self.treeprior = TreePrior()
+        """Tree prior object."""
 
         # Glottolog data
         self.glottolog_loaded = False
