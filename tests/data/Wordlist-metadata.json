@@ -37,7 +37,7 @@
                         "datatype": "string"
                     },
                     {
-                        "name": "Form",
+                        "name": "Value",
                         "required": true,
                         "propertyUrl": "http://cldf.clld.org/v1.0/terms.rdf#lexicalUnit",
                         "datatype": "string"
