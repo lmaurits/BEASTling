@@ -50,6 +50,7 @@ def test_basic():
         ("admin", "covarion_multistate", "ascertainment_true"),
         ("admin", "covarion_multistate", "rate_var"),
         ("admin", "covarion_multistate", "estimated_freqs"),
+        ("admin", "covarion_multistate", "log_fine_probs"),
         ("admin", "covarion_true_binary"),
         ("admin", "covarion_binarised"),
         ("admin", "bsvs", "robust_eigen"),

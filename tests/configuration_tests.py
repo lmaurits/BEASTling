@@ -158,7 +158,12 @@ class Tests(WithConfigAndTempDir):
     def test_mistyped_tree_filename(self):
         cfg = self._make_bad_cfg("bad_wrong_tree_filename")
         cfg.process()
-        
+
+    @raises(ValueError)
+    def test_bad_share_params(self):
+        cfg = self._make_bad_cfg("bad_share_params")
+        cfg.process()
+
     def test_calibration_string_formats(self):
         # Test lower bound format
         config = self._make_cfg('basic', 'calibration_lower_bound')
