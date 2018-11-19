@@ -50,7 +50,6 @@ def test_basic():
         ("admin", "covarion_multistate", "ascertainment_true"),
         ("admin", "covarion_multistate", "rate_var"),
         ("admin", "covarion_multistate", "estimated_freqs"),
-        ("admin", "covarion_multistate", "log_fine_probs"),
         ("admin", "covarion_true_binary"),
         ("admin", "covarion_binarised"),
         ("admin", "bsvs", "robust_eigen"),
@@ -139,7 +138,8 @@ skip = [
 
 
 def _do_test(config_files, inspector=None):
-    config = TEST_CASE.make_cfg([config_path(cf).as_posix() for cf in config_files])
+    configs = [config_path(cf).as_posix() for cf in config_files]
+    config = TEST_CASE.make_cfg(configs)
     xml = beastling.beastxml.BeastXml(config)
     temp_filename = TEST_CASE.tmp_path('test').as_posix()
     xml.write_file(temp_filename)
@@ -163,6 +163,15 @@ def _do_test(config_files, inspector=None):
                     config_files, e.returncode))
         if inspector:
             inspector(TEST_CASE.tmp)
+
+
+def test_fine_probabilites_are_logged():
+    """Test that for 'log_fine_probs=True', probabilites are logged."""
+    def assert_fine_probs(dir):
+        assert dir.joinpath("beastling_test.log").exists()
+    _do_test((
+        "admin", "covarion_multistate", "log_fine_probs"
+    ), inspector=assert_fine_probs)
 
 
 def test_asr_root_output_files():
