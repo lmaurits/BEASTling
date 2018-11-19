@@ -99,14 +99,24 @@ class BinaryModel(BaseModel):
         self.missing_ratios = {}
         self.counts = {}
         self.codemaps = {}
+        self.feature_has_unknown_values = {}
         for f in self.features:
             # Compute various things
             all_values = []
+            self.feature_has_unknown_values[f] = False
+            # Track whether any “unknown” values were encountered. The
+            # difference between “unknown” and “absent” values matters: Assume
+            # we have a feature with 3 possible values, A, B and C. Then "A"
+            # would be binarized as "100", "B" as "010", "AB" as "110", "-" as
+            # "000", "A-" as "100", but "?" as "???" and "A?" as "1??".
             for l, values in self.data.items():
                 if f in values:
                     raw = values[f]
                     while "-" in raw:
                         raw.remove("-")
+                    while "?" in raw:
+                        raw.remove("?")
+                        self.feature_has_unknown_values[f] = True
                     all_values.append(raw)
             missing_data_ratio = 1 - len(all_values) / len(self.data)
             non_q_values = [v for vs in all_values for v in vs]
@@ -144,7 +154,7 @@ class BinaryModel(BaseModel):
         if such columns exist.
 
         """
-        return (["{:}_dummy{:d}".format(feature, i) for i in range(self.extracolumns[feature])] +
+        return (["{:}_dummy{:d}".format(feature, i) for i in range(len(self.extracolumns[feature]))] +
                 ["{:}_{:}".format(feature, i) for i in self.unique_values[feature]])
 
     def format_datapoint(self, feature, point):
@@ -155,26 +165,26 @@ class BinaryModel(BaseModel):
         else:
             # This is multistate data recoded into binary data.
             if self.ascertained:
-                extra_columns = 2
+                extra_columns = ["0", "1"]
             else:
                 # If we are not ascertaining on non-constant data, we still
                 # need to add one "all zeros" column to account for the recoding
-                extra_columns = 1
+                extra_columns = ["0"]
             self.extracolumns[feature] = extra_columns
-            if point == "?" or point == ["?"]:
-                valuestring = "".join(["?" for i in range(0,self.valuecounts[feature]+extra_columns)])
+            # Start with all zeros/question marks
+            if self.feature_has_unknown_values[feature]:
+                absent = "?"
             else:
-                # Start with all zeros
-                valuestring = ["0" for i in range(0,self.valuecounts[feature] +  extra_columns)]
-                # If we're doing full ascertainment we need to set the 2nd extra column to 1
-                if self.ascertained:
-                    valuestring[1] = "1"
-                # Set the appropriate data column to 1
-                for subpoint in point:
-                    valuestring[
-                        extra_columns +
-                        self.unique_values[feature].index(subpoint)] = "1"
-                valuestring = "".join(valuestring)
+                absent = "0"
+
+                valuestring = extra_columns + [
+                    absent for i in range(0, self.valuecounts[feature])]
+            # Set the appropriate data column to 1
+            for subpoint in point:
+                valuestring[
+                    len(extra_columns) +
+                    self.unique_values[feature].index(subpoint)] = "1"
+            valuestring = "".join(valuestring)
             return valuestring
 
     def add_feature_data(self, distribution, index, feature, fname):
@@ -211,10 +221,11 @@ class BinaryModelWithShareParams(BinaryModel):
         if self.binarised:
             for f in features:
                 for lang in self.data:
-                    if self.data[lang][f] == "?":
-                        continue
-                    dpoint, index = self.data[lang][f], self.unique_values[f].index(self.data[lang][f])
-                    all_data.append(index)
+                    for value in self.data[lang][f]:
+                        if value == "?":
+                            continue
+                        dpoint, index = value, self.unique_values[f].index(value)
+                        all_data.append(index)
         else:
             for f in features:
                 for lang in self.data:

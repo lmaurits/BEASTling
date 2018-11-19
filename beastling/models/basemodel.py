@@ -216,13 +216,15 @@ class BaseModel(object):
         last of these data points as the one to be included in the analysis.
 
         """
-        return list_of_data_points[-1]
+        try:
+            return list_of_data_points[-1]
+        except IndexError:
+            return "?"
 
     def compute_feature_properties(self):
         """
         Compute various items of metadata for all remaining features.
         """
-
         self.valuecounts = {}
         self.extracolumns = collections.defaultdict(int)
         self.unique_values = {}
