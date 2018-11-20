@@ -5,10 +5,14 @@ class TreePrior (object):
     tree_id = "Tree.t:beastlingTree"
 
     def add_state_nodes(self, beastxml):
-        beastxml.tree = ET.SubElement(beastxml.state, "tree", {"id":"Tree.t:beastlingTree", "name":"stateNode"})
-        beastxml.add_taxon_set(beastxml.tree, "taxa", beastxml.config.languages, define_taxa=True)
+        """
+        Add tree-related <state> sub-elements.
+        """
+        state = beastxml.state
+        self.tree = ET.SubElement(state, "tree", {"id": self.tree_id, "name": "stateNode"})
+        beastxml.add_taxon_set(self.tree, "taxa", beastxml.config.languages, define_taxa=True)
         if beastxml.config.tree_prior in ["yule", "birthdeath"]:
-            param = ET.SubElement(beastxml.state, "parameter", {"id":"birthRate.t:beastlingTree","name":"stateNode"})
+            param = ET.SubElement(state, "parameter", {"id":"birthRate.t:beastlingTree","name":"stateNode"})
             if beastxml.birthrate_estimate is not None:
                 param.text=str(beastxml.birthrate_estimate)
             else:
@@ -52,6 +56,21 @@ class TreePrior (object):
         config.birthrate_estimate = round(sum(birthrate_estimates) / len(birthrate_estimates), 4)
         # Find the expected height of a tree with this birthrate
         config.treeheight_estimate = round((1.0/config.birthrate_estimate)*(log(len(config.config.languages)) + 0.5772156649 - 1), 4)
+
+    def add_tip_heights(self, beastxml):
+        string_bits = []
+        for cal in beastxml.config.tip_calibrations.values():
+            initial_height = cal.mean()
+            string_bits.append("{:s} = {:}".format(next(cal.langs.__iter__()), initial_height))
+        trait_string = ",\n".join(string_bits)
+
+        datetrait = ET.SubElement(self.tree, "trait",
+                      {"id": "datetrait",
+                       "spec": "beast.evolution.tree.TraitSet",
+                       "taxa": "@taxa",
+                       "traitname": "date-backward"})
+        datetrait.text = trait_string
+
 
     def add_init(self, beastxml):
         """

@@ -179,31 +179,14 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         Add the <state> element and all its descendants.
         """
         self.state = ET.SubElement(self.run, "state", {"id":"state","storeEvery":"5000"})
-        self.add_tree_state()
+        self.config.treeprior.add_state_nodes(self)
         for clock in self.config.clocks:
             clock.add_state(self.state)
         for model in self.config.all_models:
             model.add_state(self.state)
 
     def add_tip_heights(self):
-        string_bits = []
-        for cal in self.config.tip_calibrations.values():
-            initial_height = cal.mean()
-            string_bits.append("{:s} = {:}".format(next(cal.langs.__iter__()), initial_height))
-        trait_string = ",\n".join(string_bits)
-
-        datetrait = ET.SubElement(self.tree, "trait",
-                      {"id": "datetrait",
-                       "spec": "beast.evolution.tree.TraitSet",
-                       "taxa": "@taxa",
-                       "traitname": "date-backward"})
-        datetrait.text = trait_string
-
-    def add_tree_state(self):
-        """
-        Add tree-related <state> sub-elements.
-        """
-        self.config.treeprior.add_state_nodes(self)
+        self.config.treeprior.add_tip_heights(self)
 
     def add_init(self):
         """
@@ -281,7 +264,7 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             self.add_taxon_set(cal_prior, taxonsetname, cal.langs)
 
             cal.generate_xml_element(cal_prior)
-            
+
     def add_taxon_set(self, parent, label, langs, define_taxa=False):
         """
         Add a TaxonSet element with the specified set of languages.
