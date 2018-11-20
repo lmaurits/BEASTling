@@ -217,7 +217,7 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         self.prior = ET.SubElement(self.posterior,"distribution",{"id":"prior","spec":"util.CompoundDistribution"})
         self.add_monophyly_constraints()
         self.add_calibrations()
-        self.add_tree_prior()
+        self.config.treeprior.add_prior(self)
         for clock in self.config.clocks:
             clock.add_prior(self.prior)
         for model in self.config.all_models:
@@ -304,9 +304,6 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             for lang in langs:
                 ET.SubElement(taxonset, "taxon", {"id" if define_taxa else "idref" : lang})
         self._taxon_sets[label] = langs
-
-    def add_tree_prior(self):
-        self.config.treeprior.add_prior(self)
 
     def add_likelihood(self):
         """
