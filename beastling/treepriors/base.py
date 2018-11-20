@@ -10,7 +10,7 @@ class TreePrior (object):
         """
         state = beastxml.state
         self.tree = ET.SubElement(state, "tree", {"id": self.tree_id, "name": "stateNode"})
-        beastxml.add_taxon_set(self.tree, "taxa", beastxml.config.languages, define_taxa=True)
+        ET.SubElement(self.tree, "taxa", {"idref": "taxa"})
         if beastxml.config.tree_prior in ["yule", "birthdeath"]:
             param = ET.SubElement(state, "parameter", {"id":"birthRate.t:beastlingTree","name":"stateNode"})
             if beastxml.birthrate_estimate is not None:

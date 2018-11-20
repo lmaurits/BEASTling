@@ -53,6 +53,7 @@ class BeastXml(object):
         attribs["namespace"] = "beast.core:beast.evolution.alignment:beast.evolution.tree.coalescent:beast.core.util:beast.evolution.nuc:beast.evolution.operators:beast.evolution.sitemodel:beast.evolution.substitutionmodel:beast.evolution.likelihood"
         attribs["version"] ="2.0"
         self.beast = ET.Element("beast", attrib=attribs)
+        self.add_taxon_set(self.beast, "taxa", self.config.languages, define_taxa=True)
         self.add_beastling_comment()
         self.embed_data()
         self.add_maps()
