@@ -3,9 +3,10 @@ from math import log, exp
 
 class TreePrior (object):
     tree_id = "Tree.t:beastlingTree"
+    type = None
 
-    def __init__(self, type='yule'):
-        self.type = type.lower()
+    def __init__(self):
+        pass
 
     def add_state_nodes(self, beastxml):
         """
@@ -117,125 +118,8 @@ class TreePrior (object):
         ET.SubElement(popmod, "popSize", {"spec":"parameter.RealParameter","value":"1"})
 
     def add_prior(self, beastxml):
-        if self.type == "yule":
-            self.add_yule_tree_prior(beastxml)
-        elif self.type == "birthdeath":
-            self.add_birthdeath_tree_prior(beastxm)
-        elif self.type == "coalescent":
-            self.add_coalescent_tree_prior(beastxml)
-        elif self.type == "uniform":
-            pass
-        else:
-            raise ValueError("Tree prior {:} is unknown.".format(
-                self.type))
-
-    def add_birthdeath_tree_prior(self, beastxml):
-        """Add a (calibrated) birth-death tree prior."""
-        # Tree prior
-
-        attribs = {}
-        attribs["id"] = "BirthDeathModel.t:beastlingTree"
-        attribs["tree"] = "@Tree.t:beastlingTree"
-        attribs["spec"] = "beast.evolution.speciation.BirthDeathGernhard08Model"
-        attribs["birthRate"] = "@birthRate.t:beastlingTree"
-        attribs["relativeDeathRate"] = "@deathRate.t:beastlingTree"
-        attribs["sampleProbability"] = "@sampling.t:beastlingTree"
-        attribs["type"] = "restricted"
-
-        # Birth rate prior
-        attribs = {}
-        attribs["id"] = "BirthRatePrior.t:beastlingTree"
-        attribs["name"] = "distribution"
-        attribs["x"] = "@birthRate.t:beastlingTree"
-        sub_prior = ET.SubElement(beastxml.prior, "prior", attribs)
-        uniform = ET.SubElement(sub_prior, "Uniform",
-                                {"id": "Uniform.0",
-                                 "name": "distr",
-                                 "upper": "Infinity"})
-
-        # Relative death rate prior
-        attribs = {}
-        attribs["id"] = "relativeDeathRatePrior.t:beastlingTree"
-        attribs["name"] = "distribution"
-        attribs["x"] = "@deathRate.t:beastlingTree"
-        sub_prior = ET.SubElement(beastxml.prior, "prior", attribs)
-        uniform = ET.SubElement(sub_prior, "Uniform",
-                                {"id": "Uniform.1",
-                                 "name": "distr",
-                                 "upper": "Infinity"})
-
-        # Sample probability prior
-        attribs = {}
-        attribs["id"] = "samplingPrior.t:beastlingTree"
-        attribs["name"] = "distribution"
-        attribs["x"] = "@sampling.t:beastlingTree"
-        sub_prior = ET.SubElement(beastxml.prior, "prior", attribs)
-        uniform = ET.SubElement(sub_prior, "Uniform",
-                                {"id": "Uniform.3",
-                                 "name": "distr",
-                                 "lower": "0",
-                                 "upper": "1"})
-
-
-    def add_yule_tree_prior(self, beastxml):
-        """
-        Add Yule birth-process tree prior.
-        """
-        # Tree prior
-        ## Decide whether to use the standard Yule or the fancy calibrated one
-        if len(beastxml.config.calibrations) == 1:
-            yule = "calibrated"
-        elif len(beastxml.config.calibrations) == 2:
-            # Two calibrations can be handled by the calibrated Yule if they
-            # are nested
-            langs1, langs2 = [c.langs for c in beastxml.config.calibrations.values()]
-            if len(set(langs1) & set(langs2)) in (len(langs1), len(langs2)):
-                yule = "calibrated"
-            else:
-                yule = "standard"
-        else:
-            yule = "standard"
-
-        attribs = {}
-        attribs["id"] = "YuleModel.t:beastlingTree"
-        attribs["tree"] = "@Tree.t:beastlingTree"
-        if yule == "standard":
-            attribs["spec"] = "beast.evolution.speciation.YuleModel"
-            attribs["birthDiffRate"] = "@birthRate.t:beastlingTree"
-            if "root" in beastxml.config.calibrations:
-                attribs["conditionalOnRoot"] = "true"
-        elif yule == "calibrated":
-            attribs["spec"] = "beast.evolution.speciation.CalibratedYuleModel"
-            attribs["birthRate"] = "@birthRate.t:beastlingTree"
-        ET.SubElement(beastxml.prior, "distribution", attribs)
-
-        # Birth rate prior
-        attribs = {}
-        attribs["id"] = "YuleBirthRatePrior.t:beastlingTree"
-        attribs["name"] = "distribution"
-        attribs["x"] = "@birthRate.t:beastlingTree"
-        sub_prior = ET.SubElement(beastxml.prior, "prior", attribs)
-        uniform = ET.SubElement(sub_prior, "Uniform", {"id":"Uniform.0","name":"distr","upper":"Infinity"})
-
-    def add_coalescent_tree_prior(self, beastxml):
-
-        coalescent = ET.SubElement(beastxml.prior, "distribution", {
-            "id": "Coalescent.t:beastlingTree",
-            "spec": "Coalescent",
-            })
-        popmod = ET.SubElement(coalescent, "populationModel", {
-            "id": "ConstantPopulation:beastlingTree",
-            "spec": "ConstantPopulation",
-            })
-        ET.SubElement(popmod, "parameter", {
-            "idref": "popSize.t:beastlingTree",
-            "name": "popSize",
-            })
-        ET.SubElement(coalescent, "treeIntervals", {
-            "id": "TreeIntervals",
-            "spec": "TreeIntervals",
-            "tree": "@Tree.t:beastlingTree",
-            })
+        raise ValueError("Tree prior {:} is unknown.".format(
+            self.type))
 
     def add_operators(self, beastxml):
         """
@@ -384,16 +268,138 @@ class TreePrior (object):
 
 class YuleTree (TreePrior):
     def __init__(self):
-        super(YuleTree, self).__init__("yule")
+        super(YuleTree, self).__init__()
+        self.type = "yule"
+
+    def add_prior(self, beastxml):
+        """
+        Add Yule birth-process tree prior.
+        """
+        # Tree prior
+        ## Decide whether to use the standard Yule or the fancy calibrated one
+        if len(beastxml.config.calibrations) == 1:
+            yule = "calibrated"
+        elif len(beastxml.config.calibrations) == 2:
+            # Two calibrations can be handled by the calibrated Yule if they
+            # are nested
+            langs1, langs2 = [c.langs for c in beastxml.config.calibrations.values()]
+            if len(set(langs1) & set(langs2)) in (len(langs1), len(langs2)):
+                yule = "calibrated"
+            else:
+                yule = "standard"
+        else:
+            yule = "standard"
+
+        attribs = {}
+        attribs["id"] = "YuleModel.t:beastlingTree"
+        attribs["tree"] = "@Tree.t:beastlingTree"
+        if yule == "standard":
+            attribs["spec"] = "beast.evolution.speciation.YuleModel"
+            attribs["birthDiffRate"] = "@birthRate.t:beastlingTree"
+            if "root" in beastxml.config.calibrations:
+                attribs["conditionalOnRoot"] = "true"
+        elif yule == "calibrated":
+            attribs["spec"] = "beast.evolution.speciation.CalibratedYuleModel"
+            attribs["birthRate"] = "@birthRate.t:beastlingTree"
+        ET.SubElement(beastxml.prior, "distribution", attribs)
+
+        # Birth rate prior
+        attribs = {}
+        attribs["id"] = "YuleBirthRatePrior.t:beastlingTree"
+        attribs["name"] = "distribution"
+        attribs["x"] = "@birthRate.t:beastlingTree"
+        sub_prior = ET.SubElement(beastxml.prior, "prior", attribs)
+        uniform = ET.SubElement(sub_prior, "Uniform", {"id":"Uniform.0","name":"distr","upper":"Infinity"})
+
 
 class BirthDeathTree (TreePrior):
     def __init__(self):
-        super(BirthDeathTree, self).__init__("birthdeath")
+        super(BirthDeathTree, self).__init__()
+        self.type = "birthdeath"
+
+    def add_prior(self, beastxml):
+        """Add a (calibrated) birth-death tree prior."""
+        # Tree prior
+
+        attribs = {}
+        attribs["id"] = "BirthDeathModel.t:beastlingTree"
+        attribs["tree"] = "@Tree.t:beastlingTree"
+        attribs["spec"] = "beast.evolution.speciation.BirthDeathGernhard08Model"
+        attribs["birthRate"] = "@birthRate.t:beastlingTree"
+        attribs["relativeDeathRate"] = "@deathRate.t:beastlingTree"
+        attribs["sampleProbability"] = "@sampling.t:beastlingTree"
+        attribs["type"] = "restricted"
+
+        # Birth rate prior
+        attribs = {}
+        attribs["id"] = "BirthRatePrior.t:beastlingTree"
+        attribs["name"] = "distribution"
+        attribs["x"] = "@birthRate.t:beastlingTree"
+        sub_prior = ET.SubElement(beastxml.prior, "prior", attribs)
+        uniform = ET.SubElement(sub_prior, "Uniform",
+                                {"id": "Uniform.0",
+                                 "name": "distr",
+                                 "upper": "Infinity"})
+
+        # Relative death rate prior
+        attribs = {}
+        attribs["id"] = "relativeDeathRatePrior.t:beastlingTree"
+        attribs["name"] = "distribution"
+        attribs["x"] = "@deathRate.t:beastlingTree"
+        sub_prior = ET.SubElement(beastxml.prior, "prior", attribs)
+        uniform = ET.SubElement(sub_prior, "Uniform",
+                                {"id": "Uniform.1",
+                                 "name": "distr",
+                                 "upper": "Infinity"})
+
+        # Sample probability prior
+        attribs = {}
+        attribs["id"] = "samplingPrior.t:beastlingTree"
+        attribs["name"] = "distribution"
+        attribs["x"] = "@sampling.t:beastlingTree"
+        sub_prior = ET.SubElement(beastxml.prior, "prior", attribs)
+        uniform = ET.SubElement(sub_prior, "Uniform",
+                                {"id": "Uniform.3",
+                                 "name": "distr",
+                                 "lower": "0",
+                                 "upper": "1"})
 
 class CoalescentTree (TreePrior):
     def __init__(self):
-        super(CoalescentTree, self).__init__("coalescent")
+        super(CoalescentTree, self).__init__()
+        self.type = "coalescent"
+
+    def add_prior(self, beastxml):
+        """Add a Yule tree prior."""
+        coalescent = ET.SubElement(beastxml.prior, "distribution", {
+            "id": "Coalescent.t:beastlingTree",
+            "spec": "Coalescent",
+            })
+        popmod = ET.SubElement(coalescent, "populationModel", {
+            "id": "ConstantPopulation:beastlingTree",
+            "spec": "ConstantPopulation",
+            })
+        ET.SubElement(popmod, "parameter", {
+            "idref": "popSize.t:beastlingTree",
+            "name": "popSize",
+            })
+        ET.SubElement(coalescent, "treeIntervals", {
+            "id": "TreeIntervals",
+            "spec": "TreeIntervals",
+            "tree": "@Tree.t:beastlingTree",
+            })
+
 
 class UniformTree (TreePrior):
     def __init__(self):
-        super(UniformTree, self).__init__("uniform")
+        super(UniformTree, self).__init__()
+        self.type = "uniform"
+
+    def add_prior(self, beastxml):
+        """Add nothing.
+
+        For a uniform tree prior, all trees have the same probability, so the
+        tree prior can remain implicit and unspecified.
+
+        """
+        pass
