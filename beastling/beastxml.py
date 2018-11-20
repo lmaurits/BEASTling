@@ -186,9 +186,6 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         for model in self.config.all_models:
             model.add_state(self.state)
 
-    def add_tip_heights(self):
-        self.config.treeprior.add_tip_heights(self)
-
     def add_init(self):
         """
         Add the <init> element and all its descendants.

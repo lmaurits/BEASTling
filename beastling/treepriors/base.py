@@ -33,7 +33,7 @@ class TreePrior (object):
             param = ET.SubElement(beastxml.state, "parameter", {"id":"popSize.t:beastlingTree","name":"stateNode"})
             param.text="1.0"
         if beastxml.config.tip_calibrations:
-            beastxml.add_tip_heights()
+            self.add_tip_heights(beastxml)
 
     def estimate_height(self, config):
         birthrate_estimates = []
