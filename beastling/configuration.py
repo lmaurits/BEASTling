@@ -1,3 +1,5 @@
+# -*- encoding: utf-8 -*-
+
 from __future__ import division, unicode_literals
 import collections
 import importlib
