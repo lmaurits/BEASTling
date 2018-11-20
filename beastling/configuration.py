@@ -29,7 +29,7 @@ import beastling.models.bsvs as bsvs
 import beastling.models.covarion as covarion
 import beastling.models.mk as mk
 
-from beastling.treepriors.base import TreePrior
+import beastling.treepriors.base as treepriors
 
 _BEAST_MAX_LENGTH = 2147483647
 GLOTTOLOG_NODE_LABEL = re.compile(
@@ -184,9 +184,7 @@ class Configuration(object):
         self.subsample_size = 0
         """Number of languages to subsample from the set defined by the dataset(s) and other filtering options like "families" or "macroareas"."""
         self.tree_prior = "yule"
-        """Tree prior.  Should generally not be set manually."""
-        self.treeprior = TreePrior()
-        """Tree prior object."""
+        """Tree prior. Can be overridden by calibrations."""
 
         # Glottolog data
         self.glottolog_loaded = False
@@ -477,11 +475,12 @@ class Configuration(object):
         # We also know what kind of tree prior we need to have –
         # instantiate_calibrations may have changed the type if tip
         # calibrations exist.
-        self.treeprior = TreePrior(self.tree_prior)
-        del self.tree_prior
-        # This is mostly for debugging reasons. We want to make sure that
-        # any future references are to the TreePrior object, not to the
-        # description string.
+        try:
+            self.treeprior = {
+                "yule": treepriors.YuleTree
+            }[self.tree_prior]()
+        except KeyError:
+            self.treeprior = TreePrior(self.tree_prior)
 
         # Now we can set the value of the ascertained attribute of each model
         # Ideally this would happen during process_models, but this is impossible

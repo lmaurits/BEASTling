@@ -382,3 +382,6 @@ class TreePrior (object):
                     })
                 beastxml.add_taxon_set(tiprandomwalker, taxon, (taxon,))
 
+class YuleTree (TreePrior):
+    def __init__(self):
+        super(YuleTree, self).__init__("yule")
