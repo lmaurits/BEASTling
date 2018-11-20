@@ -33,7 +33,7 @@ class TreePrior (object):
             param = ET.SubElement(beastxml.state, "parameter", {"id":"popSize.t:beastlingTree","name":"stateNode"})
             param.text="1.0"
         if beastxml.config.tip_calibrations:
-            self.add_tip_heights(beastxml)
+            self.add_tip_heights(beastxml.config.tip_calibrations)
 
     def estimate_height(self, config):
         birthrate_estimates = []
@@ -61,9 +61,18 @@ class TreePrior (object):
         # Find the expected height of a tree with this birthrate
         config.treeheight_estimate = round((1.0/config.birthrate_estimate)*(log(len(config.config.languages)) + 0.5772156649 - 1), 4)
 
-    def add_tip_heights(self, beastxml):
+    def add_tip_heights(self, tip_calibrations):
+        """Add the <trait> element for tip dates to self.treeheight
+
+        Take the tip calibrations passed and add a tree <trait> which
+        represents the ages of the tips, in arbitrary (but consistent) time
+        units befor a reference date, eg. BP.
+
+        """
+        if not tip_calibrations:
+            return
         string_bits = []
-        for cal in beastxml.config.tip_calibrations.values():
+        for cal in tip_calibrations.values():
             initial_height = cal.mean()
             string_bits.append("{:s} = {:}".format(next(cal.langs.__iter__()), initial_height))
         trait_string = ",\n".join(string_bits)
@@ -74,7 +83,6 @@ class TreePrior (object):
                        "taxa": "@taxa",
                        "traitname": "date-backward"})
         datetrait.text = trait_string
-
 
     def add_init(self, beastxml):
         """
