@@ -17,8 +17,8 @@ class TreePrior (object):
         ET.SubElement(self.tree, "taxonset", {"idref": "taxa"})
         if self.type in ["yule", "birthdeath"]:
             param = ET.SubElement(state, "parameter", {"id":"birthRate.t:beastlingTree","name":"stateNode"})
-            if beastxml.birthrate_estimate is not None:
-                param.text=str(beastxml.birthrate_estimate)
+            if self.birthrate_estimate is not None:
+                param.text=str(self.birthrate_estimate)
             else:
                 param.text="1.0"
             if self.type in ["birthdeath"]:
@@ -53,13 +53,15 @@ class TreePrior (object):
             birthrate_estimates.append(birthrate)
         # If there were no calibrations that could be used, return a non-esitmate
         if not birthrate_estimates:
-            config.birthrate_estimate = None
-            config.treeheight_estimate = None
+            self.birthrate_estimate = None
+            self.treeheight_estimate = None
             return
         # Find the mean birthrate estimate
-        config.birthrate_estimate = round(sum(birthrate_estimates) / len(birthrate_estimates), 4)
+        self.birthrate_estimate = round(sum(birthrate_estimates) / len(birthrate_estimates), 4)
         # Find the expected height of a tree with this birthrate
-        config.treeheight_estimate = round((1.0/config.birthrate_estimate)*(log(len(config.config.languages)) + 0.5772156649 - 1), 4)
+        self.treeheight_estimate = round((1.0 / self.birthrate_estimate)
+                                         * (log(len(config.config.languages))
+                                            + 0.5772156649 - 1), 4)
 
     def add_tip_heights(self, tip_calibrations):
         """Add the <trait> element for tip dates to self.treeheight
@@ -105,22 +107,22 @@ class TreePrior (object):
 
     def add_randomtree_init(self, beastxml):
         attribs = {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "taxonset":"@taxa", "spec":"beast.evolution.tree.RandomTree"}
-        if beastxml.birthrate_estimate is not None:
-            attribs["rootHeight"] = str(beastxml.treeheight_estimate)
+        if self.birthrate_estimate is not None:
+            attribs["rootHeight"] = str(self.treeheight_estimate)
         beastxml.init = ET.SubElement(beastxml.run, "init", attribs)
         popmod = ET.SubElement(beastxml.init, "populationModel", {"spec":"ConstantPopulation"})
         ET.SubElement(popmod, "popSize", {"spec":"parameter.RealParameter","value":"1"})
 
     def add_simplerandomtree_init(self, beastxml):
         attribs = {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "taxonset":"@taxa", "spec":"beast.evolution.tree.SimpleRandomTree"}
-        if beastxml.birthrate_estimate is not None:
-            attribs["rootHeight"] = str(beastxml.treeheight_estimate)
+        if self.birthrate_estimate is not None:
+            attribs["rootHeight"] = str(self.treeheight_estimate)
         beastxml.init = ET.SubElement(beastxml.run, "init", attribs)
 
     def add_constrainedrandomtree_init(self, beastxml):
         attribs = {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "taxonset":"@taxa", "spec":"beast.evolution.tree.ConstrainedRandomTree", "constraints":"@constraints"}
-        if beastxml.birthrate_estimate is not None:
-            attribs["rootHeight"] = str(beastxml.treeheight_estimate)
+        if self.birthrate_estimate is not None:
+            attribs["rootHeight"] = str(self.treeheight_estimate)
         beastxml.init = ET.SubElement(beastxml.run, "init", attribs)
         popmod = ET.SubElement(beastxml.init, "populationModel", {"spec":"ConstantPopulation"})
         ET.SubElement(popmod, "popSize", {"spec":"parameter.RealParameter","value":"1"})
