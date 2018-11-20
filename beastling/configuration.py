@@ -473,6 +473,16 @@ class Configuration(object):
         # At this point, we can tell whether or not the tree's length units
         # can be treated as arbitrary
         self.arbitrary_tree = self.sample_branch_lengths and not self.calibrations
+
+        # We also know what kind of tree prior we need to have –
+        # instantiate_calibrations may have changed the type if tip
+        # calibrations exist.
+        self.treeprior = TreePrior(self.tree_prior)
+        del self.tree_prior
+        # This is mostly for debugging reasons. We want to make sure that
+        # any future references are to the TreePrior object, not to the
+        # description string.
+
         # Now we can set the value of the ascertained attribute of each model
         # Ideally this would happen during process_models, but this is impossible
         # as set_ascertained() relies upon the value of arbitrary_tree defined above,
@@ -1103,8 +1113,6 @@ class Configuration(object):
 
                 self.messages.append("[INFO] Calibration on clade '%s' matches only one language.  Ignoring due to ambiguity.  Use 'originate(%s)' if this was supposed to be an originate calibration, or explicitly identify the single language using '%s' if this was supposed to be a tip calibration." % (clade, clade, langs[0]))
                 continue
-
-            self.treeprior = TreePrior(self.tree_prior)
 
             # Make sure this calibration point, which will induce a monophyly
             # constraint, does not conflict with the overall monophyly

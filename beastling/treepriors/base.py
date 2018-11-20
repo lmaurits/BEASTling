@@ -5,7 +5,7 @@ class TreePrior (object):
     tree_id = "Tree.t:beastlingTree"
 
     def __init__(self, type='yule'):
-        self.type = type
+        self.type = type.lower()
 
     def add_state_nodes(self, beastxml):
         """
@@ -14,13 +14,13 @@ class TreePrior (object):
         state = beastxml.state
         self.tree = ET.SubElement(state, "tree", {"id": self.tree_id, "name": "stateNode"})
         ET.SubElement(self.tree, "taxonset", {"idref": "taxa"})
-        if beastxml.config.tree_prior in ["yule", "birthdeath"]:
+        if self.type in ["yule", "birthdeath"]:
             param = ET.SubElement(state, "parameter", {"id":"birthRate.t:beastlingTree","name":"stateNode"})
             if beastxml.birthrate_estimate is not None:
                 param.text=str(beastxml.birthrate_estimate)
             else:
                 param.text="1.0"
-            if beastxml.config.tree_prior in ["birthdeath"]:
+            if self.type in ["birthdeath"]:
                 ET.SubElement(beastxml.state, "parameter",
                               {"id": "deathRate.t:beastlingTree",
                                "name": "stateNode"}).text = "0.5"
@@ -28,7 +28,7 @@ class TreePrior (object):
                               {"id": "sampling.t:beastlingTree",
                                "name": "stateNode"}).text = "0.2"
 
-        elif beastxml.config.tree_prior == "coalescent":
+        elif self.type == "coalescent":
             param = ET.SubElement(beastxml.state, "parameter", {"id":"popSize.t:beastlingTree","name":"stateNode"})
             param.text="1.0"
         if beastxml.config.tip_calibrations:
@@ -117,17 +117,17 @@ class TreePrior (object):
         ET.SubElement(popmod, "popSize", {"spec":"parameter.RealParameter","value":"1"})
 
     def add_prior(self, beastxml):
-        if beastxml.config.tree_prior.lower() == "yule":
+        if self.type == "yule":
             self.add_yule_tree_prior(beastxml)
-        elif beastxml.config.tree_prior.lower() == "birthdeath":
+        elif self.type == "birthdeath":
             self.add_birthdeath_tree_prior(beastxm)
-        elif beastxml.config.tree_prior.lower() == "coalescent":
+        elif self.type == "coalescent":
             self.add_coalescent_tree_prior(beastxml)
-        elif beastxml.config.tree_prior.lower() == "uniform":
+        elif self.type == "uniform":
             pass
         else:
             raise ValueError("Tree prior {:} is unknown.".format(
-                beastxml.config.tree_prior.lower()))
+                self.type))
 
     def add_birthdeath_tree_prior(self, beastxml):
         """Add a (calibrated) birth-death tree prior."""
@@ -305,19 +305,19 @@ class TreePrior (object):
                 self.add_taxon_set(tiprandomwalker, taxon, (taxon,))
 
     def add_logging(self, beastxml, tracer_logger):
-        if beastxml.config.tree_prior in ["yule", "birthdeath"]:
+        if self.type in ["yule", "birthdeath"]:
             ET.SubElement(tracer_logger,"log",{"idref":"birthRate.t:beastlingTree"})
-            if beastxml.config.tree_prior in ["birthdeath"]:
+            if self.type in ["birthdeath"]:
                 ET.SubElement(tracer_logger, "log",
                                 {"idref": "deathRate.t:beastlingTree"})
                 ET.SubElement(tracer_logger, "log",
                                 {"idref": "sampling.t:beastlingTree"})
-        elif beastxml.config.tree_prior == "coalescent":
+        elif self.type == "coalescent":
             ET.SubElement(tracer_logger,"log",{"idref":"popSize.t:beastlingTree"})
 
-        if beastxml.config.tree_prior == "yule":
+        if self.type == "yule":
             ET.SubElement(tracer_logger,"log",{"idref":"birthRate.t:beastlingTree"})
-        elif beastxml.config.tree_prior == "coalescent":
+        elif self.type == "coalescent":
             ET.SubElement(tracer_logger,"log",{"idref":"popSize.t:beastlingTree"})
 
         # Log tree height
@@ -351,7 +351,7 @@ class TreePrior (object):
             ET.SubElement(beastxml.run, "operator", {"id":"treeScaler.t:beastlingTree","scaleFactor":"0.5","spec":"ScaleOperator","tree":"@Tree.t:beastlingTree","weight":"3.0"})
             ET.SubElement(beastxml.run, "operator", {"id":"treeRootScaler.t:beastlingTree","scaleFactor":"0.5","spec":"ScaleOperator","tree":"@Tree.t:beastlingTree","rootOnly":"true","weight":"3.0"})
             ## Up/down operator which scales tree height
-            if beastxml.config.tree_prior == "yule":
+            if self.type == "yule":
                 updown = ET.SubElement(beastxml.run, "operator", {"id":"UpDown","spec":"UpDownOperator","scaleFactor":"0.5", "weight":"3.0"})
                 ET.SubElement(updown, "tree", {"idref":"Tree.t:beastlingTree", "name":"up"})
                 ET.SubElement(updown, "parameter", {"idref":"birthRate.t:beastlingTree", "name":"down"})
@@ -361,11 +361,11 @@ class TreePrior (object):
                         if clock.estimate_rate:
                             ET.SubElement(updown, "parameter", {"idref":clock.mean_rate_id, "name":"down"})
 
-        if beastxml.config.tree_prior == "yule":
+        if self.type == "yule":
             # Birth rate scaler
             # Birth rate is *always* scaled.
             ET.SubElement(beastxml.run, "operator", {"id":"YuleBirthRateScaler.t:beastlingTree","spec":"ScaleOperator","parameter":"@birthRate.t:beastlingTree", "scaleFactor":"0.5", "weight":"3.0"})
-        elif beastxml.config.tree_prior == "coalescent":
+        elif self.type == "coalescent":
             ET.SubElement(beastxml.run, "operator", {"id":"PopulationSizeScaler.t:beastlingTree","spec":"ScaleOperator","parameter":"@popSize.t:beastlingTree", "scaleFactor":"0.5", "weight":"3.0"})
 
         # Add a Tip Date scaling operator if required
