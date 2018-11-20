@@ -385,3 +385,15 @@ class TreePrior (object):
 class YuleTree (TreePrior):
     def __init__(self):
         super(YuleTree, self).__init__("yule")
+
+class BirthDeathTree (TreePrior):
+    def __init__(self):
+        super(BirthDeathTree, self).__init__("birthdeath")
+
+class CoalescentTree (TreePrior):
+    def __init__(self):
+        super(CoalescentTree, self).__init__("coalescent")
+
+class UniformTree (TreePrior):
+    def __init__(self):
+        super(UniformTree, self).__init__("uniform")

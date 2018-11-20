@@ -475,12 +475,12 @@ class Configuration(object):
         # We also know what kind of tree prior we need to have –
         # instantiate_calibrations may have changed the type if tip
         # calibrations exist.
-        try:
-            self.treeprior = {
-                "yule": treepriors.YuleTree
-            }[self.tree_prior]()
-        except KeyError:
-            self.treeprior = TreePrior(self.tree_prior)
+        self.treeprior = {
+            "uniform": treepriors.UniformTree,
+            "yule": treepriors.YuleTree,
+            "birthdeath": treepriors.BirthDeathTree,
+            "coalescent": treepriors.CoalescentTree
+        }[self.tree_prior.lower()]()
 
         # Now we can set the value of the ascertained attribute of each model
         # Ideally this would happen during process_models, but this is impossible
