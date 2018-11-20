@@ -531,26 +531,20 @@ class BaseModel(object):
             return self._standard_format_datapoint(feature, point)
 
     def _standard_format_datapoint(self, feature, point):
-        if point:
-            # Taking the last entry is not the only option, but it is the most
-            # obvious and backward-compatible one.
-            selected_value = point[-1]
-            return str(self.unique_values[feature].index(selected_value))
-        else:
+        if point == "?":
             return point
+        else:
+            return str(self.unique_values[feature].index(point))
 
     def _ascertained_format_datapoint(self, feature, point):
         extra_cols = self.valuecounts[feature]
         self.extracolumns[feature] = extra_cols
-        if point:
-            # Taking the last entry is not the only option, but it is the most
-            # obvious and backward-compatible one.
-            selected_value = point[-1]
-            cols = list(range(0, extra_cols))
-            cols.append(self.unique_values[feature].index(selected_value))
-            return self.data_separator.join(map(str, cols))
-        else:
+        if point == "?":
             return self.data_separator.join(["?" for i in range(0, extra_cols + 1)])
+        else:
+            cols = list(range(0, extra_cols))
+            cols.append(self.unique_values[feature].index(point))
+            return self.data_separator.join(map(str, cols))
 
     def add_feature_data(self, distribution, index, feature, fname):
         """
