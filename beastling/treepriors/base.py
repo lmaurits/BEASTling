@@ -4,13 +4,16 @@ from math import log, exp
 class TreePrior (object):
     tree_id = "Tree.t:beastlingTree"
 
+    def __init__(self, type='yule'):
+        self.type = type
+
     def add_state_nodes(self, beastxml):
         """
         Add tree-related <state> sub-elements.
         """
         state = beastxml.state
         self.tree = ET.SubElement(state, "tree", {"id": self.tree_id, "name": "stateNode"})
-        ET.SubElement(self.tree, "taxa", {"idref": "taxa"})
+        ET.SubElement(self.tree, "taxonset", {"idref": "taxa"})
         if beastxml.config.tree_prior in ["yule", "birthdeath"]:
             param = ET.SubElement(state, "parameter", {"id":"birthRate.t:beastlingTree","name":"stateNode"})
             if beastxml.birthrate_estimate is not None:

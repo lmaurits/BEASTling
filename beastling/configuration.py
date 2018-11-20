@@ -1104,6 +1104,8 @@ class Configuration(object):
                 self.messages.append("[INFO] Calibration on clade '%s' matches only one language.  Ignoring due to ambiguity.  Use 'originate(%s)' if this was supposed to be an originate calibration, or explicitly identify the single language using '%s' if this was supposed to be a tip calibration." % (clade, clade, langs[0]))
                 continue
 
+            self.treeprior = TreePrior(self.tree_prior)
+
             # Make sure this calibration point, which will induce a monophyly
             # constraint, does not conflict with the overall monophyly
             # constraints from Glottolog or a user-tree
