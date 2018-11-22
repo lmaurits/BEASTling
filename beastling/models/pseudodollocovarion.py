@@ -118,11 +118,16 @@ class PseudoDolloCovarionModel(BinaryModel):
         # analysis)
         if self.frequencies == "estimate":
             substmodel.set("vfrequencies","@%s:visiblefrequencies.s" % name)
-        elif self.frequencies == "empirical": # pragma: no cover
+        else:
+            vfreq = ET.SubElement(substmodel, "vfrequencies", {
+                "id": "%s:visiblefrequencies.s" % name,
+                "dimension": "3",
+                "spec": "parameter.RealParameter"})
+            if self.frequencies == "empirical": # pragma: no cover
                 raise ValueError("Dollo model {:} cannot derive empirical "
                                  "frequencies from data".format(self.name))
-        else:
-            vfreq.text="0.94 0.05 0.01"
+            else:
+                vfreq.text="0.94 0.05 0.01"
 
         # These are the frequencies of the *hidden* states
         # (fast / slow), and are just set to 50: 50.  They could be estimated,

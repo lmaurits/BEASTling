@@ -122,8 +122,10 @@ def test_basic():
         ("admin", "covarion_multistate", "pseudodollocovarion"),
         ("admin", "covarion_multistate", "covarion_per_feature_params",
          "pseudodollocovarion"),
-        ("admin", "covarion_multistate", "robust_eigen",
-         "pseudodollocovarion"),
+        # Currently, Beast's pseudodollocovarion model does not support the
+        # robust eigensystem implementation.
+        # ("admin", "covarion_multistate", "robust_eigen",
+        #  "pseudodollocovarion"),
         ("admin", "covarion_multistate", "pseudodollocovarion_fix_freq"),
     ]:
         # To turn each config into a separate test, we
@@ -140,9 +142,6 @@ skip = [
     # is documented in the guidelines for IDs, but it would be nice to
     # get rid of it, either by not creating objects with commas in IDs
     # or by fixing beast not to split IDs.
-    ("admin", "covarion_multistate", "robust_eigen", "pseudodollocovarion"),
-    # Currently, Beast's pseudodollocovarion model does not support the robust
-    # eigensystem implementation.
     ]
 
 
