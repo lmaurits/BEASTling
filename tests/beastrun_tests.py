@@ -120,6 +120,8 @@ def test_basic():
         ("admin", "mk", "monophyletic", "geo", "geo_sampled"),
         ("admin", "mk", "monophyletic", "geo", "geo_prior"),
         ("admin", "covarion_multistate", "pseudodollocovarion"),
+        ("admin", "covarion_multistate", "log_fine_probs",
+         "pseudodollocovarion"),
         ("admin", "covarion_multistate", "covarion_per_feature_params",
          "pseudodollocovarion"),
         # Currently, Beast's pseudodollocovarion model does not support the
