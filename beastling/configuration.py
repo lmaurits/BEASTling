@@ -32,6 +32,7 @@ import beastling.models.covarion as covarion
 import beastling.models.mk as mk
 
 import beastling.treepriors.base as treepriors
+from beastling.treepriors.coalescent import CoalescentTree
 
 _BEAST_MAX_LENGTH = 2147483647
 GLOTTOLOG_NODE_LABEL = re.compile(
@@ -481,7 +482,7 @@ class Configuration(object):
             "uniform": treepriors.UniformTree,
             "yule": treepriors.YuleTree,
             "birthdeath": treepriors.BirthDeathTree,
-            "coalescent": treepriors.CoalescentTree
+            "coalescent": CoalescentTree
         }[self.tree_prior.lower()]()
 
         # Now we can set the value of the ascertained attribute of each model
