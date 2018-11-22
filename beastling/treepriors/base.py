@@ -1,3 +1,4 @@
+# -*- encoding: utf-8 -*-
 import xml.etree.ElementTree as ET
 from math import log, exp
 
