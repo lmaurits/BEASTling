@@ -119,6 +119,12 @@ def test_basic():
         ("admin", "mk", "geo_own_clock"),
         ("admin", "mk", "monophyletic", "geo", "geo_sampled"),
         ("admin", "mk", "monophyletic", "geo", "geo_prior"),
+        ("admin", "covarion_multistate", "pseudodollocovarion"),
+        ("admin", "covarion_multistate", "covarion_per_feature_params",
+         "pseudodollocovarion"),
+        ("admin", "covarion_multistate", "robust_eigen",
+         "pseudodollocovarion"),
+        ("admin", "covarion_multistate", "pseudodollocovarion_fix_freq"),
     ]:
         # To turn each config into a separate test, we
         _do_test.description = "BeastRun with " + " ".join(configs)
@@ -134,6 +140,9 @@ skip = [
     # is documented in the guidelines for IDs, but it would be nice to
     # get rid of it, either by not creating objects with commas in IDs
     # or by fixing beast not to split IDs.
+    ("admin", "covarion_multistate", "robust_eigen", "pseudodollocovarion"),
+    # Currently, Beast's pseudodollocovarion model does not support the robust
+    # eigensystem implementation.
     ]
 
 

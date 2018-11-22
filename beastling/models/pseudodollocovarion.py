@@ -106,7 +106,7 @@ class PseudoDolloCovarionModel(BinaryModel):
 
         # Numerical instability is an issue with this model, so we give the
         # option of using a more robust method of computing eigenvectors.
-        if self.use_robust_eigensystem:
+        if self.use_robust_eigensystem: # pragma: no cover
             raise ValueError(
                 "Currently, Beast's pseudo-Dollo covarion model does not "
                 "support robust eigensystems.")
@@ -118,12 +118,11 @@ class PseudoDolloCovarionModel(BinaryModel):
         # analysis)
         if self.frequencies == "estimate":
             substmodel.set("vfrequencies","@%s:visiblefrequencies.s" % name)
-        else:
-            if self.frequencies == "empirical":
+        elif self.frequencies == "empirical": # pragma: no cover
                 raise ValueError("Dollo model {:} cannot derive empirical "
                                  "frequencies from data".format(self.name))
-            else:
-                vfreq.text="0.94 0.05 0.01"
+        else:
+            vfreq.text="0.94 0.05 0.01"
 
         # These are the frequencies of the *hidden* states
         # (fast / slow), and are just set to 50: 50.  They could be estimated,
