@@ -1,6 +1,7 @@
 import csv
 import sys
 import collections
+import chardet
 
 from six import PY2
 
@@ -22,15 +23,17 @@ def sniff(filename):
     -------
     csv.Dialect
     """
-    with Path(filename).open("rb" if PY2 else "r") as fp:
+    with Path(filename).open("rb") as fp:
         # On large files, csv.Sniffer seems to need a lot of data to make a
         # successful inference...
         sample = fp.read(1024)
+        encoding = chardet.detect(sample)["encoding"]
+        sample = sample.decode(encoding)
         while True:
             try:
                 return csv.Sniffer().sniff(sample, [",", "\t"])
             except csv.Error: # pragma: no cover
-                blob = fp.read(1024)
+                blob = fp.read(1024).decode(encoding)
                 sample += blob
                 if not blob:
                     raise

@@ -14,6 +14,7 @@ requires = [
     'appdirs',
     'clldutils~=2.0',
     'pycldf',
+    'chardet',
 ]
 
 setup(
