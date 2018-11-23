@@ -164,6 +164,11 @@ class Tests(WithConfigAndTempDir):
         cfg = self._make_bad_cfg("bad_share_params")
         cfg.process()
 
+    @raises(KeyError)
+    def test_bad_treeprior(self):
+        cfg = self._make_bad_cfg("bad_treeprior")
+        cfg.process
+
     def test_calibration_string_formats(self):
         # Test lower bound format
         config = self._make_cfg('basic', 'calibration_lower_bound')
