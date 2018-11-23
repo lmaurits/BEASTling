@@ -2,6 +2,7 @@ import csv
 import sys
 import collections
 from pathlib import Path
+import chardet
 
 import pycldf.dataset
 from csvw.dsv import UnicodeDictReader
@@ -21,15 +22,17 @@ def sniff(filename, default_dialect=csv.excel):
     -------
     csv.Dialect
     """
-    with Path(filename).open("r") as fp:
+    with Path(filename).open("rb") as fp:
         # On large files, csv.Sniffer seems to need a lot of data to make a
         # successful inference...
         sample = fp.read(1024)
+        encoding = chardet.detect(sample)["encoding"]
+        sample = sample.decode(encoding)
         while True:
             try:
                 return csv.Sniffer().sniff(sample, [",", "\t"])
             except csv.Error: # pragma: no cover
-                blob = fp.read(1024)
+                blob = fp.read(1024).decode(encoding)
                 sample += blob
                 if not blob:
                     # If blob is emtpy we've somehow hit the end of the file

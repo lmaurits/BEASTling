@@ -2,6 +2,7 @@ from setuptools import setup, find_packages
 
 from beastling import __version__ as version
 
+
 setup(
     name='beastling',
     version=version,
@@ -24,6 +25,7 @@ setup(
         'csvw',
         'attrs>=19.1',
         'pycldf>=1.7',
+        'chardet',
     ],
     extras_require={
         'dev': ['flake8', 'wheel', 'twine', 'tox'],

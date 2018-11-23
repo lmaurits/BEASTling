@@ -547,7 +547,7 @@ class BaseModel(FromOptions):
                     self.treedata.append(attribs["id"])
                     distribution.attrib["tag"] = f
                 else:
-                    distribution.attrib["spec"] = "lucl.statereconstruction.AncestralStatesLogger"
+                    distribution.attrib["spec"] = "lucl.beast.statereconstruction.AncestralStatesLogger"
                     distribution.attrib["value"] = " ".join(self.pattern_names(f))
                     for label in self.reconstruct_at:
                         langs = self.config.language_group(label)
