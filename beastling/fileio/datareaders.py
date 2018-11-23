@@ -30,7 +30,9 @@ def sniff(filename, default_dialect=csv.excel):
         sample = sample.decode(encoding)
         while True:
             try:
-                return csv.Sniffer().sniff(sample, [",", "\t"])
+                dialect = csv.Sniffer().sniff(sample, [",", "\t"])
+                dialect.encoding = encoding
+                return dialect
             except csv.Error: # pragma: no cover
                 blob = fp.read(1024).decode(encoding)
                 sample += blob
