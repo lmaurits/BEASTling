@@ -119,6 +119,16 @@ def test_basic():
         ("admin", "mk", "geo_own_clock"),
         ("admin", "mk", "monophyletic", "geo", "geo_sampled"),
         ("admin", "mk", "monophyletic", "geo", "geo_prior"),
+        ("admin", "covarion_multistate", "pseudodollocovarion"),
+        ("admin", "covarion_multistate", "log_fine_probs",
+         "pseudodollocovarion"),
+        ("admin", "covarion_multistate", "covarion_per_feature_params",
+         "pseudodollocovarion"),
+        # Currently, Beast's pseudodollocovarion model does not support the
+        # robust eigensystem implementation.
+        # ("admin", "covarion_multistate", "robust_eigen",
+        #  "pseudodollocovarion"),
+        ("admin", "covarion_multistate", "pseudodollocovarion_fix_freq"),
     ]:
         # To turn each config into a separate test, we
         _do_test.description = "BeastRun with " + " ".join(configs)
