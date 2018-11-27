@@ -1,3 +1,5 @@
+# -*- encoding: utf-8 -*-
+
 from __future__ import division, unicode_literals
 import collections
 import importlib
@@ -29,6 +31,9 @@ import beastling.models.bsvs as bsvs
 import beastling.models.covarion as covarion
 import beastling.models.pseudodollocovarion as pseudodollocovarion
 import beastling.models.mk as mk
+
+import beastling.treepriors.base as treepriors
+from beastling.treepriors.coalescent import CoalescentTree
 
 _BEAST_MAX_LENGTH = 2147483647
 GLOTTOLOG_NODE_LABEL = re.compile(
@@ -183,7 +188,7 @@ class Configuration(object):
         self.subsample_size = 0
         """Number of languages to subsample from the set defined by the dataset(s) and other filtering options like "families" or "macroareas"."""
         self.tree_prior = "yule"
-        """Tree prior.  Should generally not be set manually."""
+        """Tree prior. Can be overridden by calibrations."""
 
         # Glottolog data
         self.glottolog_loaded = False
@@ -470,6 +475,17 @@ class Configuration(object):
         # At this point, we can tell whether or not the tree's length units
         # can be treated as arbitrary
         self.arbitrary_tree = self.sample_branch_lengths and not self.calibrations
+
+        # We also know what kind of tree prior we need to have –
+        # instantiate_calibrations may have changed the type if tip
+        # calibrations exist.
+        self.treeprior = {
+            "uniform": treepriors.UniformTree,
+            "yule": treepriors.YuleTree,
+            "birthdeath": treepriors.BirthDeathTree,
+            "coalescent": CoalescentTree
+        }[self.tree_prior.lower()]()
+
         # Now we can set the value of the ascertained attribute of each model
         # Ideally this would happen during process_models, but this is impossible
         # as set_ascertained() relies upon the value of arbitrary_tree defined above,
