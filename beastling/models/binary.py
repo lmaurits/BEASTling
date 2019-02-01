@@ -143,11 +143,10 @@ class BinaryModel(BaseModel):
         self.missing_ratios = {}
         self.counts = {}
         self.codemaps = {}
-        self.feature_has_unknown_values = {}
+        self.feature_value_partially_unknown = {}
         for f in self.features:
             # Compute various things
             all_values = []
-            self.feature_has_unknown_values[f] = False
             # Track whether any “unknown” values were encountered. The
             # difference between “unknown” and “absent” values matters: Assume
             # we have a feature with 3 possible values, A, B and C. Then "A"
@@ -158,9 +157,8 @@ class BinaryModel(BaseModel):
                     raw = values[f]
                     while "-" in raw:
                         raw.remove("-")
-                    while "?" in raw:
-                        raw.remove("?")
-                        self.feature_has_unknown_values[f] = True
+                    if "?" in raw:
+                        raw = [x for x in raw if x!='?']
                     all_values.append(raw)
             missing_data_ratio = 1 - len(all_values) / len(self.data)
             non_q_values = [v for vs in all_values for v in vs]
@@ -217,13 +215,9 @@ class BinaryModel(BaseModel):
                 extra_columns = ["0"]
             self.extracolumns[feature] = extra_columns
 
-            if "?" in point:
-                # TODO: THIS IS A HACK AND NOT WHERE THIS SHOULD BE HANDLED, BUT I NEED A FIX NOW
-                self.feature_has_unknown_values[feature] = True
-                point.remove("?")
-
             # Start with all zeros/question marks
-            if self.feature_has_unknown_values[feature]:
+            if "?" in point:
+                point.remove("?")
                 absent = "?"
             else:
                 absent = "0"

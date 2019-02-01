@@ -119,8 +119,6 @@ class BaseModel(object):
             self.reconstruct_at = None
             self.treewide_reconstruction = True
         elif self.reconstruct_at:
-            if len(self.reconstruct_at) > 1:
-                raise ValueError("Cannot currently reconstruct at more than one location.")
             for f in self.reconstruct_at:
                 if f not in self.config.language_group_configs:
                     raise KeyError("Language group {:} is undefined. Valid groups are: {:}".format(
@@ -496,7 +494,7 @@ class BaseModel(object):
                     self.treedata.append(attribs["id"])
                     distribution.attrib["tag"] = f
                 else:
-                    distribution.attrib["spec"] = "AncestralStateLogger"
+                    distribution.attrib["spec"] = "lucl.statereconstruction.AncestralStatesLogger"
                     distribution.attrib["value"] = " ".join(self.pattern_names(f))
                     for label in self.reconstruct_at:
                         langs = self.config.language_group(label)
