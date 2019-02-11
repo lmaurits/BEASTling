@@ -812,9 +812,16 @@ class Configuration(object):
         unstructured polytomy.
         """
 
-        # TODO: Make this more rigorous.
-        # Current test will fail ['foo', 'bar', 'baz'], but
-        # will pass [['foo'], ['bar'], ['baz']], which is no better.
+        # First, transform e.g. [['foo'], [['bar']], [[[['baz']]]]], into simply
+        # ['foo','bar','baz'].
+        def denester(l):
+            if type(l) != list:
+                return l
+            if len(l) == 1:
+                return denester(l[0])
+            return [denester(x) for x in l]
+        struct = denester(struct)
+        # Now check for internal structure
         if not any([type(x) == list for x in struct]):
             # Struct is just a list of language names, with no internal structure
             return False
