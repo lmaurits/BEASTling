@@ -182,6 +182,8 @@ class BinaryModel(BaseModel):
                     absent for i in range(0, self.valuecounts[feature])]
             # Set the appropriate data column to 1
             for subpoint in point:
+                if subpoint == "?":
+                    continue
                 valuestring[
                     len(extra_columns) +
                     self.unique_values[feature].index(subpoint)] = "1"
