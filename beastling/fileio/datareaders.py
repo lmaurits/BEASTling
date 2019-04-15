@@ -234,6 +234,26 @@ def read_cldf_dataset(filename, code_column=None, expect_multiple=False):
         data = collections.defaultdict(lambda: collections.defaultdict(lambda: []))
     else:
         data = collections.defaultdict(lambda: collections.defaultdict(lambda: "?"))
+
+    # Make sure this is a kind of dataset BEASTling can handle
+    if dataset.module not in ("Wordlist", "StructureDataset"):
+        raise ValueError("BEASTling does not know how to interpret CLDF {:} data.".format(
+            dataset.module))
+
+    # Build dictionaries of nice IDs for languages and features
+    lang_ids = {}
+    for row in dataset["LanguageTable"]:
+        if row["Glottocode"] != None:
+            lang_ids[row["ID"]] = row["Glottocode"]
+        elif row["ISO639P3code"] != None:
+            lang_ids[row["ID"]] = row["ISO639P3code"]
+        else:
+            lang_ids[row["ID"]] = row["Name"]
+    feature_ids = {}
+    for row in dataset["ParameterTable"]:
+        feature_ids[row["ID"]] = row["Name"]
+
+    # Build actual data dictionary, based on dataset type
     if dataset.module == "Wordlist":
         if code_column:
             cognate_column_in_form_table = True
@@ -262,33 +282,32 @@ def read_cldf_dataset(filename, code_column=None, expect_multiple=False):
         parameter_column = dataset["FormTable", "parameterReference"].name
 
         for row in dataset["FormTable"].iterdicts():
+            lang_id = lang_ids[row[language_column]]
+            feature_id = feature_ids[row[parameter_column]]
             if cognate_column_in_form_table:
                 if expect_multiple:
-                    data[row[language_column]][row[parameter_column]].append(
-                        row[code_column])
+                    data[lang_id][feature_id].append(row[code_column])
                 else:
-                    data[row[language_column]][row[parameter_column]] = (
-                        row[code_column])
+                    data[lang_id][feature_id] = (row[code_column])
             else:
                 if expect_multiple:
-                    data[row[language_column]][row[parameter_column]].append(
+                    data[lang_id][feature_id].append(
                         cognatesets[row[form_column]])
                 else:
-                    data[row[language_column]][row[parameter_column]] = (
+                    data[lang_id][feature_id] = (
                         cognatesets[row[form_column]])
         return data
+
     elif dataset.module == "StructureDataset":
         language_column = dataset["ValueTable", "languageReference"].name
         parameter_column = dataset["ValueTable", "parameterReference"].name
         code_column = code_column or dataset["ValueTable", "codeReference"].name
         for row in dataset["ValueTable"].iterdicts():
+            lang_id = lang_ids[row[language_column]]
+            feature_id = feature_ids[row[parameter_column]]
             if expect_multiple:
-                data[row[language_column]][row[parameter_column]].append(row[code_column])
+                data[lang_id][feature_id].append(row[code_column])
             else:
-                data[row[language_column]][row[parameter_column]] = row[code_column]
+                data[lang_id][feature_id] = row[code_column]
         return data
-    else:
-        raise ValueError("Beastling does not know how to interpret CLDF {:} data.".format(
-            dataset.module))
-
 
