@@ -519,7 +519,7 @@ class BaseModel(object):
                         self.filters[f] = "%d-%d" % (n, n+length-1)
                     n += length
             seq = ET.SubElement(data, "sequence", {
-                "id":"data_%s:%s" % (self.name, lang),
+                "id":"language_data_%s:%s" % (self.name, lang),
                 "taxon":lang,
                 "value":value_string})
 
@@ -559,7 +559,7 @@ class BaseModel(object):
             parent = distribution
             name = "data"
         data = ET.SubElement(parent, name, {
-            "id":"data_%s" % fname,
+            "id":"feature_data_%s" % fname,
             "spec":"FilteredAlignment",
             "data":"@data_%s" % self.name,
             "filter":self.filters[feature]})
