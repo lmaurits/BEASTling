@@ -244,14 +244,14 @@ def read_cldf_dataset(filename, code_column=None, expect_multiple=False):
     lang_ids = {}
     for row in dataset["LanguageTable"]:
         if row["Glottocode"] != None:
-            lang_ids[row["ID"]] = row["Glottocode"]
+            lang_ids[row["ID"]] = row[dataset["LanguageTable", "Glottocode"].name]
         elif row["ISO639P3code"] != None:
-            lang_ids[row["ID"]] = row["ISO639P3code"]
+            lang_ids[row["ID"]] = row[dataset["LanguageTable", "ISO639P3code"].name]
         else:
-            lang_ids[row["ID"]] = row["Name"]
+            lang_ids[row["ID"]] = row[dataset["LanguageTable", "Name"].name]
     feature_ids = {}
     for row in dataset["ParameterTable"]:
-        feature_ids[row["ID"]] = row["Name"]
+        feature_ids[row["ID"]] = row[dataset["ParameterTable", "Name"].name]
 
     # Build actual data dictionary, based on dataset type
     if dataset.module == "Wordlist":
