@@ -33,7 +33,11 @@ def sniff(filename):
                 blob = fp.read(1024)
                 sample += blob
                 if not blob:
-                    raise
+                    # If blob is emtpy we've somehow hit the end of the file
+                    # without figuring out the dialect.  Something is probably
+                    # quite wrong with the file, but let's default to Excel and
+                    # hope for the best...
+                    return csv.excel
 
 
 def load_data(filename, file_format=None, lang_column=None, value_column=None, expect_multiple=False):
