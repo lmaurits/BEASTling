@@ -1,5 +1,6 @@
 import csv
 import sys
+import typing
 import collections
 from pathlib import Path
 import chardet
@@ -10,7 +11,7 @@ from csvw.dsv import UnicodeDictReader
 from beastling.util import log
 
 
-def sniff(filename, default_dialect=csv.excel):
+def sniff(filename, default_dialect: typing.Optional[csv.Dialect] = csv.excel):
     """Read the beginning of the file and guess its csv dialect.
 
     Parameters
