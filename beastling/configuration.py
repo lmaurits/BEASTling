@@ -719,6 +719,17 @@ class Configuration(object):
         # Build a list-based representation of the Glottolog monophyly constraints
         # This can be done in either a "top-down" or "bottom-up" way.
         langs = [l for l in self.languages if l.lower() in self.classifications]
+        if len(langs) != len(self.languages):
+            # Warn the user that some taxa aren't in Glottolog and hence will be
+            # forced into an outgroup.
+            missing_langs = [l for l in self.languages if l not in langs]
+            missing_langs.sort()
+            missing_str = ",".join(missing_langs[0:3])
+            missing_count = len(missing_langs)
+            if missing_count > 3:
+                missing_str += ",..."
+            self.messages.append("""[WARNING] %d languages could not be found in Glottolog (%s).  Monophyly constraints will force them into an outgroup.""" %
+                    (missing_count, missing_str))
         if self.monophyly_end_depth is not None:
             # A power user has explicitly provided start and end depths
             start = self.monophyly_start_depth
