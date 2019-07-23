@@ -67,17 +67,6 @@ class PseudoDolloCovarionModel(BinaryModel):
         else:
             return ET.Element("userDataType", {"idref": "PseudoDolloCovarionDatatype"})
 
-    def add_sitemodel(self, distribution, feature, fname):
-        # Sitemodel
-        mr = self.get_mutation_rate(feature, fname)
-        sitemodel = ET.SubElement(distribution, "siteModel",
-                                  {"id": "SiteModel.{:s}".format(fname),
-                                   "spec": "SiteModel",
-                                   "mutationRate": mr,
-                                   "shape": "1",
-                                   "proportionInvariant": "0"})
-        substmodel = self.add_substmodel(sitemodel, feature, fname)
-
     def add_substmodel(self, sitemodel, feature, fname):
         # If we're sharing one substmodel across all features and have already
         # created it, just reference it and that's it

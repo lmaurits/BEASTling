@@ -490,7 +490,12 @@ class BaseModel(object):
             # Data
             self.add_feature_data(distribution, n, f, fname)
 
-    def add_sitemodel(self, beast):
+    def add_sitemodel(self, distribution, feature, fname):
+        mr = self.get_mutation_rate(feature, fname)
+        sitemodel = ET.SubElement(distribution, "siteModel", {"id":"SiteModel.%s"%fname,"spec":"SiteModel", "mutationRate":mr,"shape":"1","proportionInvariant":"0"})
+        substmodel = self.add_substmodel(sitemodel, feature, fname)
+
+    def add_substmodel(self, sitemodel, feature, fname):
         pass
 
     def add_master_data(self, beast):
