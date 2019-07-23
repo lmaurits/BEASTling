@@ -492,7 +492,7 @@ class BaseModel(object):
 
     def add_sitemodel(self, distribution, feature, fname):
         mr = self.get_mutation_rate(feature, fname)
-        sitemodel = ET.SubElement(distribution, "siteModel", {"id":"SiteModel.%s"%fname,"spec":"SiteModel", "mutationRate":mr,"shape":"1","proportionInvariant":"0"})
+        sitemodel = ET.SubElement(distribution, "siteModel", {"id":"SiteModel.%s"%fname,"spec":"SiteModel", "mutationRate":mr,"proportionInvariant":"0"})
         substmodel = self.add_substmodel(sitemodel, feature, fname)
 
     def add_substmodel(self, sitemodel, feature, fname):
