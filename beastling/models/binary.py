@@ -13,6 +13,7 @@ class BinaryModel(BaseModel):
 
         BaseModel.__init__(self, model_config, global_config)
         self.remove_constant_features = model_config.get("remove_constant_features", True)
+        self.gamma_categories = int(model_config.get("gamma_categories", 0))
         # Compute feature properties early to facilitate auto-detection of binarisation
         self.compute_feature_properties()
         # Don't need a separating comma because each datapoint is a string
@@ -25,6 +26,19 @@ class BinaryModel(BaseModel):
         # Check for inconsistent configuration
         if self.recoded and self.binarised:
             raise ValueError("Data for model '%s' contains features with more than two states, but binarised=True was given.  Have you specified the correct data file or feature list?" % self.name)
+
+    def add_sitemodel(self, distribution, feature, fname):
+        mr = self.get_mutation_rate(feature, fname)
+        attribs = { "id":"SiteModel.%s"%fname,
+                    "spec":"SiteModel",
+                    "mutationRate":mr,
+                    "proportionInvariant":"0"
+                    }
+        if self.gamma_categories > 0:
+            attribs["gammaCategoryCount"] = str(self.gamma_categories)
+            attribs["shape"] = "1"
+        sitemodel = ET.SubElement(distribution, "siteModel", attribs)
+        substmodel = self.add_substmodel(sitemodel, feature, fname)
 
     def compute_weights(self):
         if not self.recoded:
