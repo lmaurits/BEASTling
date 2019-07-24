@@ -293,8 +293,11 @@ class BinaryModelWithShareParams(BinaryModel):
             "spec":"FilteredAlignment",
             "data":"@data_%s" % self.name,
             "filter":"-"})
-        if self.ascertained:
+        if self.recoded:
             data.set("ascertained", "true")
             data.set("excludefrom", "0")
-            data.set("excludeto", str(self.valuecounts[feature]))
+            if self.ascertained:
+                data.set("excludeto", "2")
+            else:
+                data.set("excludeto", "1")
         data.append(self.get_userdatatype(None, None))
