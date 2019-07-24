@@ -28,8 +28,13 @@ class BinaryModel(BaseModel):
             raise ValueError("Data for model '%s' contains features with more than two states, but binarised=True was given.  Have you specified the correct data file or feature list?" % self.name)
 
     def add_sitemodel(self, distribution, feature, fname):
-        mr = self.get_mutation_rate(feature, fname)
-        attribs = { "id":"SiteModel.%s"%fname,
+        if feature == None and fname == None:
+            mr = "1.0"
+            id_ = "SiteModel.%s" % self.name,
+        else:
+            mr = self.get_mutation_rate(feature, fname)
+            id_ = "SiteModel.%s" % fname
+        attribs = { "id":id_,
                     "spec":"SiteModel",
                     "mutationRate":mr,
                     "proportionInvariant":"0"
@@ -268,3 +273,28 @@ class BinaryModelWithShareParams(BinaryModel):
         else:
             return ["{:s}:{:s}".format(self.name, f) for f in self.features]
 
+    def add_likelihood(self, likelihood):
+        monolithic_partition = self.share_params and not (self.rate_variation or self.feature_rates)
+        if monolithic_partition:
+            self.add_monolithic_likelihood(likelihood)
+        else:
+            BaseModel.add_likelihood(self, likelihood)
+
+    def add_monolithic_likelihood(self, likelihood):
+        attribs = {"id": "DataLikelihood:%s" % self.name,
+                   "spec": "TreeLikelihood",
+                   "useAmbiguities": "true"}
+        attribs["branchRateModel"] = "@%s" % self.clock.branchrate_model_id
+        attribs["tree"] = "@Tree.t:beastlingTree"
+        distribution = ET.SubElement(likelihood, "distribution",attribs)
+        self.add_sitemodel(distribution, None, None)
+        data = ET.SubElement(distribution, "data", {
+            "id":"filtered_data_%s" % self.name,
+            "spec":"FilteredAlignment",
+            "data":"@data_%s" % self.name,
+            "filter":"-"})
+        if self.ascertained:
+            data.set("ascertained", "true")
+            data.set("excludefrom", "0")
+            data.set("excludeto", str(self.valuecounts[feature]))
+        data.append(self.get_userdatatype(None, None))
