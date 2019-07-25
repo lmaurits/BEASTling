@@ -17,9 +17,9 @@ class Tests(TestCase):
                     continue
                 else:
                     if p.stem == "cldf_value_col":
-                        data = load_data(p, file_format='cldf-legacy', value_column="Cognate_Set")
+                        data = load_data(p, {}, file_format='cldf-legacy', value_column="Cognate_Set")
                     else:
-                        data = load_data(p)
+                        data = load_data(p, {})
                     self.assertNotEqual(len(data), 0)
 
     def test(self):
