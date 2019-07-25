@@ -119,7 +119,7 @@ class Configuration(object):
         """List of families to filter down to, or name of a file containing such a list."""
         self.geo_config = {}
         """A dictionary with keys and values corresponding to a [geography] section in a configuration file."""
-        self.glottolog_release = '3.0'
+        self.glottolog_release = '4.0'
         """A string representing a Glottolog release number."""
         self.languages = []
         """List of languages to filter down to, or name of a file containing such a list."""
