@@ -25,7 +25,7 @@ class Tests(TestCase):
     def test(self):
         beastling_format = load_data(data_path("basic.csv"), {})
         cldf_format = load_data(data_path("cldf.csv"), {})
-        explicit_cldf_format = load_data(data_path("cldf.csv", {}),
+        explicit_cldf_format = load_data(data_path("cldf.csv"), {},
                                 file_format='cldf-legacy')
         nonstandard_value_cldf_format = load_data(data_path("cldf_value_col.csv"), {},
                                 file_format='cldf-legacy', value_column="Cognate_Set")
