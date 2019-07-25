@@ -322,6 +322,7 @@ class Configuration(object):
                     self.monophyly_newick = fp.read()
             else:
                 self.monophyly_newick = value
+            self.monophyly = True
         if p.has_option(sec,'minimum_data'):
             self.minimum_data = p.getfloat(sec, "minimum_data")
 
