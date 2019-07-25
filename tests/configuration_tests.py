@@ -167,7 +167,7 @@ class Tests(WithConfigAndTempDir):
     @raises(KeyError)
     def test_bad_treeprior(self):
         cfg = self._make_bad_cfg("bad_treeprior")
-        cfg.process
+        cfg.process()
 
     def test_calibration_string_formats(self):
         # Test lower bound format
