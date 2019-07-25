@@ -140,6 +140,7 @@ class BinaryModel(BaseModel):
                     all_values.append(raw)
             missing_data_ratio = 1 - len(all_values) / len(self.data)
             non_q_values = [v for vs in all_values for v in vs]
+            assert None not in non_q_values
             counts = {}
             for v in non_q_values:
                 counts[v] = non_q_values.count(v)
