@@ -23,14 +23,14 @@ class Tests(TestCase):
                     self.assertNotEqual(len(data), 0)
 
     def test(self):
-        beastling_format = load_data(data_path("basic.csv"))
-        cldf_format = load_data(data_path("cldf.csv"))
-        explicit_cldf_format = load_data(data_path("cldf.csv"),
+        beastling_format = load_data(data_path("basic.csv"), {})
+        cldf_format = load_data(data_path("cldf.csv"), {})
+        explicit_cldf_format = load_data(data_path("cldf.csv", {}),
                                 file_format='cldf-legacy')
-        nonstandard_value_cldf_format = load_data(data_path("cldf_value_col.csv"),
+        nonstandard_value_cldf_format = load_data(data_path("cldf_value_col.csv"), {},
                                 file_format='cldf-legacy', value_column="Cognate_Set")
-        tabbed_cldf_format = load_data(data_path("cldf.tsv"))
-        tabbed_explicit_cldf_format = load_data(data_path("cldf.tsv"),
+        tabbed_cldf_format = load_data(data_path("cldf.tsv"), {})
+        tabbed_explicit_cldf_format = load_data(data_path("cldf.tsv"), {},
                                                 file_format='cldf-legacy')
         assert set(list(beastling_format.keys())) == set(list(cldf_format.keys()))
         assert set(list(beastling_format.keys())) == set(list(explicit_cldf_format.keys()))
