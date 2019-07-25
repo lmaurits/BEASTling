@@ -50,6 +50,7 @@ class BaseModel(object):
         # Load the entire dataset from the file
         self.data = load_data(
             self.data_filename,
+            global_config.classifications,
             file_format=model_config.get("file_format", None),
             lang_column=model_config.get("language_column", None),
             value_column=model_config.get("value_column", None),
