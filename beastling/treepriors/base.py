@@ -142,43 +142,43 @@ class TreePrior (object):
         # Tree operators
         # Operators which affect the tree must respect the sample_topology and
         # sample_branch_length options.
-        if self.config.sample_topology:
+        if beastxml.config.sample_topology:
             ## Tree topology operators
-            ET.SubElement(self.run, "operator", {"id":"SubtreeSlide.t:beastlingTree","spec":"SubtreeSlide","tree":"@Tree.t:beastlingTree","markclades":"true", "weight":"15.0"})
-            ET.SubElement(self.run, "operator", {"id":"narrow.t:beastlingTree","spec":"Exchange","tree":"@Tree.t:beastlingTree","markclades":"true", "weight":"15.0"})
-            ET.SubElement(self.run, "operator", {"id":"wide.t:beastlingTree","isNarrow":"false","spec":"Exchange","tree":"@Tree.t:beastlingTree","markclades":"true", "weight":"3.0"})
-            ET.SubElement(self.run, "operator", {"id":"WilsonBalding.t:beastlingTree","spec":"WilsonBalding","tree":"@Tree.t:beastlingTree","markclades":"true","weight":"3.0"})
-        if self.config.sample_branch_lengths:
+            ET.SubElement(beastxml.run, "operator", {"id":"SubtreeSlide.t:beastlingTree","spec":"SubtreeSlide","tree":"@Tree.t:beastlingTree","markclades":"true", "weight":"15.0"})
+            ET.SubElement(beastxml.run, "operator", {"id":"narrow.t:beastlingTree","spec":"Exchange","tree":"@Tree.t:beastlingTree","markclades":"true", "weight":"15.0"})
+            ET.SubElement(beastxml.run, "operator", {"id":"wide.t:beastlingTree","isNarrow":"false","spec":"Exchange","tree":"@Tree.t:beastlingTree","markclades":"true", "weight":"3.0"})
+            ET.SubElement(beastxml.run, "operator", {"id":"WilsonBalding.t:beastlingTree","spec":"WilsonBalding","tree":"@Tree.t:beastlingTree","markclades":"true","weight":"3.0"})
+        if beastxml.config.sample_branch_lengths:
             ## Branch length operators
-            ET.SubElement(self.run, "operator", {"id":"UniformOperator.t:beastlingTree","spec":"Uniform","tree":"@Tree.t:beastlingTree","weight":"30.0"})
-            ET.SubElement(self.run, "operator", {"id":"treeScaler.t:beastlingTree","scaleFactor":"0.5","spec":"ScaleOperator","tree":"@Tree.t:beastlingTree","weight":"3.0"})
-            ET.SubElement(self.run, "operator", {"id":"treeRootScaler.t:beastlingTree","scaleFactor":"0.5","spec":"ScaleOperator","tree":"@Tree.t:beastlingTree","rootOnly":"true","weight":"3.0"})
+            ET.SubElement(beastxml.run, "operator", {"id":"UniformOperator.t:beastlingTree","spec":"Uniform","tree":"@Tree.t:beastlingTree","weight":"30.0"})
+            ET.SubElement(beastxml.run, "operator", {"id":"treeScaler.t:beastlingTree","scaleFactor":"0.5","spec":"ScaleOperator","tree":"@Tree.t:beastlingTree","weight":"3.0"})
+            ET.SubElement(beastxml.run, "operator", {"id":"treeRootScaler.t:beastlingTree","scaleFactor":"0.5","spec":"ScaleOperator","tree":"@Tree.t:beastlingTree","rootOnly":"true","weight":"3.0"})
             ## Up/down operator which scales tree height
-            if self.config.tree_prior in ["yule", "birthdeath"]:
-                updown = ET.SubElement(self.run, "operator", {"id":"UpDown","spec":"UpDownOperator","scaleFactor":"0.5", "weight":"3.0"})
+            if self.type in ["yule", "birthdeath"]:
+                updown = ET.SubElement(beastxml.run, "operator", {"id":"UpDown","spec":"UpDownOperator","scaleFactor":"0.5", "weight":"3.0"})
                 ET.SubElement(updown, "tree", {"idref":"Tree.t:beastlingTree", "name":"up"})
                 ET.SubElement(updown, "parameter", {"idref":"birthRate.t:beastlingTree", "name":"down"})
                 ### Include clock rates in up/down only if calibrations are given
-                if self.config.calibrations:
-                    for clock in self.config.clocks:
+                if beastxml.config.calibrations:
+                    for clock in beastxml.config.clocks:
                         if clock.estimate_rate:
                             ET.SubElement(updown, "parameter", {"idref":clock.mean_rate_id, "name":"down"})
 
-        if self.config.tree_prior in ["yule", "birthdeath"]:
+        if self.type in ["yule", "birthdeath"]:
             # Birth rate scaler
             # Birth rate is *always* scaled.
-            ET.SubElement(self.run, "operator", {"id":"YuleBirthRateScaler.t:beastlingTree","spec":"ScaleOperator","parameter":"@birthRate.t:beastlingTree", "scaleFactor":"0.5", "weight":"3.0"})
-        elif self.config.tree_prior == "coalescent":
-            ET.SubElement(self.run, "operator", {"id":"PopulationSizeScaler.t:beastlingTree","spec":"ScaleOperator","parameter":"@popSize.t:beastlingTree", "scaleFactor":"0.5", "weight":"3.0"})
+            ET.SubElement(beastxml.run, "operator", {"id":"YuleBirthRateScaler.t:beastlingTree","spec":"ScaleOperator","parameter":"@birthRate.t:beastlingTree", "scaleFactor":"0.5", "weight":"3.0"})
+        elif self.type == "coalescent":
+            ET.SubElement(beastxml.run, "operator", {"id":"PopulationSizeScaler.t:beastlingTree","spec":"ScaleOperator","parameter":"@popSize.t:beastlingTree", "scaleFactor":"0.5", "weight":"3.0"})
 
-        if self.config.tree_prior in ["birthdeath"]:
-            ET.SubElement(self.run, "operator",
+        if self.type in ["birthdeath"]:
+            ET.SubElement(beastxml.run, "operator",
                           {"id": "SamplingScaler.t:beastlingTree",
                            "spec": "ScaleOperator",
                            "parameter": "@sampling.t:beastlingTree",
                            "scaleFactor": "0.8",
                            "weight": "1.0"})
-            ET.SubElement(self.run, "operator",
+            ET.SubElement(beastxml.run, "operator",
                           {"id": "DeathRateScaler.t:beastlingTree",
                            "spec": "ScaleOperator",
                            "parameter": "@deathRate.t:beastlingTree",
@@ -186,11 +186,11 @@ class TreePrior (object):
                            "weight": "3.0"})
  
         # Add a Tip Date scaling operator if required
-        if self.config.tip_calibrations and self.config.sample_branch_lengths:
+        if beastxml.config.tip_calibrations and beastxml.config.sample_branch_lengths:
             # Get a list of taxa with non-point tip cals
-            tip_taxa = [next(cal.langs.__iter__()) for cal in self.config.tip_calibrations.values() if cal.dist != "point"]
+            tip_taxa = [next(cal.langs.__iter__()) for cal in beastxml.config.tip_calibrations.values() if cal.dist != "point"]
             for taxon in tip_taxa:
-                tiprandomwalker = ET.SubElement(self.run, "operator",
+                tiprandomwalker = ET.SubElement(beastxml.run, "operator",
                     {"id": "TipDatesandomWalker:%s" % taxon,
                      "spec": "TipDatesRandomWalker",
                      "windowSize": "1",
@@ -227,55 +227,6 @@ class TreePrior (object):
             ET.SubElement(tracer_logger,"log",{"idref":"YuleModel.t:beastlingTree"})
             ET.SubElement(tracer_logger,"log",{"idref":"YuleBirthRatePrior.t:beastlingTree"})
 
-    def add_operators(self, beastxml):
-        """
-        Add all <operator>s which act on the tree topology and branch lengths.
-        """
-        # Tree operators
-        # Operators which affect the tree must respect the sample_topology and
-        # sample_branch_length options.
-        if beastxml.config.sample_topology:
-            ## Tree topology operators
-            ET.SubElement(beastxml.run, "operator", {"id":"SubtreeSlide.t:beastlingTree","spec":"SubtreeSlide","tree":"@Tree.t:beastlingTree","markclades":"true", "weight":"15.0"})
-            ET.SubElement(beastxml.run, "operator", {"id":"narrow.t:beastlingTree","spec":"Exchange","tree":"@Tree.t:beastlingTree","markclades":"true", "weight":"15.0"})
-            ET.SubElement(beastxml.run, "operator", {"id":"wide.t:beastlingTree","isNarrow":"false","spec":"Exchange","tree":"@Tree.t:beastlingTree","markclades":"true", "weight":"3.0"})
-            ET.SubElement(beastxml.run, "operator", {"id":"WilsonBalding.t:beastlingTree","spec":"WilsonBalding","tree":"@Tree.t:beastlingTree","markclades":"true","weight":"3.0"})
-        if beastxml.config.sample_branch_lengths:
-            ## Branch length operators
-            ET.SubElement(beastxml.run, "operator", {"id":"UniformOperator.t:beastlingTree","spec":"Uniform","tree":"@Tree.t:beastlingTree","weight":"30.0"})
-            ET.SubElement(beastxml.run, "operator", {"id":"treeScaler.t:beastlingTree","scaleFactor":"0.5","spec":"ScaleOperator","tree":"@Tree.t:beastlingTree","weight":"3.0"})
-            ET.SubElement(beastxml.run, "operator", {"id":"treeRootScaler.t:beastlingTree","scaleFactor":"0.5","spec":"ScaleOperator","tree":"@Tree.t:beastlingTree","rootOnly":"true","weight":"3.0"})
-            ## Up/down operator which scales tree height
-            if self.type == "yule":
-                updown = ET.SubElement(beastxml.run, "operator", {"id":"UpDown","spec":"UpDownOperator","scaleFactor":"0.5", "weight":"3.0"})
-                ET.SubElement(updown, "tree", {"idref":"Tree.t:beastlingTree", "name":"up"})
-                ET.SubElement(updown, "parameter", {"idref":"birthRate.t:beastlingTree", "name":"down"})
-                ### Include clock rates in up/down only if calibrations are given
-                if beastxml.config.calibrations:
-                    for clock in beastxml.config.clocks:
-                        if clock.estimate_rate:
-                            ET.SubElement(updown, "parameter", {"idref":clock.mean_rate_id, "name":"down"})
-
-        if self.type == "yule":
-            # Birth rate scaler
-            # Birth rate is *always* scaled.
-            ET.SubElement(beastxml.run, "operator", {"id":"YuleBirthRateScaler.t:beastlingTree","spec":"ScaleOperator","parameter":"@birthRate.t:beastlingTree", "scaleFactor":"0.5", "weight":"3.0"})
-        elif self.type == "coalescent":
-            ET.SubElement(beastxml.run, "operator", {"id":"PopulationSizeScaler.t:beastlingTree","spec":"ScaleOperator","parameter":"@popSize.t:beastlingTree", "scaleFactor":"0.5", "weight":"3.0"})
-
-        # Add a Tip Date scaling operator if required
-        if beastxml.config.tip_calibrations and beastxml.config.sample_branch_lengths:
-            # Get a list of taxa with non-point tip cals
-            tip_taxa = [next(cal.langs.__iter__()) for cal in beastxml.config.tip_calibrations.values() if cal.dist != "point"]
-            for taxon in tip_taxa:
-                tiprandomwalker = ET.SubElement(beastxml.run, "operator",
-                    {"id": "TipDatesandomWalker:%s" % taxon,
-                    "spec": "TipDatesRandomWalker",
-                    "windowSize": "1",
-                    "tree": "@Tree.t:beastlingTree",
-                    "weight": "3.0",
-                    })
-                beastxml.add_taxon_set(tiprandomwalker, taxon, (taxon,))
 
 class YuleTree (TreePrior):
     def __init__(self):
@@ -336,10 +287,11 @@ class BirthDeathTree (TreePrior):
         attribs["id"] = "BirthDeathModel.t:beastlingTree"
         attribs["tree"] = "@Tree.t:beastlingTree"
         attribs["spec"] = "beast.evolution.speciation.BirthDeathGernhard08Model"
-        attribs["birthRate"] = "@birthRate.t:beastlingTree"
+        attribs["birthDiffRate"] = "@birthRate.t:beastlingTree"
         attribs["relativeDeathRate"] = "@deathRate.t:beastlingTree"
         attribs["sampleProbability"] = "@sampling.t:beastlingTree"
-        attribs["type"] = "restricted"
+        attribs["type"] = "unscaled" # Is this right?
+        ET.SubElement(beastxml.prior, "distribution", attribs)
 
         # Birth rate prior
         attribs = {}
