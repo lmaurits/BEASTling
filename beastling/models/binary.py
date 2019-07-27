@@ -30,7 +30,7 @@ class BinaryModel(BaseModel):
     def add_sitemodel(self, distribution, feature, fname):
         if feature == None and fname == None:
             mr = "1.0"
-            id_ = "SiteModel.%s" % self.name,
+            id_ = "SiteModel.%s" % self.name
         else:
             mr = self.get_mutation_rate(feature, fname)
             id_ = "SiteModel.%s" % fname
