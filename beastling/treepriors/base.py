@@ -197,7 +197,7 @@ class TreePrior (object):
                      "tree": "@Tree.t:beastlingTree",
                      "weight": "3.0",
                      })
-                self.add_taxon_set(tiprandomwalker, taxon, (taxon,))
+                beastxml.add_taxon_set(tiprandomwalker, taxon, (taxon,))
 
     def add_logging(self, beastxml, tracer_logger):
         if self.type in ["yule", "birthdeath"]:
