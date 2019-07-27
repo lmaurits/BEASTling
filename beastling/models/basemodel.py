@@ -63,18 +63,15 @@ class BaseModel(object):
         # this is the easiest way to make this work everywhere.  We should
         # clean this up some day!
         for language_id, glottocode in language_code_map.items():
-            print("Augmenting ", language_id, glottocode)
             if glottocode in global_config.classifications:
                 global_config.classifications[language_id] = global_config.classifications[glottocode]
                 global_config.classifications[language_id.lower()] = global_config.classifications[language_id]
-                print(language_id, global_config.classifications[language_id])
             if glottocode in global_config.glotto_macroareas:
                 global_config.glotto_macroareas[language_id] = global_config.glotto_macroareas[glottocode]
                 global_config.glotto_macroareas[language_id.lower()] = global_config.glotto_macroareas[language_id]
             if glottocode in global_config.locations:
                 global_config.locations[language_id] = global_config.locations[glottocode]
                 global_config.locations[language_id.lower()] = global_config.locations[language_id]
-                print(language_id, global_config.locations[language_id])
 
         # Remove features not wanted in this analysis
         self.build_feature_filter()
