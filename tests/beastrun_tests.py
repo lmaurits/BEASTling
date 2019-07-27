@@ -41,6 +41,7 @@ def test_basic():
         ("admin", "mk_as_if_addon"),
         ("admin", "cldf_data"),
         ("admin", "cldf1_wordlist"),
+        ("admin", "cldf1_wordlist_with_lang_table"),
         ("admin", "cldf1_wordlist_external_codes"),
         ("admin", "cldf1_structure"),
         ("admin", "nonnumeric"),
