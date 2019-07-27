@@ -36,6 +36,8 @@ def test_basic():
         ("admin", "mk", "subsample"),
         ("admin", "mk", "cldf_data_with_nonstandard_value_column"),
         ("admin", "mk"),
+        ("admin", "mk", "birthdeath"),
+        ("admin", "mk", "uniform_treeprior"),
         ("admin", "mk_as_if_addon"),
         ("admin", "cldf_data"),
         ("admin", "cldf1_wordlist"),
