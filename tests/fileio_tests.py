@@ -11,7 +11,7 @@ class Tests(TestCase):
         for p in data_path().iterdir():
             if p.suffix == '.csv':
                 if p.stem in ['duplicated_iso', 'no_iso', 'nonstandard_lang_col']:
-                    self.assertRaises(ValueError, load_data, {}, p)
+                    self.assertRaises(ValueError, load_data, p, {})
                 elif p.stem in ['forms', 'cognatesets']:
                     # Metadata-free CLDF Wordlist has no default value column
                     continue
