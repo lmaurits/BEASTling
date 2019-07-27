@@ -14,8 +14,8 @@ class CovarionModel(BinaryModel):
         BinaryModel.add_state(self, state)
         # Each feature gets a param
         for fname in self.parameter_identifiers():
-            ET.SubElement(state, "parameter", {"id":"%s:covarion_alpha.s" % fname, "lower":"1.0E-4", "name":"stateNode", "upper":"1.0"}).text="0.5"
-            ET.SubElement(state, "parameter", {"id":"%s:covarion_s.s" % fname, "lower":"1.0E-4", "name":"stateNode", "upper":"Infinity"}).text="0.5"
+            ET.SubElement(state, "parameter", {"id":"covarion_alpha.s:%s" % fname, "lower":"1.0E-4", "name":"stateNode", "upper":"1.0"}).text="0.5"
+            ET.SubElement(state, "parameter", {"id":"covarion_s.s:%s" % fname, "lower":"1.0E-4", "name":"stateNode", "upper":"Infinity"}).text="0.5"
 
     def get_userdatatype(self, feature, fname):
         if not self.beastxml._covarion_userdatatype_created:
@@ -43,7 +43,7 @@ class CovarionModel(BinaryModel):
             name = self.name
             self.subst_model_id = "%s:covarion.s" % name
         subst_model_id = "%s:covarion.s" % name
-        substmodel = ET.SubElement(sitemodel, "substModel",{"id":subst_model_id,"spec":"BinaryCovarion","alpha":"@%s:covarion_alpha.s" % name, "switchRate":"@%s:covarion_s.s" % name})
+        substmodel = ET.SubElement(sitemodel, "substModel",{"id":subst_model_id,"spec":"BinaryCovarion","alpha":"@covarion_alpha.s:%s" % name, "switchRate":"covarion_s.s:%s" % name})
 
         # Numerical instability is an issue with this model, so we give the
         # option of using a more robust method of computing eigenvectors.
@@ -86,7 +86,7 @@ class CovarionModel(BinaryModel):
             self._add_prior(prior, fname)
 
     def _add_prior(self, prior, name):
-        alpha_prior = ET.SubElement(prior, "prior", {"id":"%s:covarion_alpha_prior.s" % name,"name":"distribution","x":"@%s:covarion_alpha.s" % name})
+        alpha_prior = ET.SubElement(prior, "prior", {"id":"covarion_alpha_prior.s:%s" % name,"name":"distribution","x":"@covarion_alpha.s:%s" % name})
         ET.SubElement(alpha_prior, "Uniform", {"id":"%s:CovAlphaUniform" % name,"name":"distr","upper":"Infinity"})
         switch_prior = ET.SubElement(prior, "prior", {"id":"%s:covarion_s_prior.s" % name,"name":"distribution","x":"@%s:covarion_s.s" % name})
         gamma = ET.SubElement(switch_prior, "Gamma", {"id":"%s:Gamma.0" % name, "name":"distr"})
@@ -99,14 +99,14 @@ class CovarionModel(BinaryModel):
             self._add_operators(run, fname)
 
     def _add_operators(self, run, name):
-        ET.SubElement(run, "operator", {"id":"%s:covarion_alpha_scaler.s" % name, "spec":"ScaleOperator","parameter":"@%s:covarion_alpha.s" % name,"scaleFactor":"0.5","weight":"1.0"})
+        ET.SubElement(run, "operator", {"id":"covarion_alpha_scaler.s:%s" % name, "spec":"ScaleOperator","parameter":"@covarion_alpha.s:%s" % name,"scaleFactor":"0.5","weight":"1.0"})
         ET.SubElement(run, "operator", {"id":"%s:covarion_s_scaler.s" % name, "spec":"ScaleOperator","parameter":"@%s:covarion_s.s" % name,"scaleFactor":"0.5","weight":"1.0"})
 
     def add_param_logs(self, logger):
         BinaryModel.add_param_logs(self, logger)
         for fname in self.parameter_identifiers():
-            ET.SubElement(logger,"log",{"idref":"%s:covarion_alpha.s" % fname})
-            ET.SubElement(logger,"log",{"idref":"%s:covarion_s.s" % fname})
+            ET.SubElement(logger,"log",{"idref":"covarion_alpha.s:%s" % fname})
+            ET.SubElement(logger,"log",{"idref":"covarion_s.s:%s" % fname})
             if self.config.log_fine_probs:
-                ET.SubElement(logger,"log",{"idref":"%s:covarion_alpha_prior.s" % fname})
-                ET.SubElement(logger,"log",{"idref":"%s:covarion_s_prior.s" % fname})
+                ET.SubElement(logger,"log",{"idref":"covarion_alpha_prior.s:%s" % fname})
+                ET.SubElement(logger,"log",{"idref":"covarion_s_prior.s:%s" % fname})
