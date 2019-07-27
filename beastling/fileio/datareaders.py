@@ -261,7 +261,7 @@ def read_cldf_dataset(filename, classifications, code_column=None, expect_multip
     n_langs = 0
     for row in dataset["LanguageTable"]:
         names.append(row[dataset["LanguageTable", "Name"].name])
-        if row[gc_column] != None:
+        if row[gc_column]:
             gcs.append(row[gc_column])
         n_langs += 1
     unique_names = len(set(names)) == len(names) == n_langs
@@ -279,7 +279,7 @@ def read_cldf_dataset(filename, classifications, code_column=None, expect_multip
             # As a last resort, use the IDs which are guaranteed to be unique
             lang_ids[row["ID"]] = row["ID"]
         # Augment the Glottolog classifications with this language's name
-        if row[gc_column] != None and lang_ids[row["ID"]] not in classifications:
+        if row[gc_column] and row[gc_column] in classifications and lang_ids[row["ID"]] not in classifications:
             classifications[lang_ids[row["ID"]].lower()] = classifications[row[gc_column]]
 
     feature_ids = {}
