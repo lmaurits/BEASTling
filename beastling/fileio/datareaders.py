@@ -253,38 +253,15 @@ def read_cldf_dataset(filename, classifications, code_column=None, expect_multip
             dataset.module))
 
     # Build dictionaries of nice IDs for languages and features
-    lang_ids = {}
-    # First check for unique names and Glottocodes
-    names = []
-    gc_column = dataset["LanguageTable", "Glottocode"].name
-    gcs = []
-    n_langs = 0
-    for row in dataset["LanguageTable"]:
-        names.append(row[dataset["LanguageTable", "Name"].name])
-        if row[gc_column]:
-            gcs.append(row[gc_column])
-        n_langs += 1
-    unique_names = len(set(names)) == len(names) == n_langs
-    unique_gcs = len(set(gcs)) == len(gcs) == n_langs
-    for row in dataset["LanguageTable"]:
-        if unique_names:
-            # Use names if they're unique, for human-friendliness
-            lang_ids[row["ID"]] = sanitise_name(row[dataset["LanguageTable", "Name"].name])
-        elif unique_gcs:
-            # Otherwise, use glottocodes as at least they are meaningful
-            # TODO: We should emit a --verbose message here.  But we currently
-            # don't have any access to the messages list from here.
-            lang_ids[row["ID"]] = row[gc_column]
-        else:
-            # As a last resort, use the IDs which are guaranteed to be unique
-            lang_ids[row["ID"]] = row["ID"]
-        # Augment the Glottolog classifications with this language's name
-        if row[gc_column] and row[gc_column] in classifications and lang_ids[row["ID"]] not in classifications:
-            classifications[lang_ids[row["ID"]].lower()] = classifications[row[gc_column]]
-
+    # TODO: find a smarter/neater way of testing for the presence of a
+    # LanguageTable or ParameterTable
+    lang_ids = build_lang_ids(dataset, classifications)
     feature_ids = {}
-    for row in dataset["ParameterTable"]:
-        feature_ids[row["ID"]] = sanitise_name(row[dataset["ParameterTable", "Name"].name])
+    try:
+        for row in dataset["ParameterTable"]:
+            feature_ids[row["ID"]] = sanitise_name(row[dataset["ParameterTable", "Name"].name])
+    except KeyError:
+        pass
 
     # Build actual data dictionary, based on dataset type
     if dataset.module == "Wordlist":
@@ -315,8 +292,8 @@ def read_cldf_dataset(filename, classifications, code_column=None, expect_multip
         parameter_column = dataset["FormTable", "parameterReference"].name
 
         for row in dataset["FormTable"].iterdicts():
-            lang_id = lang_ids[row[language_column]]
-            feature_id = feature_ids[row[parameter_column]]
+            lang_id = lang_ids.get(row[language_column], row[language_column])
+            feature_id = feature_ids.get(row[parameter_column], row[parameter_column])
             if cognate_column_in_form_table:
                 if expect_multiple:
                     data[lang_id][feature_id].append(row[code_column])
@@ -336,11 +313,48 @@ def read_cldf_dataset(filename, classifications, code_column=None, expect_multip
         parameter_column = dataset["ValueTable", "parameterReference"].name
         code_column = code_column or dataset["ValueTable", "codeReference"].name
         for row in dataset["ValueTable"].iterdicts():
-            lang_id = lang_ids[row[language_column]]
-            feature_id = feature_ids[row[parameter_column]]
+            lang_id = lang_ids.get(row[language_column], row[language_column])
+            feature_id = feature_ids.get(row[parameter_column], row[parameter_column])
             if expect_multiple:
                 data[lang_id][feature_id].append(row[code_column])
             else:
                 data[lang_id][feature_id] = row[code_column]
         return data
 
+def build_lang_ids(dataset, classifications):
+    lang_ids = {}
+    try:
+        dataset["LanguageTable"]
+    except KeyError:
+        # No language table so we can't do anything
+        return lang_ids
+
+    # First check for unique names and Glottocodes
+    names = []
+    gc_column = dataset["LanguageTable", "Glottocode"].name
+    gcs = []
+    n_langs = 0
+    for row in dataset["LanguageTable"]:
+        names.append(row[dataset["LanguageTable", "Name"].name])
+        if row[gc_column]:
+            gcs.append(row[gc_column])
+        n_langs += 1
+    unique_names = len(set(names)) == len(names) == n_langs
+    unique_gcs = len(set(gcs)) == len(gcs) == n_langs
+    for row in dataset["LanguageTable"]:
+        if unique_names:
+            # Use names if they're unique, for human-friendliness
+            lang_ids[row["ID"]] = sanitise_name(row[dataset["LanguageTable", "Name"].name])
+        elif unique_gcs:
+            # Otherwise, use glottocodes as at least they are meaningful
+            # TODO: We should emit a --verbose message here.  But we currently
+            # don't have any access to the messages list from here.
+            lang_ids[row["ID"]] = row[gc_column]
+        else:
+            # As a last resort, use the IDs which are guaranteed to be unique
+            lang_ids[row["ID"]] = row["ID"]
+        # Augment the Glottolog classifications with this language's name
+        if row[gc_column] and row[gc_column] in classifications and lang_ids[row["ID"]] not in classifications:
+            classifications[lang_ids[row["ID"]].lower()] = classifications[row[gc_column]]
+
+    return lang_ids
