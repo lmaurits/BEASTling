@@ -21,7 +21,6 @@ class BinaryCTMCModel(BinaryModel):
     def add_substmodel(self, sitemodel, feature, fname):
         # If we're sharing one substmodel across all features and have already
         # created it, just reference it and that's it
-        print("Adding subst: ", sitemodel, feature, fname)
         if self.subst_model_id:
             sitemodel.set("substModel", "@%s" % self.subst_model_id)
             return
