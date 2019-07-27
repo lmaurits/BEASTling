@@ -48,13 +48,34 @@ class BaseModel(object):
         self.treedata = []
 
         # Load the entire dataset from the file
-        self.data = load_data(
+        self.data, language_code_map = load_data(
             self.data_filename,
-            global_config.classifications,
             file_format=model_config.get("file_format", None),
             lang_column=model_config.get("language_column", None),
             value_column=model_config.get("value_column", None),
             expect_multiple=True)
+
+        # Augment the Glottolog classifications with human-friendly language
+        # names which may have been read from a CLDF dataset.  Note that we
+        # store both the actual language ID and its lowercase transformation.
+        # This is kind of ugly, but we inconsistently convert things to
+        # lowercase before doing Glottolog lookups all over the place, so
+        # this is the easiest way to make this work everywhere.  We should
+        # clean this up some day!
+        for language_id, glottocode in language_code_map.items():
+            print("Augmenting ", language_id, glottocode)
+            if glottocode in global_config.classifications:
+                global_config.classifications[language_id] = global_config.classifications[glottocode]
+                global_config.classifications[language_id.lower()] = global_config.classifications[language_id]
+                print(language_id, global_config.classifications[language_id])
+            if glottocode in global_config.glotto_macroareas:
+                global_config.glotto_macroareas[language_id] = global_config.glotto_macroareas[glottocode]
+                global_config.glotto_macroareas[language_id.lower()] = global_config.glotto_macroareas[language_id]
+            if glottocode in global_config.locations:
+                global_config.locations[language_id] = global_config.locations[glottocode]
+                global_config.locations[language_id.lower()] = global_config.locations[language_id]
+                print(language_id, global_config.locations[language_id])
+
         # Remove features not wanted in this analysis
         self.build_feature_filter()
         self.apply_feature_filter()

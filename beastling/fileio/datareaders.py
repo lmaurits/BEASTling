@@ -48,7 +48,7 @@ def sanitise_name(name):
     name = name.replace(" ","_")
     return name
 
-def load_data(filename, classifications, file_format=None, lang_column=None, value_column=None, expect_multiple=False):
+def load_data(filename, file_format=None, lang_column=None, value_column=None, expect_multiple=False):
     # Handle CSV dialect issues
     if str(filename) == 'stdin':
         filename = sys.stdin
@@ -56,7 +56,7 @@ def load_data(filename, classifications, file_format=None, lang_column=None, val
         # the best
         dialect = "excel" # Default dialect for csv module
     elif file_format and file_format.lower() == "cldf":
-        return read_cldf_dataset(filename, classifications, value_column, expect_multiple=expect_multiple)
+        return read_cldf_dataset(filename, value_column, expect_multiple=expect_multiple)
     elif file_format and file_format.lower() == "cldf-legacy":
         # CLDF pre-1.0 standard says delimiter is indicated by file extension
         if filename.suffix.lower() == ".csv" or str(filename) == "stdin":
@@ -68,7 +68,7 @@ def load_data(filename, classifications, file_format=None, lang_column=None, val
     elif filename.suffix == ".json" or filename.name in {"forms.csv", "values.csv"}:
         # TODO: Should we just let the pycldf module try its hands on the file
         # and fall back to other formats if that doesn't work?
-        return read_cldf_dataset(filename, classifications, value_column, expect_multiple=expect_multiple)
+        return read_cldf_dataset(filename, value_column, expect_multiple=expect_multiple)
     else:
         # Use CSV dialect sniffer in all other cases
         dialect = sniff(filename)
@@ -88,7 +88,7 @@ def load_data(filename, classifications, file_format=None, lang_column=None, val
             data = load_beastling_data(reader, lang_column, filename, expect_multiple=expect_multiple)
         else:
             raise ValueError("File format specification '{:}' not understood".format(file_format))
-    return data
+    return data, {}
 
 _language_column_names = ("iso", "iso_code", "glotto", "glottocode", "language", "language_id", "lang", "lang_id")
 
@@ -221,7 +221,7 @@ def get_dataset(fname):
     return pycldf.dataset.Dataset.from_data(fname)
 
 
-def read_cldf_dataset(filename, classifications, code_column=None, expect_multiple=False):
+def read_cldf_dataset(filename, code_column=None, expect_multiple=False):
     """Load a CLDF dataset.
 
     Load the file as `json` CLDF metadata description file, or as metadata-free
@@ -255,7 +255,7 @@ def read_cldf_dataset(filename, classifications, code_column=None, expect_multip
     # Build dictionaries of nice IDs for languages and features
     # TODO: find a smarter/neater way of testing for the presence of a
     # LanguageTable or ParameterTable
-    lang_ids = build_lang_ids(dataset, classifications)
+    lang_ids, language_code_map = build_lang_ids(dataset)
     feature_ids = {}
     try:
         for row in dataset["ParameterTable"]:
@@ -306,7 +306,7 @@ def read_cldf_dataset(filename, classifications, code_column=None, expect_multip
                 else:
                     data[lang_id][feature_id] = (
                         cognatesets[row[form_column]])
-        return data
+        return data, language_code_map
 
     elif dataset.module == "StructureDataset":
         language_column = dataset["ValueTable", "languageReference"].name
@@ -319,15 +319,16 @@ def read_cldf_dataset(filename, classifications, code_column=None, expect_multip
                 data[lang_id][feature_id].append(row[code_column])
             else:
                 data[lang_id][feature_id] = row[code_column]
-        return data
+        return data, language_code_map
 
-def build_lang_ids(dataset, classifications):
+def build_lang_ids(dataset):
     lang_ids = {}
+    language_code_map = {}
     try:
         dataset["LanguageTable"]
     except KeyError:
         # No language table so we can't do anything
-        return lang_ids
+        return language_code_map, lang_ids
 
     # First check for unique names and Glottocodes
     names = []
@@ -353,8 +354,6 @@ def build_lang_ids(dataset, classifications):
         else:
             # As a last resort, use the IDs which are guaranteed to be unique
             lang_ids[row["ID"]] = row["ID"]
-        # Augment the Glottolog classifications with this language's name
-        if row[gc_column] and row[gc_column] in classifications and lang_ids[row["ID"]] not in classifications:
-            classifications[lang_ids[row["ID"]].lower()] = classifications[row[gc_column]]
-
-    return lang_ids
+        if row[gc_column]:
+            language_code_map[lang_ids[row["ID"]]] = row[gc_column]
+    return lang_ids, language_code_map
