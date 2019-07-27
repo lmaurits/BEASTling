@@ -27,6 +27,12 @@ class BinaryModel(BaseModel):
         if self.recoded and self.binarised:
             raise ValueError("Data for model '%s' contains features with more than two states, but binarised=True was given.  Have you specified the correct data file or feature list?" % self.name)
 
+    def add_state(self, state):
+        BaseModel.add_state(self, state)
+        if self.gamma_categories > 0:
+            shape = ET.SubElement(state,"parameter",  {"id":"gammaShape.s:%s" % self.name, "name":"stateNode"})
+            shape.text="1.0"
+
     def add_frequency_state(self, state):
         attribs = {
             "id":"freqs_param.s:%s" % self.name,
@@ -59,7 +65,7 @@ class BinaryModel(BaseModel):
                     }
         if self.gamma_categories > 0:
             attribs["gammaCategoryCount"] = str(self.gamma_categories)
-            attribs["shape"] = "1"
+            attribs["shape"] = "@gammaShape.s:%s" % self.name
         sitemodel = ET.SubElement(distribution, "siteModel", attribs)
         substmodel = self.add_substmodel(sitemodel, feature, fname)
 
@@ -238,9 +244,19 @@ class BinaryModel(BaseModel):
             else:
                 data.set("excludeto", "1")
 
+    def add_operators(self, run):
+        BaseModel.add_operators(self, run)
+        if self.gamma_categories > 0:
+            gamma_scaler = ET.SubElement(run,"operator",  {"id":"gammaShapeScaler.s:%s" % self.name, "spec":"ScaleOperator", "parameter":"@gammaShape.s:%s" % self.name, "scaleFactor":"0.5","weight":"0.1"})
+
     def add_frequency_operators(self, run):
         for name in self.parameter_identifiers():
             ET.SubElement(run, "operator", {"id":"frequency_sampler.s:%s" % name, "spec":"DeltaExchangeOperator","parameter":"@freqs_param.s:%s" % self.name,"delta":"0.01","weight":"1.0"})
+
+    def add_param_logs(self, logger):
+        BaseModel.add_param_logs(self, logger)
+        if self.gamma_categories > 0:
+            ET.SubElement(logger, "log", {"idref":"gammaShape.s:%s" % self.name})
 
     def add_frequency_logs(self, logger):
         for name in self.parameter_identifiers():
