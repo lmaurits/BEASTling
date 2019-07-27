@@ -17,10 +17,6 @@ class CovarionModel(BinaryModel):
             ET.SubElement(state, "parameter", {"id":"%s:covarion_alpha.s" % fname, "lower":"1.0E-4", "name":"stateNode", "upper":"1.0"}).text="0.5"
             ET.SubElement(state, "parameter", {"id":"%s:covarion_s.s" % fname, "lower":"1.0E-4", "name":"stateNode", "upper":"Infinity"}).text="0.5"
 
-    def add_frequency_state(self, state):
-        for fname in self.parameter_identifiers():
-            ET.SubElement(state, "parameter", {"id":"%s:visiblefrequencies.s" % fname, "name":"stateNode", "dimension":"2", "lower":"0.0", "upper":"1.0"}).text="0.5 0.5"
-
     def get_userdatatype(self, feature, fname):
         if not self.beastxml._covarion_userdatatype_created:
             self.beastxml._covarion_userdatatype_created = True
@@ -59,16 +55,12 @@ class CovarionModel(BinaryModel):
         # be based on the data (if we are doing an empirical
         # analysis)
         if self.frequencies == "estimate":
-            substmodel.set("vfrequencies","@%s:visiblefrequencies.s" % name)
-        else:
-            vfreq = ET.SubElement(substmodel, "vfrequencies", {"id":"%s:visiblefrequencies.s" % name, "dimension":"2","spec":"parameter.RealParameter"})
-            if self.frequencies == "empirical":
-                if self.share_params:
-                    vfreq.text = self.build_freq_str()
-                else:
-                    vfreq.text = self.build_freq_str(feature)
-            else:
-                vfreq.text="0.5 0.5"
+            freq = ET.SubElement(substmodel,"vfrequencies",{"id":"estimatedFrequencies.s:%s"%name,"spec":"Frequencies", "frequencies":"@freqs_param.s:%s"%name})
+        elif self.frequencies == "empirical":
+            freq = ET.SubElement(substmodel,"vfrequencies",{"id":"empiricalFrequencies.s:%s"%name,"spec":"Frequencies", "data":"@feature_data_%s"%name})
+        elif self.frequencies == "uniform":
+            freq = ET.SubElement(substmodel, "vfrequencies", {"id":"frequencies.s:%s" % name, "dimension":"2","spec":"parameter.RealParameter"})
+            freq.text="0.5 0.5"
 
         # These are the frequencies of the *hidden* states
         # (fast / slow), and are just set to 50:50.  They could be estimated,
@@ -108,7 +100,7 @@ class CovarionModel(BinaryModel):
 
     def add_frequency_operators(self, run):
         for fname in self.parameter_identifiers():
-            ET.SubElement(run, "operator", {"id":"%s:covarion_frequency_sampler.s" % fname, "spec":"DeltaExchangeOperator","parameter":"@%s:visiblefrequencies.s" % fname,"delta":"0.01","weight":"1.0"})
+            ET.SubElement(run, "operator", {"id":"%s:covarion_frequency_sampler.s" % fname, "spec":"DeltaExchangeOperator","parameter":"frequencies.s:%s" % fname,"delta":"0.01","weight":"1.0"})
 
     def add_param_logs(self, logger):
         BinaryModel.add_param_logs(self, logger)
@@ -121,4 +113,4 @@ class CovarionModel(BinaryModel):
 
     def add_frequency_logs(self, logger):
         for fname in self.parameter_identifiers():
-            ET.SubElement(logger,"log",{"idref":"%s:visiblefrequencies.s" % fname})
+            ET.SubElement(logger,"log",{"idref":"frequencies.s:%s" % fname})

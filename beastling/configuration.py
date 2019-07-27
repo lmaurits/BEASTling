@@ -27,6 +27,7 @@ import beastling.clocks.random as random_clock
 import beastling.clocks.prior as prior_clock
 
 import beastling.models.geo as geo
+import beastling.models.binaryctmc as binaryctmc
 import beastling.models.bsvs as bsvs
 import beastling.models.covarion as covarion
 import beastling.models.pseudodollocovarion as pseudodollocovarion
@@ -904,6 +905,8 @@ class Configuration(object):
                     self.messages.append(bsvs.BSVSModel.package_notice)
             elif config["model"].lower() == "covarion":
                 model = covarion.CovarionModel(config, self)
+            elif config["model"].lower() == "binaryctmc":
+                model = binaryctmc.BinaryCTMCModel(config, self)
             elif config["model"].lower() == "pseudodollocovarion":
                 model = pseudodollocovarion.PseudoDolloCovarionModel(
                     config, self)

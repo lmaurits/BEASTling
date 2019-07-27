@@ -27,6 +27,24 @@ class BinaryModel(BaseModel):
         if self.recoded and self.binarised:
             raise ValueError("Data for model '%s' contains features with more than two states, but binarised=True was given.  Have you specified the correct data file or feature list?" % self.name)
 
+    def add_frequency_state(self, state):
+        attribs = {
+            "id":"freqs_param.s:%s" % self.name,
+            "spec":"parameter.RealParameter",
+            "dimension":"2",
+            "lower":"0.0",
+            "upper":"1.0",
+        }
+        if self.monolithic_partition:
+            param = ET.SubElement(state,"stateNode",attribs)
+            param.text = "0.5 0.5"
+        else:
+            for f in self.features:
+                fname = "%s:%s" % (self.name, f)
+                attribs["id"] = "freqs_param.s:%s"%fname,
+                param = ET.SubElement(state,"stateNode",attribs)
+                param.text = str(1.0/self.valuecounts[f])
+
     def add_sitemodel(self, distribution, feature, fname):
         if feature == None and fname == None:
             mr = "1.0"
@@ -228,6 +246,7 @@ class BinaryModelWithShareParams(BinaryModel):
             self.share_params = INI.BOOLEAN_STATES[share_params.lower().strip()]
         except KeyError:
             raise ValueError("Invalid setting of 'share_params' (%s) for model %s, not a boolean" % (share_params, self.name))
+        self.monolithic_partition = self.share_params and not (self.rate_variation or self.feature_rates)
 
     def build_freq_str(self, feature=None):
         # TODO: I think this should probably go in BinaryModel
@@ -269,14 +288,13 @@ class BinaryModelWithShareParams(BinaryModel):
         return "%.2f %.2f" % (zerf, onef)
 
     def parameter_identifiers(self):
-        if self.share_params:
+        if self.monolithic_partition:
             return [self.name]
         else:
             return ["{:s}:{:s}".format(self.name, f) for f in self.features]
 
     def add_likelihood(self, likelihood):
-        monolithic_partition = self.share_params and not (self.rate_variation or self.feature_rates)
-        if monolithic_partition:
+        if self.monolithic_partition:
             self.add_monolithic_likelihood(likelihood)
         else:
             BaseModel.add_likelihood(self, likelihood)

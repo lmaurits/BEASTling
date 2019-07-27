@@ -33,6 +33,7 @@ class BeastXml(object):
         self.config = config
         if not self.config.processed:
             self.config.process()
+        self._binary_userdatatype_created = False
         self._covarion_userdatatype_created = False
         # Tell everybody about ourselves
         for model in self.config.all_models:
