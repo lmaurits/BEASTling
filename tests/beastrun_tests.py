@@ -50,6 +50,7 @@ def test_basic():
         ("admin", "mk", "strictclockwithprior"),
         ("admin", "binaryctmc"),
         ("admin", "binaryctmc", "gamma_categories"),
+        ("admin", "binaryctmc", "estimated_freqs", "rate_var"),
         ("admin", "covarion_multistate"),
         ("admin", "covarion_multistate", "covarion_per_feature_params"),
         ("admin", "covarion_multistate", "ascertainment_true"),
