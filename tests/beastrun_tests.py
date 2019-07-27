@@ -49,6 +49,7 @@ def test_basic():
         ("admin", "bsvs"),
         ("admin", "mk", "strictclockwithprior"),
         ("admin", "binaryctmc"),
+        ("admin", "binaryctmc", "gamma_categories"),
         ("admin", "covarion_multistate"),
         ("admin", "covarion_multistate", "covarion_per_feature_params"),
         ("admin", "covarion_multistate", "ascertainment_true"),
