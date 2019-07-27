@@ -46,11 +46,3 @@ class BinaryCTMCModel(BinaryModel):
         elif self.frequencies == "uniform":
             freq = ET.SubElement(substmodel, "frequencies", {"id":"frequencies.s:%s" % name, "dimension":"2","spec":"parameter.RealParameter"})
             freq.text="0.5 0.5"
-
-    def add_frequency_operators(self, run):
-        for name in self.parameter_identifiers():
-            ET.SubElement(run, "operator", {"id":"frequency_sampler.s:%s" % name, "spec":"DeltaExchangeOperator","parameter":"@freqs_param.s:%s" % self.name,"delta":"0.01","weight":"1.0"})
-
-    def add_frequency_logs(self, logger):
-        for name in self.parameter_identifiers():
-            ET.SubElement(logger,"log",{"idref":"freqs_param.s:%s" % name})
