@@ -312,7 +312,7 @@ class BinaryModelWithShareParams(BinaryModel):
         return "%.2f %.2f" % (zerf, onef)
 
     def parameter_identifiers(self):
-        if self.monolithic_partition:
+        if self.share_params:
             return [self.name]
         else:
             return ["{:s}:{:s}".format(self.name, f) for f in self.features]
