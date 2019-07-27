@@ -47,7 +47,7 @@ class BinaryModel(BaseModel):
         else:
             for f in self.features:
                 fname = "%s:%s" % (self.name, f)
-                attribs["id"] = "freqs_param.s:%s"%fname,
+                attribs["id"] = "freqs_param.s:%s" % fname
                 param = ET.SubElement(state,"stateNode",attribs)
                 param.text = str(1.0/self.valuecounts[f])
 
