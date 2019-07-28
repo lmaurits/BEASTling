@@ -98,11 +98,11 @@ class Tests(WithConfigAndTempDir):
             'calibration': {
                 'abcd1234, efgh5678': '10-20',
             },
-            'model': {
+            'model one': {
                 'binarised': True,
                 'minimum_data': '4.5'
             },
-            'model2': {
+            'model two': {
                 'binarized': True,
             },
         })
