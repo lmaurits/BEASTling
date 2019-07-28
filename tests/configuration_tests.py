@@ -349,6 +349,7 @@ class Tests(WithConfigAndTempDir):
         config = self._make_cfg('basic', 'strict')
         config.process()
 
+    @raises(ValueError)
     def test_bad_clock_ref(self):
         config = self._make_bad_cfg('misspelled_clock')
         config.process()
