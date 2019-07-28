@@ -130,7 +130,13 @@ Valid macroareas are: ``Africa``, ``Australia``, ``Eurasia``, ``North America``,
 
 Note that the current subsampling implementation chooses languages uniformly at random from the full set, so the distribution over families, macroareas, etc. will usually be *approximately* equal to the corresponding distribution for the full set, but this is not guaranteed and there is a chance that e.g. some families represented in the full set will be missing from the subsample.  More principled subsampling approaches may be available in future releases.
 
-calibration section
+* ``tree_prior``: Specifies a tree prior to use for the analysis.  Available tree priors are:
+   * "uniform" (Uniform tree prior)
+   * "yule" (Yule pure-birth tree, the default
+   * "coalescent" (Coalescent tree, do not use unless you know what you are doing)
+   * "birthdeath" (BirthDeath tree)
+
+   calibration section
 -------------------
 
 If you wish to estimate divergence times as part of your analysis, it is essentially to provide some amount of calibration data, i.e. estimates of the times when some known divergences are believed to have occurred (based on e.g. archaeological or historical evidence).  One calibration is the minimum required, but you can add as many as you like.  More is generally better, although large numbers of calibrations can cause problems too.  To include calibrations, you should add a ``calibration`` section to your config file.  This section should contain one parameter for each distinct calibration point that you wish to use.
@@ -285,6 +291,7 @@ Additionally, each model section *may* contain the following parameters, i.e.  t
 * ``rate_variation``: "True" or "False".  Estimate a separate substitution rate for each feature (or feature category if using ``rate_partition``).  Substitution rates are constrainted to have a mean of 1.0 and have a a Gamma prior.
 
 * ``reconstruct``: A list of features for which ancestral state reconstruction (ASR) should be performed, i.e. for which BEAST will estimate the unobserved feature values at internal nodes of the tree.  Can be specified in the same fashion as ``features``, i.e. a comma-separated list or the name of a file with one feature per line.  Specifying an asterisk (``*``) will reconstruct all features in the data set.  If ASR is used, an additional logfile of trees will be produced by BEAST, distinguished from the regular tree log via the addition of the ``_reconstruct`` suffix.
+
 * ``remove_constant_features``: "True" or "False".  This option is only relevant if the binary covarion model is being used (see :ref:`covarion`).  Your setting will be ignored if you are using the Lewis Mk or BSVS models, as these models cannot sensible accommodate constant features.  By default, this is set to "True", which means that if your data set contains any features which have the same value for all of the languages in your analysis (which is not necessarily all of the languages in your data file, if you are using the "families" parameter in your "languages" section!), BEASTling will automatically remove that feature from the analysis (since it cannot possibly provide any phylogenetic information).  If you want to keep these constant features in, you must explicitly set this parameter to False.  You may want to do this if you have rate variation enabled to help estimate the distribution of rates across features, but if your data set contains many constant features you should be careful about interpreting the results.
 
 * ``minimum_data``: Indicates the minimum percentage of languages that a feature should have data present for to be included in an analysis.  E.g, if set to 50, any feature in the dataset which has more question marks than actual values for the selected languages will be excluded.
