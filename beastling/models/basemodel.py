@@ -175,6 +175,7 @@ class BaseModel(object):
             raise ValueError("Could not find feature rate file %s." % self.rate_partition)
         fname = self.rate_partition
         with open(fname) as fp:
+            # TODO: check that the partition includes all features
             self.rate_partition = {}
             for line in fp:
                 name, part = line.split(":",1)
