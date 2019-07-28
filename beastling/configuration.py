@@ -388,7 +388,7 @@ class Configuration(object):
         return cfg
 
     def get_model_config(self, p, section):
-        section_parts = section.split(maxsplit=1)
+        section_parts = section.split(None, 1)
         if len(section_parts) == 1:
             raise ValueError("All model sections must have a name!")
         cfg = {
