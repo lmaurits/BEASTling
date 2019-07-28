@@ -25,23 +25,25 @@ class BinaryCTMCModel(BinaryModel):
             sitemodel.set("substModel", "@%s" % self.subst_model_id)
             return
 
-        if feature:
-            name = "%s:%s" % (self.name, feature)
-        else:
-            name = self.name
-
-        subst_model_id = "%s:binaryCTMC.s" % name
-        if not feature:
-            self.subst_model_id = "%s:binaryCTMC.s" % name
+        # Otherwise, create a substmodel
+        name = self.name if self.share_params else fname
+        subst_model_id = "binaryCTMC.s:%s" % name
+        if self.share_params:
+            self.subst_model_id = subst_model_id
         substmodel = ET.SubElement(sitemodel, "substModel",{"id":subst_model_id,"spec":"GeneralSubstitutionModel"})
 
         rates = ET.SubElement(substmodel, "parameter",{"id":"rates.s:%s" % name, "dimension":"2", "estimate":"false","name":"rates"})
         rates.text="1.0 1.0"
-        
+
         if self.frequencies == "estimate":
             freq = ET.SubElement(substmodel,"frequencies",{"id":"estimatedFrequencies.s:%s"%name,"spec":"Frequencies", "frequencies":"@freqs_param.s:%s"%name})
         elif self.frequencies == "empirical":
-            freq = ET.SubElement(substmodel,"frequencies",{"id":"empiricalFrequencies.s:%s"%name,"spec":"Frequencies", "data":"@feature_data_%s"%name})
+            attribs = {"id":"empiricalFrequencies.s:%s"%name,"spec":"Frequencies"}
+            if self.single_sitemodel:
+                attribs["data"] = "@filtered_data_%s" % name
+            else:
+                attribs["data"] = "@feature_data_%s" % name
+            freq = ET.SubElement(substmodel,"frequencies",attribs)
         elif self.frequencies == "uniform":
             freq = ET.SubElement(substmodel, "frequencies", {"id":"frequencies.s:%s" % name, "dimension":"2","spec":"parameter.RealParameter"})
             freq.text="0.5 0.5"

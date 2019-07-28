@@ -38,11 +38,18 @@ class CovarionModel(BinaryModel):
         else:
             self._add_substmodel(sitemodel, feature, fname)
 
-    def _add_substmodel(self, sitemodel, feature, name):
+    def _add_substmodel(self, sitemodel, feature, fname):
+        # If we're sharing one substmodel across all features and have already
+        # created it, just reference it and that's it
+        if self.subst_model_id:
+            sitemodel.set("substModel", "@%s" % self.subst_model_id)
+            return
+
+        # Otherwise, create a substmodel
+        name = self.name if self.share_params else fname
+        subst_model_id = "covarion.s:%s" % name
         if self.share_params:
-            name = self.name
-            self.subst_model_id = "%s:covarion.s" % name
-        subst_model_id = "%s:covarion.s" % name
+            self.subst_model_id = subst_model_id
         substmodel = ET.SubElement(sitemodel, "substModel",{"id":subst_model_id,"spec":"BinaryCovarion","alpha":"@covarion_alpha.s:%s" % name, "switchRate":"covarion_s.s:%s" % name})
 
         # Numerical instability is an issue with this model, so we give the

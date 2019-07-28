@@ -41,7 +41,7 @@ class BinaryModel(BaseModel):
             "lower":"0.0",
             "upper":"1.0",
         }
-        if self.monolithic_partition:
+        if self.single_sitemodel:
             param = ET.SubElement(state,"stateNode",attribs)
             param.text = "0.5 0.5"
         else:
@@ -270,12 +270,9 @@ class BinaryModelWithShareParams(BinaryModel):
             self.share_params = INI.BOOLEAN_STATES[share_params.lower().strip()]
         except KeyError:
             raise ValueError("Invalid setting of 'share_params' (%s) for model %s, not a boolean" % (share_params, self.name))
-        self.monolithic_partition = self.share_params and not (self.rate_variation or self.feature_rates)
+        self.single_sitemodel = self.share_params and not (self.rate_variation or self.feature_rates)
 
     def build_freq_str(self, feature=None):
-        # TODO: I think this should probably go in BinaryModel
-        # But right now it is (loosely) coupled to Covarion via
-        # self.share_params
         assert feature or self.share_params
 
         if feature is None:
@@ -318,17 +315,18 @@ class BinaryModelWithShareParams(BinaryModel):
             return ["{:s}:{:s}".format(self.name, f) for f in self.features]
 
     def add_likelihood(self, likelihood):
-        if self.monolithic_partition:
-            self.add_monolithic_likelihood(likelihood)
+        if self.single_sitemodel:
+            self.add_single_sitemodel_likelihood(likelihood)
         else:
             BaseModel.add_likelihood(self, likelihood)
 
-    def add_monolithic_likelihood(self, likelihood):
+    def add_single_sitemodel_likelihood(self, likelihood):
         attribs = {"id": "DataLikelihood:%s" % self.name,
-                   "spec": "TreeLikelihood",
-                   "useAmbiguities": "true"}
-        attribs["branchRateModel"] = "@%s" % self.clock.branchrate_model_id
-        attribs["tree"] = "@Tree.t:beastlingTree"
+           "spec": "TreeLikelihood",
+           "useAmbiguities": "true",
+           "branchRateModel": "@%s" % self.clock.branchrate_model_id,
+           "tree": "@Tree.t:beastlingTree",
+        }
         distribution = ET.SubElement(likelihood, "distribution",attribs)
         self.add_sitemodel(distribution, None, None)
         data = ET.SubElement(distribution, "data", {
