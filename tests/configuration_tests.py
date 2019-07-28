@@ -26,6 +26,10 @@ class Tests(WithConfigAndTempDir):
     def _make_bad_cfg(self, name):
         return self.make_cfg(config_path(name, bad=True).as_posix())
 
+    def test_partial_glottolog_coverage(self):
+        config = self._make_cfg('admin', 'partial_glottolog_coverage')
+        config.process()
+
     def test_get_glottolog_geo(self):
         geodata = self.tmp.joinpath('glottolog-2.5-geo.csv')
         with geodata.open('w', encoding='utf8') as fp:
