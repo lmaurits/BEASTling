@@ -258,6 +258,10 @@ Additionally, each model section *may* contain the following parameters, i.e.  t
 
 * ``clock``: Assigns the clock to use for this model.  See :ref:`clock_sections` below for details.
 
+* ``exclusions``: One of:
+   * A comma-separated list of feature names to exclude from the analysis, spelled exactly as they are in the data file(s).
+   * The path to a file which contains one feature per line.
+
 * ``features``: Is used to select a subset of the features in the given data file.  Should be one of:
    * A comma-separated list of feature names (as they are given in the data CSV's header line)
    * A path to a file which contains one feature name per line
