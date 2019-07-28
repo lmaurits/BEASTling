@@ -388,8 +388,11 @@ class Configuration(object):
         return cfg
 
     def get_model_config(self, p, section):
+        section_parts = section.split(maxsplit=1)
+        if len(section_parts) == 1:
+            raise ValueError("All model sections must have a name!")
         cfg = {
-            'name': section[5:].strip(),
+            'name': section_parts[1].strip().replace(" ","_"),
             'binarised': None,
             'rate_variation': False,
             'remove_constant_features': True,
