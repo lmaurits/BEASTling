@@ -355,6 +355,11 @@ class Configuration(object):
             self.geo_config = self.get_geo_config(p, "geography")
         else:
             self.geo_config = {}
+        # If the geography section specified files to load location data from,
+        # let's do that now.
+        self.load_user_geo()
+
+        # Geographic priors
         if p.has_section("geo_priors"):
             if not p.has_section("geography"):
                 raise ValueError("Config file contains geo_priors section but no geography section.")
@@ -472,7 +477,6 @@ class Configuration(object):
             self.log_every = self.chainlength // 10000 or 1
 
         self.load_glottolog_data()
-        self.load_user_geo()
         self.instantiate_models()
         self.build_language_filter()
         self.process_models()
