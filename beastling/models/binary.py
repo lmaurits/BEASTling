@@ -41,7 +41,7 @@ class BinaryModel(BaseModel):
             "lower":"0.0",
             "upper":"1.0",
         }
-        if self.single_sitemodel:
+        if self.share_params:
             param = ET.SubElement(state,"stateNode",attribs)
             param.text = "0.5 0.5"
         else:

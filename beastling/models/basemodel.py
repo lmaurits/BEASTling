@@ -494,7 +494,7 @@ class BaseModel(object):
                     self.treedata.append(attribs["id"])
                     distribution.attrib["tag"] = f
                 else:
-                    distribution.attrib["spec"] = "lucl.statereconstruction.AncestralStatesLogger"
+                    distribution.attrib["spec"] = "lucl.beast.statereconstruction.AncestralStatesLogger"
                     distribution.attrib["value"] = " ".join(self.pattern_names(f))
                     for label in self.reconstruct_at:
                         langs = self.config.language_group(label)
@@ -582,7 +582,7 @@ class BaseModel(object):
             parent = distribution
             name = "data"
         data = ET.SubElement(parent, name, {
-            "id":"feature_data_%s" % fname,
+            "id": "data_%s" % fname,
             "spec":"FilteredAlignment",
             "data":"@data_%s" % self.name,
             "filter":self.filters[feature]})

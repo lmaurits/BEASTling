@@ -46,11 +46,11 @@ class CovarionModel(BinaryModel):
             return
 
         # Otherwise, create a substmodel
-        name = self.name if self.share_params else fname
+        name = fname or self.name
         subst_model_id = "covarion.s:%s" % name
         if self.share_params:
             self.subst_model_id = subst_model_id
-        substmodel = ET.SubElement(sitemodel, "substModel",{"id":subst_model_id,"spec":"BinaryCovarion","alpha":"@covarion_alpha.s:%s" % name, "switchRate":"covarion_s.s:%s" % name})
+        substmodel = ET.SubElement(sitemodel, "substModel",{"id":subst_model_id,"spec":"BinaryCovarion","alpha":"@covarion_alpha.s:%s" % name, "switchRate":"@covarion_s.s:%s" % name})
 
         # Numerical instability is an issue with this model, so we give the
         # option of using a more robust method of computing eigenvectors.
@@ -107,7 +107,7 @@ class CovarionModel(BinaryModel):
 
     def _add_operators(self, run, name):
         ET.SubElement(run, "operator", {"id":"covarion_alpha_scaler.s:%s" % name, "spec":"ScaleOperator","parameter":"@covarion_alpha.s:%s" % name,"scaleFactor":"0.5","weight":"1.0"})
-        ET.SubElement(run, "operator", {"id":"%s:covarion_s_scaler.s" % name, "spec":"ScaleOperator","parameter":"@%s:covarion_s.s" % name,"scaleFactor":"0.5","weight":"1.0"})
+        ET.SubElement(run, "operator", {"id":"%s:covarion_s_scaler.s" % name, "spec":"ScaleOperator","parameter":"@covarion_s.s:%s" % name,"scaleFactor":"0.5","weight":"1.0"})
 
     def add_param_logs(self, logger):
         BinaryModel.add_param_logs(self, logger)

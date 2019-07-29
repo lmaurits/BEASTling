@@ -42,7 +42,7 @@ class BinaryCTMCModel(BinaryModel):
             if self.single_sitemodel:
                 attribs["data"] = "@filtered_data_%s" % name
             else:
-                attribs["data"] = "@feature_data_%s" % name
+                attribs["data"] = "@data_%s" % name
             freq = ET.SubElement(substmodel,"frequencies",attribs)
         elif self.frequencies == "uniform":
             freq = ET.SubElement(substmodel, "frequencies", {"id":"frequencies.s:%s" % name, "dimension":"2","spec":"parameter.RealParameter"})
