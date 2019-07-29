@@ -273,7 +273,6 @@ class Configuration(object):
                 'languages': p.get,
                 'families': p.get,
                 'macroareas': p.get,
-                'location_data': p.get,
                 'overlap': p.get,
                 'starting_tree': p.get,
                 'sample_branch_lengths': p.getboolean,
@@ -288,9 +287,6 @@ class Configuration(object):
         }.items():
             for opt, getter in opts.items():
                 if p.has_option(sec, opt):
-                    if opt == "location_data":
-                        self.urgent_messages.append("[WARNING] Specifying location data via 'location_data' in [languages] is deprecated!  Please use 'data' in [geography] instead.  Your current config will work for now but may not in future releases.")
-                        pass # Deprecation warning
                     setattr(self, opt, getter(sec, opt))
 
         # Handle some logical implications
