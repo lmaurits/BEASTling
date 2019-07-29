@@ -94,11 +94,11 @@ class CovarionModel(BinaryModel):
 
     def _add_prior(self, prior, name):
         alpha_prior = ET.SubElement(prior, "prior", {"id":"covarion_alpha_prior.s:%s" % name,"name":"distribution","x":"@covarion_alpha.s:%s" % name})
-        ET.SubElement(alpha_prior, "Uniform", {"id":"%s:CovAlphaUniform" % name,"name":"distr","upper":"Infinity"})
-        switch_prior = ET.SubElement(prior, "prior", {"id":"%s:covarion_s_prior.s" % name,"name":"distribution","x":"@%s:covarion_s.s" % name})
-        gamma = ET.SubElement(switch_prior, "Gamma", {"id":"%s:Gamma.0" % name, "name":"distr"})
-        ET.SubElement(gamma, "parameter", {"id":"%s:covarion_switch_gamma_param1" % name,"name":"alpha","lower":"0.0","upper":"0.0"}).text = "0.05"
-        ET.SubElement(gamma, "parameter", {"id":"%s:covarion_switch_gamma_param2" % name,"name":"beta","lower":"0.0","upper":"0.0"}).text = "10.0"
+        ET.SubElement(alpha_prior, "Uniform", {"id":"CovAlphaUniform:%s" % name,"name":"distr","upper":"Infinity"})
+        switch_prior = ET.SubElement(prior, "prior", {"id":"covarion_s_prior.s:%s" % name,"name":"distribution","x":"@covarion_s.s:%s" % name})
+        gamma = ET.SubElement(switch_prior, "Gamma", {"id":"Gamma.0:%s" % name, "name":"distr"})
+        ET.SubElement(gamma, "parameter", {"id":"covarion_switch_gamma_param1:%s" % name,"name":"alpha","lower":"0.0","upper":"0.0"}).text = "0.05"
+        ET.SubElement(gamma, "parameter", {"id":"covarion_switch_gamma_param2:%s" % name,"name":"beta","lower":"0.0","upper":"0.0"}).text = "10.0"
 
     def add_operators(self, run):
         BinaryModel.add_operators(self, run)
