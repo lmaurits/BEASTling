@@ -7,10 +7,10 @@ import traceback
 
 from beastling import __version__
 from beastling.beastxml import BeastXml
+from beastling.configuration import Configuration
+from beastling.extractor import extract
 from beastling.report import BeastlingReport
 from beastling.report import BeastlingGeoJSON
-import beastling.configuration
-from beastling.extractor import extract
 
 wrap_errors = Exception
 
@@ -106,7 +106,7 @@ def do_generate(args):
     # Build but DON'T PROCESS the Config object
     # This is fast, and gives us enough information to check whether or not
     try:
-        config = beastling.configuration.Configuration(
+        config = Configuration(
             configfile=args.config, stdin_data=args.stdin, prior=args.prior)
     except wrap_errors as e: # PRAGMA: NO COVER
         errmsg("Error encountered while parsing configuration file:\n")
