@@ -244,7 +244,7 @@ class Configuration(object):
         # Note that these can still be overridden later
         self.log_all = p.get("admin", "log_all", fallback=False)
 
-        for sec, opts in {
+        for sec, getters in {
             'admin': {
                 'basename': p.get,
                 'embed_data': p.getboolean,
@@ -285,9 +285,12 @@ class Configuration(object):
                 'tree_prior': p.get,
             },
         }.items():
-            for opt, getter in opts.items():
-                if p.has_option(sec, opt):
-                    setattr(self, opt, getter(sec, opt))
+            if p.has_section(sec):
+                for opt, val in p.items(sec):
+                    try:
+                        setattr(self, opt, getters[opt](sec, opt))
+                    except KeyError:
+                        raise ValueError("Unrecognised option %s in section %s!" % (opt, sec))
 
         # Handle some logical implications
         if self.log_fine_probs:
