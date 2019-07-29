@@ -5,6 +5,7 @@ import os
 import sys
 import traceback
 
+from beastling import __version__
 from beastling.beastxml import BeastXml
 from beastling.report import BeastlingReport
 from beastling.report import BeastlingGeoJSON
@@ -65,6 +66,10 @@ def main(*args):
         help="Display details of the generated analysis.",
         default=False,
         action="store_true")
+    parser.add_argument(
+        "--version",
+        action="version",
+        version = "BEASTling %s" % __version__)
     args = parser.parse_args(args or None)
     if args.extract:
         do_extract(args)
