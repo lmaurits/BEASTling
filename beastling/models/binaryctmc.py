@@ -39,8 +39,11 @@ class BinaryCTMCModel(BinaryModel):
             freq = ET.SubElement(substmodel,"frequencies",{"id":"estimatedFrequencies.s:%s"%name,"spec":"Frequencies", "frequencies":"@freqs_param.s:%s"%name})
         elif self.frequencies == "empirical":
             attribs = {"id":"empiricalFrequencies.s:%s"%name,"spec":"Frequencies"}
-            if self.single_sitemodel:
-                attribs["data"] = "@filtered_data_%s" % name
+            if self.share_params:
+                if self.single_sitemodel:
+                    attribs["data"] = "@filtered_data_%s" % name
+                else:
+                    attribs["frequencies"] = self.build_freq_str()
             else:
                 attribs["data"] = "@feature_data_%s" % name
             freq = ET.SubElement(substmodel,"frequencies",attribs)

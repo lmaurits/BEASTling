@@ -41,7 +41,7 @@ class BinaryModel(BaseModel):
             "lower":"0.0",
             "upper":"1.0",
         }
-        if self.single_sitemodel:
+        if self.share_params:
             param = ET.SubElement(state,"stateNode",attribs)
             param.text = "0.5 0.5"
         else:
@@ -49,7 +49,7 @@ class BinaryModel(BaseModel):
                 fname = "%s:%s" % (self.name, f)
                 attribs["id"] = "freqs_param.s:%s" % fname
                 param = ET.SubElement(state,"stateNode",attribs)
-                param.text = str(1.0/self.valuecounts[f])
+                param.text = "0.5 0.5"
 
     def add_sitemodel(self, distribution, feature, fname):
         if feature == None and fname == None:
@@ -251,7 +251,7 @@ class BinaryModel(BaseModel):
 
     def add_frequency_operators(self, run):
         for name in self.parameter_identifiers():
-            ET.SubElement(run, "operator", {"id":"frequency_sampler.s:%s" % name, "spec":"DeltaExchangeOperator","parameter":"@freqs_param.s:%s" % self.name,"delta":"0.01","weight":"1.0"})
+            ET.SubElement(run, "operator", {"id":"frequency_sampler.s:%s" % name, "spec":"DeltaExchangeOperator","parameter":"@freqs_param.s:%s" % name,"delta":"0.01","weight":"1.0"})
 
     def add_param_logs(self, logger):
         BaseModel.add_param_logs(self, logger)
