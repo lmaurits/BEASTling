@@ -7,9 +7,9 @@ It is important to understand the modelling assumptions made by BEASTling which 
 Tree prior
 ----------
 
-BEASTling uses a `Yule pure-birth prior <https://beast-mcmc.googlecode.com/svn/trunk/doc/Yule.pdf>`_ for phylogenetic trues.  The birthrate is fixed everywhere on the tree, and is estimated during the analysis.  The prior over birthrates is a uniform prior from zero to infinity.
+BEASTling defaults to using a `Yule pure-birth prior <https://beast-mcmc.googlecode.com/svn/trunk/doc/Yule.pdf>`_ for phylogenetic trees.  The birthrate is fixed everywhere on the tree, and is estimated during the analysis.  The prior over birthrates is a uniform prior from zero to infinity.  This model is not particularly suitable for linguistic analyses, but it is arguably the simplest tree prior in BEAST which is not totally inappropriate.
 
-This model is not particularly suitable for linguistic analyses, however it is currently the best BEAST has to offer.
+A slightly more complicated but more appropriate tree prior is the BirthDeath prior, which can be specified in place of the Yule.
 
 Branch lengths
 --------------

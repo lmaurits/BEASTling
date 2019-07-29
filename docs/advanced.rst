@@ -149,5 +149,5 @@ customise a path sampling analysis:
 * ``preBurnin``: number of samples (not percentage!) to discarded as burnin from
   the first chain.  By default this is calculated using the regular ``burnin``
   and ``chainlength`` options.
-* ``nrOfSteps``: The total number of chains to use in forming a path from prior
+* ``steps``: The total number of chains to use in forming a path from prior
   to posterior.  Default is 8.

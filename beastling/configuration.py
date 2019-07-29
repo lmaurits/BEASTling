@@ -1,3 +1,5 @@
+# -*- encoding: utf-8 -*-
+
 from __future__ import division, unicode_literals
 import collections
 import importlib
@@ -25,9 +27,14 @@ import beastling.clocks.random as random_clock
 import beastling.clocks.prior as prior_clock
 
 import beastling.models.geo as geo
+import beastling.models.binaryctmc as binaryctmc
 import beastling.models.bsvs as bsvs
 import beastling.models.covarion as covarion
+import beastling.models.pseudodollocovarion as pseudodollocovarion
 import beastling.models.mk as mk
+
+import beastling.treepriors.base as treepriors
+from beastling.treepriors.coalescent import CoalescentTree
 
 _BEAST_MAX_LENGTH = 2147483647
 GLOTTOLOG_NODE_LABEL = re.compile(
@@ -113,7 +120,7 @@ class Configuration(object):
         """List of families to filter down to, or name of a file containing such a list."""
         self.geo_config = {}
         """A dictionary with keys and values corresponding to a [geography] section in a configuration file."""
-        self.glottolog_release = '3.0'
+        self.glottolog_release = '4.0'
         """A string representing a Glottolog release number."""
         self.languages = []
         """List of languages to filter down to, or name of a file containing such a list."""
@@ -182,7 +189,7 @@ class Configuration(object):
         self.subsample_size = 0
         """Number of languages to subsample from the set defined by the dataset(s) and other filtering options like "families" or "macroareas"."""
         self.tree_prior = "yule"
-        """Tree prior.  Should generally not be set manually."""
+        """Tree prior. Can be overridden by calibrations."""
 
         # Glottolog data
         self.glottolog_loaded = False
@@ -237,11 +244,12 @@ class Configuration(object):
         # Note that these can still be overridden later
         self.log_all = p.get("admin", "log_all", fallback=False)
 
-        for sec, opts in {
+        for sec, getters in {
             'admin': {
                 'basename': p.get,
                 'embed_data': p.getboolean,
                 'screenlog': p.getboolean,
+                'log_all': p.getboolean,
                 'log_dp': p.getint,
                 'log_every': p.getint,
                 'log_probabilities': p.getboolean,
@@ -266,24 +274,27 @@ class Configuration(object):
                 'languages': p.get,
                 'families': p.get,
                 'macroareas': p.get,
-                'location_data': p.get,
                 'overlap': p.get,
                 'starting_tree': p.get,
                 'sample_branch_lengths': p.getboolean,
                 'sample_topology': p.getboolean,
                 'subsample_size': p.getint,
+                'monophyly': p.getboolean,
+                'monophyletic': p.getboolean,
                 'monophyly_start_depth': p.getint,
                 'monophyly_end_depth': p.getint,
                 'monophyly_levels': p.getint,
+                'monophyly_newick': p.get,
                 'monophyly_direction': lambda s, o: p.get(s, o).lower(),
+                'tree_prior': p.get,
             },
         }.items():
-            for opt, getter in opts.items():
-                if p.has_option(sec, opt):
-                    if opt == "location_data":
-                        self.urgent_messages.append("[WARNING] Specifying location data via 'location_data' in [languages] is deprecated!  Please use 'data' in [geography] instead.  Your current config will work for now but may not in future releases.")
-                        pass # Deprecation warning
-                    setattr(self, opt, getter(sec, opt))
+            if p.has_section(sec):
+                for opt, val in p.items(sec):
+                    try:
+                        setattr(self, opt, getters[opt](sec, opt))
+                    except KeyError:
+                        raise ValueError("Unrecognised option %s in section %s!" % (opt, sec))
 
         # Handle some logical implications
         if self.log_fine_probs:
@@ -315,6 +326,7 @@ class Configuration(object):
                     self.monophyly_newick = fp.read()
             else:
                 self.monophyly_newick = value
+            self.monophyly = True
         if p.has_option(sec,'minimum_data'):
             self.minimum_data = p.getfloat(sec, "minimum_data")
 
@@ -343,6 +355,8 @@ class Configuration(object):
             self.geo_config = self.get_geo_config(p, "geography")
         else:
             self.geo_config = {}
+
+        # Geographic priors
         if p.has_section("geo_priors"):
             if not p.has_section("geography"):
                 raise ValueError("Config file contains geo_priors section but no geography section.")
@@ -379,8 +393,11 @@ class Configuration(object):
         return cfg
 
     def get_model_config(self, p, section):
+        section_parts = section.split(None, 1)
+        if len(section_parts) == 1:
+            raise ValueError("All model sections must have a name!")
         cfg = {
-            'name': section[5:].strip(),
+            'name': section_parts[1].strip().replace(" ","_"),
             'binarised': None,
             'rate_variation': False,
             'remove_constant_features': True,
@@ -468,6 +485,17 @@ class Configuration(object):
         # At this point, we can tell whether or not the tree's length units
         # can be treated as arbitrary
         self.arbitrary_tree = self.sample_branch_lengths and not self.calibrations
+
+        # We also know what kind of tree prior we need to have –
+        # instantiate_calibrations may have changed the type if tip
+        # calibrations exist.
+        self.treeprior = {
+            "uniform": treepriors.UniformTree,
+            "yule": treepriors.YuleTree,
+            "birthdeath": treepriors.BirthDeathTree,
+            "coalescent": CoalescentTree
+        }[self.tree_prior.lower()]()
+
         # Now we can set the value of the ascertained attribute of each model
         # Ideally this would happen during process_models, but this is impossible
         # as set_ascertained() relies upon the value of arbitrary_tree defined above,
@@ -649,7 +677,7 @@ class Configuration(object):
         for lang in all_langs:
             count = 0
             for model in self.models:
-                count += len([x for x in model.data[lang].values() if x != "?"])
+                count += len([x for x in model.data[lang].values() if x])
             datapoint_props[lang] = 1.0*count / N
         self.sparse_languages = [l for l in all_langs if datapoint_props[l] < self.minimum_data]
 
@@ -701,6 +729,17 @@ class Configuration(object):
         # Build a list-based representation of the Glottolog monophyly constraints
         # This can be done in either a "top-down" or "bottom-up" way.
         langs = [l for l in self.languages if l.lower() in self.classifications]
+        if len(langs) != len(self.languages):
+            # Warn the user that some taxa aren't in Glottolog and hence will be
+            # forced into an outgroup.
+            missing_langs = [l for l in self.languages if l not in langs]
+            missing_langs.sort()
+            missing_str = ",".join(missing_langs[0:3])
+            missing_count = len(missing_langs)
+            if missing_count > 3:
+                missing_str += ",..."
+            self.messages.append("""[WARNING] %d languages could not be found in Glottolog (%s).  Monophyly constraints will force them into an outgroup.""" %
+                    (missing_count, missing_str))
         if self.monophyly_end_depth is not None:
             # A power user has explicitly provided start and end depths
             start = self.monophyly_start_depth
@@ -794,9 +833,16 @@ class Configuration(object):
         unstructured polytomy.
         """
 
-        # TODO: Make this more rigorous.
-        # Current test will fail ['foo', 'bar', 'baz'], but
-        # will pass [['foo'], ['bar'], ['baz']], which is no better.
+        # First, transform e.g. [['foo'], [['bar']], [[[['baz']]]]], into simply
+        # ['foo','bar','baz'].
+        def denester(l):
+            if type(l) != list:
+                return l
+            if len(l) == 1:
+                return denester(l[0])
+            return [denester(x) for x in l]
+        struct = denester(struct)
+        # Now check for internal structure
         if not any([type(x) == list for x in struct]):
             # Struct is just a list of language names, with no internal structure
             return False
@@ -867,6 +913,11 @@ class Configuration(object):
                     self.messages.append(bsvs.BSVSModel.package_notice)
             elif config["model"].lower() == "covarion":
                 model = covarion.CovarionModel(config, self)
+            elif config["model"].lower() == "binaryctmc":
+                model = binaryctmc.BinaryCTMCModel(config, self)
+            elif config["model"].lower() == "pseudodollocovarion":
+                model = pseudodollocovarion.PseudoDolloCovarionModel(
+                    config, self)
             elif config["model"].lower() == "mk":
                 model = mk.MKModel(config, self)
                 if "mk_used" not in self.message_flags:

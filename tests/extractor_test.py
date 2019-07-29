@@ -49,7 +49,7 @@ class Tests(WithConfigAndTempDir):
 
         config = self.make_cfg({
             'admin': {'basename': 'abcdefg'},
-            'model': {
+            'model model': {
                 'model': 'mk',
                 'data': data_path('basic.csv').as_posix()}})
         xml = beastling.beastxml.BeastXml(config)
@@ -62,7 +62,7 @@ class Tests(WithConfigAndTempDir):
         cfg.read(p.as_posix())
         remove(p)
         self.assertEqual(cfg['admin']['basename'], 'abcdefg')
-        self.assertEqual(cfg['model']['model'], 'mk')
+        self.assertEqual(cfg['model model']['model'], 'mk')
 
         fname = self.tmp.joinpath('test.xml')
         datafile = self.tmp.joinpath(('test.csv'))
@@ -73,7 +73,7 @@ class Tests(WithConfigAndTempDir):
   <!--%s
 %s
 [admin]
-[model]
+[model model]
 -->
   <!--%s:%s-->
 </r>

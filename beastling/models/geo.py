@@ -92,7 +92,7 @@ class GeoModel(object):
                 if clade == "root":
                     langs = self.config.languages
                 else:
-                    langs = self.config.get_languages_by_glottolog_clade(clade)
+                    langs = self.config.language_group(clade)
                 if not langs:
                     continue
                 # Add the geo prior, which will trigger sampling
@@ -104,7 +104,7 @@ class GeoModel(object):
                 if len(langs) > 1:
                     self.beastxml.add_taxon_set(geoprior, "%s.geo" % clade, langs)
                 else:
-                    ET.SubElement(geoprior, "taxon", {"idref":langs[0]})
+                    ET.SubElement(geoprior, "taxon", {"idref":list(langs)[0]})
                     # Drop back to F, not F2, so singletons can be sampled
                     distribution.set("spec", "sphericalGeo.ApproxMultivariateTraitLikelihoodF")
                 # Also add the KML file if we have an actual constraint

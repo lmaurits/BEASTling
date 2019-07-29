@@ -22,8 +22,8 @@ class BaseModel(object):
         self.messages = []
         self.config = global_config
 
-        self.name = model_config["name"] 
-        self.data_filename = model_config["data"] 
+        self.name = model_config["name"]
+        self.data_filename = model_config["data"]
         self.clock = model_config.get("clock", "")
         self.features = model_config.get("features",["*"])
         self.reconstruct = model_config.get("reconstruct", None)
@@ -48,7 +48,31 @@ class BaseModel(object):
         self.treedata = []
 
         # Load the entire dataset from the file
-        self.data = load_data(self.data_filename, file_format=model_config.get("file_format",None), lang_column=model_config.get("language_column",None), value_column=model_config.get("value_column",None))
+        self.data, language_code_map = load_data(
+            self.data_filename,
+            file_format=model_config.get("file_format", None),
+            lang_column=model_config.get("language_column", None),
+            value_column=model_config.get("value_column", None),
+            expect_multiple=True)
+
+        # Augment the Glottolog classifications with human-friendly language
+        # names which may have been read from a CLDF dataset.  Note that we
+        # store both the actual language ID and its lowercase transformation.
+        # This is kind of ugly, but we inconsistently convert things to
+        # lowercase before doing Glottolog lookups all over the place, so
+        # this is the easiest way to make this work everywhere.  We should
+        # clean this up some day!
+        for language_id, glottocode in language_code_map.items():
+            if glottocode in global_config.classifications:
+                global_config.classifications[language_id] = global_config.classifications[glottocode]
+                global_config.classifications[language_id.lower()] = global_config.classifications[language_id]
+            if glottocode in global_config.glotto_macroareas:
+                global_config.glotto_macroareas[language_id] = global_config.glotto_macroareas[glottocode]
+                global_config.glotto_macroareas[language_id.lower()] = global_config.glotto_macroareas[language_id]
+            if glottocode in global_config.locations:
+                global_config.locations[language_id] = global_config.locations[glottocode]
+                global_config.locations[language_id.lower()] = global_config.locations[language_id]
+
         # Remove features not wanted in this analysis
         self.build_feature_filter()
         self.apply_feature_filter()
@@ -151,6 +175,7 @@ class BaseModel(object):
             raise ValueError("Could not find feature rate file %s." % self.rate_partition)
         fname = self.rate_partition
         with open(fname) as fp:
+            # TODO: check that the partition includes all features
             self.rate_partition = {}
             for line in fp:
                 name, part = line.split(":",1)
@@ -204,11 +229,22 @@ class BaseModel(object):
                 language.pop(feat)
         self.features = sorted(list(self.features))
 
+    def reduce_multivalue_data(self, list_of_data_points):
+        """Reduce a list of data points to a single one.
+
+        Given a list of data points (for a feature in a language), select the
+        last of these data points as the one to be included in the analysis.
+
+        """
+        try:
+            return list_of_data_points[-1]
+        except IndexError:
+            return "?"
+
     def compute_feature_properties(self):
         """
         Compute various items of metadata for all remaining features.
         """
-
         self.valuecounts = {}
         self.extracolumns = collections.defaultdict(int)
         self.unique_values = {}
@@ -217,7 +253,10 @@ class BaseModel(object):
         self.codemaps = {}
         for f in self.features:
             # Compute various things
-            all_values = [self.data[l].get(f,"?") for l in self.data]
+            all_values = []
+            for l in self.data:
+                point = self.reduce_multivalue_data(self.data[l].get(f, ["?"]))
+                all_values.append(point)
             missing_data_ratio = all_values.count("?") / (1.0*len(all_values))
             non_q_values = [v for v in all_values if v != "?"]
             counts = {}
@@ -471,7 +510,12 @@ class BaseModel(object):
             # Data
             self.add_feature_data(distribution, n, f, fname)
 
-    def add_sitemodel(self, beast):
+    def add_sitemodel(self, distribution, feature, fname):
+        mr = self.get_mutation_rate(feature, fname)
+        sitemodel = ET.SubElement(distribution, "siteModel", {"id":"SiteModel.%s"%fname,"spec":"SiteModel", "mutationRate":mr,"proportionInvariant":"0"})
+        substmodel = self.add_substmodel(sitemodel, feature, fname)
+
+    def add_substmodel(self, sitemodel, feature, fname):
         pass
 
     def add_master_data(self, beast):
@@ -481,7 +525,10 @@ class BaseModel(object):
             "name":"data_%s" % self.name,
             "dataType":"integer"})
         for lang in self.languages:
-            formatted_points = [self.format_datapoint(f, self.data[lang][f]) for f in self.features]
+            formatted_points = [
+                self.format_datapoint(
+                    f, self.data[lang].get(f, ["?"]))
+                for f in self.features]
             value_string = self.data_separator.join(formatted_points)
             if not self.filters:
                 n = 1
@@ -497,11 +544,12 @@ class BaseModel(object):
                         self.filters[f] = "%d-%d" % (n, n+length-1)
                     n += length
             seq = ET.SubElement(data, "sequence", {
-                "id":"data_%s:%s" % (self.name, lang),
+                "id":"language_data_%s:%s" % (self.name, lang),
                 "taxon":lang,
                 "value":value_string})
 
     def format_datapoint(self, feature, point):
+        point = self.reduce_multivalue_data(point)
         if self.ascertained:
             return self._ascertained_format_datapoint(feature, point)
         else:
@@ -536,7 +584,7 @@ class BaseModel(object):
             parent = distribution
             name = "data"
         data = ET.SubElement(parent, name, {
-            "id":"data_%s" % fname,
+            "id":"feature_data_%s" % fname,
             "spec":"FilteredAlignment",
             "data":"@data_%s" % self.name,
             "filter":self.filters[feature]})

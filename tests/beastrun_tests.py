@@ -36,21 +36,30 @@ def test_basic():
         ("admin", "mk", "subsample"),
         ("admin", "mk", "cldf_data_with_nonstandard_value_column"),
         ("admin", "mk"),
+        ("admin", "mk", "birthdeath"),
+        ("admin", "mk", "uniform_treeprior"),
         ("admin", "mk_as_if_addon"),
         ("admin", "cldf_data"),
         ("admin", "cldf1_wordlist"),
+        ("admin", "cldf1_wordlist_with_lang_table"),
         ("admin", "cldf1_wordlist_external_codes"),
         ("admin", "cldf1_structure"),
         ("admin", "nonnumeric"),
         ("admin", "noncode"),
         ("admin", "bsvs"),
         ("admin", "mk", "strictclockwithprior"),
+        ("admin", "binaryctmc"),
+        ("admin", "binaryctmc", "gamma_categories"),
+        ("admin", "binaryctmc", "estimated_freqs"),
+        ("admin", "binaryctmc", "rate_var"),
+        ("admin", "binaryctmc", "estimated_freqs", "rate_var"),
         ("admin", "covarion_multistate"),
         ("admin", "covarion_multistate", "covarion_per_feature_params"),
         ("admin", "covarion_multistate", "ascertainment_true"),
         ("admin", "covarion_multistate", "rate_var"),
         ("admin", "covarion_multistate", "estimated_freqs"),
         ("admin", "covarion_multistate", "do_not_share_params"),
+        ("admin", "covarion_multistate", "estimated_freqs", "rate_var"),
         ("admin", "covarion_true_binary"),
         ("admin", "covarion_binarised"),
         ("admin", "bsvs", "robust_eigen"),
@@ -120,6 +129,16 @@ def test_basic():
         ("admin", "mk", "geo_own_clock"),
         ("admin", "mk", "monophyletic", "geo", "geo_sampled"),
         ("admin", "mk", "monophyletic", "geo", "geo_prior"),
+        ("admin", "covarion_multistate", "pseudodollocovarion"),
+        ("admin", "covarion_multistate", "log_fine_probs",
+         "pseudodollocovarion"),
+        ("admin", "covarion_multistate", "covarion_per_feature_params",
+         "pseudodollocovarion"),
+        # Currently, Beast's pseudodollocovarion model does not support the
+        # robust eigensystem implementation.
+        # ("admin", "covarion_multistate", "robust_eigen",
+        #  "pseudodollocovarion"),
+        ("admin", "covarion_multistate", "pseudodollocovarion_fix_freq"),
     ]:
         # To turn each config into a separate test, we
         _do_test.description = "BeastRun with " + " ".join(configs)
@@ -139,7 +158,8 @@ skip = [
 
 
 def _do_test(config_files, inspector=None):
-    config = TEST_CASE.make_cfg([config_path(cf).as_posix() for cf in config_files])
+    configs = [config_path(cf).as_posix() for cf in config_files]
+    config = TEST_CASE.make_cfg(configs)
     xml = beastling.beastxml.BeastXml(config)
     temp_filename = TEST_CASE.tmp_path('test').as_posix()
     xml.write_file(temp_filename)
@@ -163,6 +183,15 @@ def _do_test(config_files, inspector=None):
                     config_files, e.returncode))
         if inspector:
             inspector(TEST_CASE.tmp)
+
+
+def test_fine_probabilites_are_logged():
+    """Test that for 'log_fine_probs=True', probabilites are logged."""
+    def assert_fine_probs(dir):
+        assert dir.joinpath("beastling_test.log").exists()
+    _do_test((
+        "admin", "covarion_multistate", "log_fine_probs"
+    ), inspector=assert_fine_probs)
 
 
 def test_asr_root_output_files():

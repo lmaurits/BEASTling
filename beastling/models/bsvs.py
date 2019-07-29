@@ -91,50 +91,45 @@ class BSVSModel(BaseModel):
             param = ET.SubElement(gamma, "parameter", {"id":"RealParameter:%s.%d.2" % (fname, n),"lower":"0.0","name":"beta","upper":"0.0"})
             param.text = "1.0"
 
-    def add_sitemodel(self, distribution, feature, fname):
+    def add_substmodel(self, sitemodel, feature, fname):
+        if self.symmetric:
+            substmodel = ET.SubElement(sitemodel, "substModel",{"id":"svs.s:%s"%fname,"rateIndicator":"@rateIndicator.s:%s"%fname,"rates":"@relativeGeoRates.s:%s"%fname,"spec":"SVSGeneralSubstitutionModel"})
+        else:
+            substmodel = ET.SubElement(sitemodel, "substModel",{"id":"svs.s:%s"%fname,"rateIndicator":"@rateIndicator.s:%s"%fname,"rates":"@relativeGeoRates.s:%s"%fname,"spec":"SVSGeneralSubstitutionModel", "symmetric":"false"})
+        if self.use_robust_eigensystem:
+            substmodel.set("eigenSystem","beast.evolution.substitutionmodel.RobustEigenSystem")
 
-            # Sitemodel
-            mr = self.get_mutation_rate(feature, fname)
-            sitemodel = ET.SubElement(distribution, "siteModel", {"id":"SiteModel.%s"%fname,"spec":"SiteModel", "mutationRate":mr,"shape":"1","proportionInvariant":"0"})
-
-            if self.symmetric:
-                substmodel = ET.SubElement(sitemodel, "substModel",{"id":"svs.s:%s"%fname,"rateIndicator":"@rateIndicator.s:%s"%fname,"rates":"@relativeGeoRates.s:%s"%fname,"spec":"SVSGeneralSubstitutionModel"})
-            else:
-                substmodel = ET.SubElement(sitemodel, "substModel",{"id":"svs.s:%s"%fname,"rateIndicator":"@rateIndicator.s:%s"%fname,"rates":"@relativeGeoRates.s:%s"%fname,"spec":"SVSGeneralSubstitutionModel", "symmetric":"false"})
-            if self.use_robust_eigensystem:
-                substmodel.set("eigenSystem","beast.evolution.substitutionmodel.RobustEigenSystem")
-
-            attribs = {
-                    "id":"feature_freqs.s:%s"%fname,
-                    "spec":"Frequencies",
-            }
-            if self.frequencies == "estimate":
-                attribs["frequencies"] = "@feature_freqs_param.s:%s"%fname
-            elif self.frequencies == "uniform":
-                freq_string = str(1.0/self.valuecounts[feature])
-            elif self.frequencies == "empirical":
-                #TODO: Do this in the BEAStly way
-                freqs = [
-                    self.counts[feature].get(
-                        self.unique_values[feature][v], 0)
-                    for v in range(self.valuecounts[feature])]
-                norm = float(sum(freqs))
-                freqs = [f/norm for f in freqs]
-                # Sometimes, due to WALS oddities, there's a zero frequency, and that makes BEAST sad.  So do some smoothing in these cases:
-                if 0 in freqs:
-                    freqs = [0.1/self.valuecounts[feature] + 0.9*f for f in freqs]
-                norm = float(sum(freqs))
-                freq_string = " ".join([str(c/norm) for c in freqs])
-            else:
-                raise ValueError(
-                    "Model BSVS does not recognize frequencies %r, "
-                    "should be 'uniform' or 'empirical'." % self.frequencies)
-            freq = ET.SubElement(substmodel,"frequencies", attribs)
-            if self.frequencies != "estimate":
-                ET.SubElement(freq,"parameter",{
-                    "dimension":str(self.valuecounts[feature]),
-                    "id":"feature_frequencies.s:%s"%fname,
-                    "name":"frequencies"}).text=freq_string
+        attribs = {
+                "id":"feature_freqs.s:%s"%fname,
+                "spec":"Frequencies",
+        }
+        if self.frequencies == "estimate":
+            attribs["frequencies"] = "@feature_freqs_param.s:%s"%fname
+        elif self.frequencies == "uniform":
+            freq_string = str(1.0/self.valuecounts[feature])
+        elif self.frequencies == "empirical":
+            #TODO: Do this in the BEAStly way
+            freqs = [
+                self.counts[feature].get(
+                    self.unique_values[feature][v], 0)
+                for v in range(self.valuecounts[feature])]
+            norm = float(sum(freqs))
+            freqs = [f/norm for f in freqs]
+            # Sometimes, due to WALS oddities, there's a zero frequency, and that makes BEAST sad.  So do some smoothing in these cases:
+            if 0 in freqs:
+                freqs = [0.1/self.valuecounts[feature] + 0.9*f for f in freqs]
+            norm = float(sum(freqs))
+            freq_string = " ".join([str(c/norm) for c in freqs])
+        else:
+            raise ValueError(
+                "Model BSVS does not recognize frequencies %r, "
+                "should be 'uniform' or 'empirical'." % self.frequencies)
+        freq = ET.SubElement(substmodel,"frequencies", attribs)
+        if self.frequencies != "estimate":
+            ET.SubElement(freq,"parameter",{
+                "dimension":str(self.valuecounts[feature]),
+                "id":"feature_frequencies.s:%s"%fname,
+                "name":"frequencies"}).text=freq_string
 
     def add_operators(self, run):
 

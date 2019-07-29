@@ -89,14 +89,20 @@ class BeastlingGeoJSON(object):
         self.geojson = {}
         self.geojson["type"] = "FeatureCollection"
         features = []
-        all_families = set([self.config.classifications[l][0][0] for l in
+        classifier_level = 0
+        while True:
+            all_classifiers = set([self.config.classifications[l][classifier_level][0] for l in
             self.config.languages if self.config.classifications[l]])
-        style_map = dict(zip(all_families, itertools.cycle(itertools.product(_SHAPES,_COLOURS))))
+            if len(all_classifiers) > 1:
+                break
+            classifier_level += 1
+        style_map = dict(zip(all_classifiers, itertools.cycle(itertools.product(_SHAPES,_COLOURS))))
         style_map["Unclassified"] = ("circle", "#D3D3D3")
         for l in self.config.languages:
             if l not in self.config.locations:
                 continue
             fam = self.config.classifications[l][0][0] if self.config.classifications[l] else "Unclassified"
+            classifier = self.config.classifications[l][classifier_level][0] if self.config.classifications[l] else "Unclassified"
             area = self.config.glotto_macroareas.get(l, "Unknown")
             lbit = {}
             lbit["type"] = "Feature"
@@ -105,7 +111,9 @@ class BeastlingGeoJSON(object):
             pretty_location = "Lat: %.2f, Long: %.2f" % (lat, lon)
             lbit["geometry"] = {"type":"Point", "coordinates": (lon, lat)}
             props = {"name":l, "family": fam, "macroarea": area, "location": pretty_location}
-            shape, colour = style_map[fam]
+            if classifier_level > 0:
+                props["subfamily"] = classifier
+            shape, colour = style_map[classifier]
             props["marker-symbol"]  = shape
             props["marker-color"]  = colour
             lbit["properties"] = props

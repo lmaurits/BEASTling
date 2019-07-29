@@ -26,6 +26,10 @@ class Tests(WithConfigAndTempDir):
     def _make_bad_cfg(self, name):
         return self.make_cfg(config_path(name, bad=True).as_posix())
 
+    def test_partial_glottolog_coverage(self):
+        config = self._make_cfg('admin', 'partial_glottolog_coverage')
+        config.process()
+
     def test_get_glottolog_geo(self):
         geodata = self.tmp.joinpath('glottolog-2.5-geo.csv')
         with geodata.open('w', encoding='utf8') as fp:
@@ -94,11 +98,11 @@ class Tests(WithConfigAndTempDir):
             'calibration': {
                 'abcd1234, efgh5678': '10-20',
             },
-            'model': {
+            'model one': {
                 'binarised': True,
                 'minimum_data': '4.5'
             },
-            'model2': {
+            'model two': {
                 'binarized': True,
             },
         })
@@ -158,7 +162,17 @@ class Tests(WithConfigAndTempDir):
     def test_mistyped_tree_filename(self):
         cfg = self._make_bad_cfg("bad_wrong_tree_filename")
         cfg.process()
-        
+
+    @raises(ValueError)
+    def test_bad_share_params(self):
+        cfg = self._make_bad_cfg("bad_share_params")
+        cfg.process()
+
+    @raises(KeyError)
+    def test_bad_treeprior(self):
+        cfg = self._make_bad_cfg("bad_treeprior")
+        cfg.process()
+
     def test_calibration_string_formats(self):
         # Test lower bound format
         config = self._make_cfg('basic', 'calibration_lower_bound')
@@ -269,14 +283,6 @@ class Tests(WithConfigAndTempDir):
         config.process()
         self.assertTrue(check_lat_lon(config.locations["aiw"], 4.20, 4.20))
         self.assertTrue(check_lat_lon(config.locations["abp"], 15.41, 120.20))
-        # Make sure that specifying the location data in [languages] caused a deprecation warning
-        self.assertTrue(len(config.urgent_messages) > 0)
-        # Repeat the above test but specifying location data in [geography], which should cause no warning
-        config = self._make_cfg('basic', 'geo', 'new_geo_user_loc')
-        config.process()
-        self.assertTrue(check_lat_lon(config.locations["aiw"], 4.20, 4.20))
-        self.assertTrue(check_lat_lon(config.locations["abp"], 15.41, 120.20))
-        self.assertTrue(len(config.urgent_messages) == 0)
         # Now check that we can overwrite them both using multiple files
         config = self._make_cfg('basic', 'geo', 'geo_user_loc_multifile')
         config.process()
@@ -331,6 +337,14 @@ class Tests(WithConfigAndTempDir):
         config = self._make_cfg('basic', 'reconstruct_one')
         config.process()
 
+    def test_explicit_strict_clock(self):
+        config = self._make_cfg('basic', 'strict')
+        config.process()
+
+    @raises(ValueError)
+    def test_bad_clock_ref(self):
+        config = self._make_bad_cfg('misspelled_clock')
+        config.process()
 
 class XMLTests(WithConfigAndTempDir):
     def _make_cfg(self, *names):

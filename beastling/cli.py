@@ -5,12 +5,14 @@ import os
 import sys
 import traceback
 
+from beastling import __version__
 from beastling.beastxml import BeastXml
+from beastling.configuration import Configuration
+from beastling.extractor import extract
 from beastling.report import BeastlingReport
 from beastling.report import BeastlingGeoJSON
-import beastling.configuration
-from beastling.extractor import extract
 
+wrap_errors = Exception
 
 def errmsg(msg):
     sys.stderr.write(msg)
@@ -64,6 +66,10 @@ def main(*args):
         help="Display details of the generated analysis.",
         default=False,
         action="store_true")
+    parser.add_argument(
+        "--version",
+        action="version",
+        version = "BEASTling %s" % __version__)
     args = parser.parse_args(args or None)
     if args.extract:
         do_extract(args)
@@ -81,7 +87,7 @@ def do_extract(args):
         sys.exit(2)
     try:
         messages = extract(args.config[0], args.overwrite)
-    except Exception as e:
+    except wrap_errors as e:
         errmsg("Error encountered while extracting BEASTling config and/or data files:\n")
         traceback.print_exc()
         sys.exit(3)
@@ -100,9 +106,9 @@ def do_generate(args):
     # Build but DON'T PROCESS the Config object
     # This is fast, and gives us enough information to check whether or not
     try:
-        config = beastling.configuration.Configuration(
+        config = Configuration(
             configfile=args.config, stdin_data=args.stdin, prior=args.prior)
-    except Exception as e: # PRAGMA: NO COVER
+    except wrap_errors as e: # PRAGMA: NO COVER
         errmsg("Error encountered while parsing configuration file:\n")
         traceback.print_exc()
         sys.exit(2)
@@ -117,7 +123,7 @@ def do_generate(args):
     # the time to process the config object
     try:
         config.process()
-    except Exception as e:
+    except wrap_errors as e:
         errmsg("Error encountered while parsing configuration file:\n")
         traceback.print_exc()
         sys.exit(2)
@@ -134,7 +140,7 @@ def do_generate(args):
     # Build XML file
     try:
         xml = BeastXml(config)
-    except Exception as e:
+    except wrap_errors as e:
         errmsg("Error encountered while building BeastXML object:\n")
         traceback.print_exc()
         sys.exit(3)

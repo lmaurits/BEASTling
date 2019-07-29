@@ -12,14 +12,6 @@ class MKModel(BaseModel):
         BaseModel.__init__(self, model_config, global_config)
         self.subst_models = {}
 
-    def add_sitemodel(self, distribution, feature, fname):
-
-        # Sitemodel
-        mr = self.get_mutation_rate(feature, fname)
-        sitemodel = ET.SubElement(distribution, "siteModel", {"id":"SiteModel.%s"%fname,"spec":"SiteModel", "mutationRate":mr,"shape":"1","proportionInvariant":"0"})
-
-        substmodel = self.add_substmodel(sitemodel, feature, fname)
-       
     def add_substmodel(self, sitemodel, feature, fname):
         key = self._get_substmodel_key(feature)
         if key and key in self.subst_models:
