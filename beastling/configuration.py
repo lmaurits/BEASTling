@@ -92,7 +92,7 @@ class Configuration(object):
     for all options.
     """
 
-    def __init__(self, basename="beastling", configfile=None, stdin_data=False, prior=False):
+    def __init__(self, basename="beastling", configfile=None, stdin_data=False, prior=False, force_glottolog_load=False):
         """
         Set all options to their default values and then, if a configuration
         file has been provided, override the default values for those options
@@ -193,6 +193,7 @@ class Configuration(object):
 
         # Glottolog data
         self.glottolog_loaded = False
+        self.force_glottolog_load = force_glottolog_load
         self.classifications = {}
         self.glotto_macroareas = {}
         self.locations = {}
@@ -640,6 +641,8 @@ class Configuration(object):
             or self.calibration_configs
             # ...we're using geography
             or self.geo_config
+            # ...we've been forced to by greater powers (like the CLI)
+            or self.force_glottolog_load
         )
 
     def load_user_geo(self):

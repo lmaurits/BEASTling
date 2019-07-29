@@ -107,7 +107,7 @@ def do_generate(args):
     # This is fast, and gives us enough information to check whether or not
     try:
         config = Configuration(
-            configfile=args.config, stdin_data=args.stdin, prior=args.prior)
+            configfile=args.config, stdin_data=args.stdin, prior=args.prior, force_glottolog_load=args.report)
     except wrap_errors as e: # PRAGMA: NO COVER
         errmsg("Error encountered while parsing configuration file:\n")
         traceback.print_exc()
