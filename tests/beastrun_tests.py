@@ -178,7 +178,7 @@ def test_beastrun(configs, assertion, config_factory, tmppath):
     temp_filename = tmppath / 'test'
     xml.write_file(str(temp_filename))
     if os.environ.get('TRAVIS'):
-        et.parse(temp_filename)
+        et.parse(str(temp_filename))
     else:
         # Data files etc. are all referenced by paths relative to the repos root.
         shutil.copytree(str(pathlib.Path(__file__).parent), str(tmppath / 'tests'))
