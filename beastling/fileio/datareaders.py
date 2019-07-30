@@ -1,11 +1,9 @@
 import csv
 import sys
 import collections
-
-from six import PY2
+from pathlib import Path
 
 import pycldf.dataset
-from pycldf.util import Path
 
 from clldutils.dsv import UnicodeDictReader
 
@@ -22,7 +20,7 @@ def sniff(filename):
     -------
     csv.Dialect
     """
-    with Path(filename).open("rb" if PY2 else "r") as fp:
+    with Path(filename).open("r") as fp:
         # On large files, csv.Sniffer seems to need a lot of data to make a
         # successful inference...
         sample = fp.read(1024)
@@ -73,7 +71,7 @@ def load_data(filename, file_format=None, lang_column=None, value_column=None, e
         # Use CSV dialect sniffer in all other cases
         dialect = sniff(filename)
     # Read
-    with UnicodeDictReader(filename, dialect=dialect) as reader:
+    with UnicodeDictReader(str(filename), dialect=dialect) as reader:
         # Guesstimate file format if user has not been explicit
         if file_format is None:
             file_format = 'cldf-legacy' if all(

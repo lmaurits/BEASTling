@@ -1,80 +1,64 @@
-# coding: utf8
-from __future__ import unicode_literals
-import sys
+from pathlib import Path
 
-
-from mock import patch, Mock
-from six import StringIO
-from clldutils.path import Path, remove
+import pytest
 
 from beastling.cli import main
-from .util import config_path as _config_path
-from .util import WithTempDir
 
 
-def config_path(*args, **kw):
-    return _config_path(*args, **kw).as_posix()
+def _run_main(commandline='', status=0):
+    with pytest.raises(SystemExit) as context:
+        main(*commandline.split())
+        assert context.code == status
 
 
-class Tests(WithTempDir):
-    def setUp(self):
-        WithTempDir.setUp(self)
-        self._stdout, sys.stdout = sys.stdout, StringIO()
-        self._stderr, sys.stderr = sys.stderr, StringIO()
+def test_main(capsys):
+    _run_main(status=2)
 
-    def tearDown(self):
-        sys.stdout, sys.stderr = self._stdout, self._stderr
-        WithTempDir.tearDown(self)
 
-    @property
-    def stdout(self):
-        sys.stdout.seek(0)
-        return sys.stdout.read()
+def test_help(capsys):
+    _run_main('--help')
+    out, err = capsys.readouterr()
+    assert out.lower().startswith('usage:')
 
-    @property
-    def stderr(self):
-        sys.stderr.seek(0)
-        return sys.stderr.read()
 
-    def _run_main(self, commandline='', status=0):
-        with self.assertRaises(SystemExit) as context:
-            main(*commandline.split())
-        self.assertEqual(context.exception.code, status)
+def test_extract_errors(capsys, tmppath):
+    _run_main('--extract abcd cdef', status=1)
+    out, err = capsys.readouterr()
+    assert all(s in err for s in ['only', 'from', 'one'])
 
-    def test_main(self):
-        self._run_main(status=2)
+    _run_main('--extract abcd', status=2)
+    out, err = capsys.readouterr()
+    assert all(s in err for s in ['No', 'such', 'file'])
 
-    def test_help(self):
-        self._run_main('--help')
-        self.assertTrue(self.stdout.strip().lower().startswith('usage:'))
+    xml = tmppath / 'test.xml'
+    with xml.open('w') as fp:
+        fp.write('<xml>')
+    _run_main('--extract {0}'.format(str(xml)), status=3)
+    out, err = capsys.readouterr()
+    assert err.startswith('Error')
 
-    def test_extract_errors(self):
-        self._run_main('--extract abcd cdef', status=1)
-        self._run_main('--extract abcd', status=2)
-        xml = self.tmp_path('test.xml')
-        with xml.open('w') as fp:
-            fp.write('<xml>')
-        self._run_main('--extract {0}'.format(xml.as_posix()), status=3)
-        self.assertTrue('error', self.stderr.lower())
 
-    def test_generate_errors(self):
-        self._run_main('abcd', status=1)
-        self._run_main(config_path('no_data', bad=True), status=2)
-        self.assertTrue('error', self.stderr.lower())
+def test_generate_errors(capsys, bad_config_dir, config_dir, mocker):
+    _run_main('abcd', status=1)
+    out, err = capsys.readouterr()
+    assert all(s in err for s in ['No', 'such', 'file'])
 
-        with patch('beastling.cli.BeastXml', Mock(side_effect=ValueError())):
-            self._run_main(config_path('basic'), status=3)
+    _run_main(str(bad_config_dir / 'no_data.conf'), status=2)
+    out, err = capsys.readouterr()
+    assert all(s in err for s in ['File', 'already', 'exists'])
 
-    def test_generate_extract(self):
-        xml = self.tmp_path('test.xml')
-        self._run_main('-v -o {0} {1}'.format(xml.as_posix(), config_path('basic')))
-        self.assertTrue(xml.exists())
-        # Overwriting existing files must be specified explicitely:
-        self._run_main('-o {0} {1}'.format(
-            xml.as_posix(), config_path('basic')), status=4)
-        self._run_main('--overwrite -o {0} {1}'.format(
-            xml.as_posix(), config_path('basic')), status=0)
-        tcfg = Path('beastling_test.conf')
-        self._run_main('--extract {0}'.format(xml.as_posix()))
-        self.assertTrue(tcfg.exists())
-        remove(tcfg)
+    mocker.patch('beastling.cli.BeastXml', mocker.Mock(side_effect=ValueError()))
+    _run_main(str(config_dir / 'basic.conf'), status=3)
+
+
+def test_generate_extract(capsys, tmppath, config_dir):
+    xml = tmppath / 'test.xml'
+    _run_main('-v -o {0} {1}'.format(xml, config_dir / 'basic.conf'))
+    assert xml.exists()
+    # Overwriting existing files must be specified explicitely:
+    _run_main('-o {0} {1}'.format(xml, config_dir / 'basic.conf'), status=4)
+    _run_main('--overwrite -o {0} {1}'.format(xml, config_dir / 'basic.conf'), status=0)
+    tcfg = Path('beastling_test.conf')
+    _run_main('--extract {0}'.format(xml))
+    assert tcfg.exists()
+    tcfg.unlink()

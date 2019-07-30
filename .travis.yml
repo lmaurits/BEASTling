@@ -1,18 +1,9 @@
 language: python
 python:
-  - "3.6"
   - "3.5"
-  - "3.4"
-install:
-  - pip install mock==1.0
-  - pip install coverage
-  - pip install nose
-  - pip install -U setuptools
-script:
-  - pip install .
-  - nosetests --with-coverage --cover-package=beastling --with-doctest beastling
-before_install:
-  pip install codecov
-after_success:
-  codecov
-
+  - "3.6"
+cache: pip
+before_cache: rm -f $HOME/.cache/pip/log/debug.log
+install: pip install .[test] codecov
+script: pytest
+after_success: codecov
