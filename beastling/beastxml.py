@@ -476,10 +476,24 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
     def validate_ids(self):
         ids = []
         references = set()
+        var = None
+        range_ = None
         for e in self.beast.iter():
             for attrib, value in e.items():
+                # Quick and dirty plate handling.
+                # This doesn't "turn off" plate matching after leaving the
+                # plate's scope, but it still works as long as we don't do
+                # anything *really* dumb like use the plate syntax outside
+                # of plates
+                if e.tag == "plate":
+                    var = e.get("var")
+                    range_ = e.get("range")
                 if attrib == "id":
-                    ids.append(value)
+                    if var and "$({})".format(var) in value:
+                        for v in range_.split(","):
+                            ids.append(v.strip())
+                    else:
+                        ids.append(value)
                 elif attrib == "idref":
                     references.add(value)
                 elif value.startswith("@"):
