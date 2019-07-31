@@ -41,6 +41,7 @@ class BaseModel(object):
         # This can be set by the user in BinaryModel only
         self.remove_constant_features = True
         self.minimum_data = float(model_config.get("minimum_data", 0))
+        self.single_sitemodel = False
         self.substitution_name = self.__class__.__name__
         self.data_separator = ","
         self.use_robust_eigensystem = model_config.get("use_robust_eigensystem", False)
@@ -641,11 +642,12 @@ class BaseModel(object):
         substition rates if rate variation is configured.
         """
         if self.config.log_fine_probs:
-            plate = ET.SubElement(logger, "plate", {
-                "var":"feature",
-                "range":",".join(self.features)})
-            ET.SubElement(plate, "log", {
-                "idref":"featureLikelihood:%s:$(feature)" % self.name})
+            if not self.single_sitemodel:
+                plate = ET.SubElement(logger, "plate", {
+                    "var":"feature",
+                    "range":",".join(self.features)})
+                ET.SubElement(plate, "log", {
+                    "idref":"featureLikelihood:%s:$(feature)" % self.name})
             if self.rate_variation:
                 ET.SubElement(logger,"log",{"idref":"featureClockRatePrior.s:%s" % self.name})
                 ET.SubElement(logger,"log",{"idref":"featureClockRateGammaScalePrior.s:%s" % self.name})
