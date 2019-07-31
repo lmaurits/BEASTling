@@ -485,19 +485,34 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
                 # plate's scope, but it still works as long as we don't do
                 # anything *really* dumb like use the plate syntax outside
                 # of plates
+
+                # Pick up new plate
                 if e.tag == "plate":
-                    var = e.get("var")
+                    var = "$({})".format(e.get("var"))
                     range_ = e.get("range")
+                    continue
+
+                # Ignore non-ID-related attribs
+                if attrib not in ("id", "idref") and not value.startswith("@"):
+                    continue
+
+                # Decode a plate
+                if var and var in value:
+                    print("Decoding plate!  Turning %s into..." % value)
+                    values = [value.replace(var, v.strip()) for v in range_.split(",")]
+                    print(values)
+                else:
+                    values = [value]
+
+                # Record
                 if attrib == "id":
-                    if var and "$({})".format(var) in value:
-                        for v in range_.split(","):
-                            ids.append(v.strip())
-                    else:
-                        ids.append(value)
+                    ids.extend(values)
                 elif attrib == "idref":
-                    references.add(value)
+                    for v in values:
+                        references.add(v)
                 elif value.startswith("@"):
-                    references.add(value[1:])
+                    for v in values:
+                        references.add(v[1:])
 
         duplicate_ids = [i for i in ids if ids.count(i) > 1 ]
         if duplicate_ids:
