@@ -23,7 +23,7 @@ class MKModel(BaseModel):
             # We don't need to do anything for uniform freqs
             # as the implementation of LewisMK handles it
             if self.frequencies == "empirical":
-                freq = ET.SubElement(substmodel,"frequencies",{"id":"feature_freqs.s:%s"%fname,"spec":"Frequencies", "data":"@data_%s"%fname})
+                freq = ET.SubElement(substmodel,"frequencies",{"id":"feature_freqs.s:%s"%fname,"spec":"Frequencies", "data":"@feature_data_%s"%fname})
             elif self.frequencies == "approx":
                 freq = ET.SubElement(substmodel,"frequencies",{"id":"feature_freqs.s:%s"%fname,"spec":"Frequencies", "frequencies":self._get_approx_freq_string(feature)})
             elif self.frequencies == "estimate":
