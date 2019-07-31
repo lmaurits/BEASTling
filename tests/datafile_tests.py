@@ -1,31 +1,20 @@
-from .util import WithConfigAndTempDir, config_path, data_path
+import pytest
 
 
-class Tests(WithConfigAndTempDir):
-    def test_duplicate_iso(self):
-        config = self.make_cfg(config_path("basic").as_posix())
-        config.model_configs[0]["data"] = data_path("duplicated_iso.csv")
-        self.assertRaises(ValueError, config.process)
-
-    def test_no_iso_field(self):
-        config = self.make_cfg(config_path("basic").as_posix())
-        config.model_configs[0]["data"] = data_path("no_iso.csv")
-        self.assertRaises(ValueError, config.process)
-
-    def test_cldf_misspecified_as_beastling(self):
-        config = self.make_cfg(config_path("basic").as_posix())
-        config.model_configs[0]["data"] = data_path("cldf.csv")
-        config.model_configs[0]["file_format"] = 'beastling'
-        self.assertRaises(ValueError, config.process)
-
-    def test_beastling_misspecified_as_cldf(self):
-        config = self.make_cfg(config_path("basic").as_posix())
-        config.model_configs[0]["file_format"] = 'cldf'
-        self.assertRaises(ValueError, config.process)
-
-    def test_unknown_file_format(self):
-        config = self.make_cfg(config_path("basic").as_posix())
-        config.model_configs[0]["file_format"] = 'does_not_exist'
-        self.assertRaises(ValueError, config.process)
-
-    
+@pytest.mark.parametrize(
+    'spec',
+    [
+        dict(data='duplicated_iso.csv'),
+        dict(data='no_iso.csv'),
+        dict(data='cldf.csv', file_format='beastling'),
+        dict(file_format='cldf'),
+        dict(file_format='does_not_exist'),
+    ]
+)
+def test_datafile(config_factory, data_dir, spec):
+    config = config_factory("basic")
+    if 'data' in spec:
+        spec['data'] = data_dir / spec['data']
+    config.model_configs[0].update(spec)
+    with pytest.raises(ValueError):
+        config.process()

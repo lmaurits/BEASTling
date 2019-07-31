@@ -1,35 +1,33 @@
-# coding: utf8
-from nose.tools import *
-
-from .util import WithConfigAndTempDir, config_path, tests_path
+import pytest
 
 
-class Tests(WithConfigAndTempDir):
+def _make_tree_cfg(config_factory, tree_dir, tree_file):
+    cfg = config_factory('admin', 'mk', tree_file)
+    cfg.starting_tree = str(tree_dir / "{0}.nex".format(tree_file))
+    return cfg
 
-    def _make_tree_cfg(self, tree_file):
-        config_files = [config_path(cf).as_posix() for cf in ["admin", "mk", tree_file]]
-        cfg = self.make_cfg(config_files)
-        cfg.starting_tree = tests_path('trees', "%s.nex" % tree_file).as_posix()
-        return cfg
+def test_basic_starting_tree(config_factory, tree_dir):
+    cfg = _make_tree_cfg(config_factory, tree_dir, "basic")
+    cfg.process()
 
-    def test_basic_starting_tree(self):
-        cfg = self._make_tree_cfg("basic")
+
+def test_superset_tree(config_factory, tree_dir):
+    cfg = _make_tree_cfg(config_factory, tree_dir, "superset")
+    cfg.process()
+
+
+def test_polytomy_tree(config_factory, tree_dir):
+    cfg = _make_tree_cfg(config_factory, tree_dir, "polytomies")
+    cfg.process()
+
+
+def test_subset_tree(config_factory, tree_dir):
+    cfg = _make_tree_cfg(config_factory, tree_dir, "subset")
+    with pytest.raises(ValueError):
         cfg.process()
 
-    def test_superset_tree(self):
-        cfg = self._make_tree_cfg("superset")
-        cfg.process()
 
-    def test_polytomy_tree(self):
-        cfg = self._make_tree_cfg("polytomies")
-        cfg.process()
-
-    @raises(ValueError)
-    def test_subset_tree(self):
-        cfg = self._make_tree_cfg("subset")
-        cfg.process()
-
-    @raises(ValueError)
-    def test_duplicate_taxa_tree(self):
-        cfg = self._make_tree_cfg("duplicates")
+def test_duplicate_taxa_tree(config_factory, tree_dir):
+    cfg = _make_tree_cfg(config_factory, tree_dir, "duplicates")
+    with pytest.raises(ValueError):
         cfg.process()
