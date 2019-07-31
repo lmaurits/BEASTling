@@ -64,6 +64,7 @@ class BeastXml(object):
         for clock in self.config.clocks:
             clock.add_branchrate_model(self.beast)
         self.add_run()
+        self.validate_ids()
 
     def add_beastling_comment(self):
         """
