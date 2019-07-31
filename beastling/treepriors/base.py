@@ -200,18 +200,16 @@ class TreePrior (object):
                 beastxml.add_taxon_set(tiprandomwalker, taxon, (taxon,))
 
     def add_logging(self, beastxml, tracer_logger):
+        # Log tree model parameters
         if self.type in ["yule", "birthdeath"]:
             ET.SubElement(tracer_logger,"log",{"idref":"birthRate.t:beastlingTree"})
-            if self.type in ["birthdeath"]:
-                ET.SubElement(tracer_logger, "log",
-                                {"idref": "deathRate.t:beastlingTree"})
-                ET.SubElement(tracer_logger, "log",
-                                {"idref": "sampling.t:beastlingTree"})
-        elif self.type == "coalescent":
-            ET.SubElement(tracer_logger,"log",{"idref":"popSize.t:beastlingTree"})
 
-        if self.type == "yule":
-            ET.SubElement(tracer_logger,"log",{"idref":"birthRate.t:beastlingTree"})
+        if self.type in ["birthdeath"]:
+            ET.SubElement(tracer_logger, "log",
+                {"idref": "deathRate.t:beastlingTree"})
+            ET.SubElement(tracer_logger, "log",
+                {"idref": "sampling.t:beastlingTree"})
+
         elif self.type == "coalescent":
             ET.SubElement(tracer_logger,"log",{"idref":"popSize.t:beastlingTree"})
 
