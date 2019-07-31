@@ -3,6 +3,7 @@ import subprocess
 from xml.etree import ElementTree as et
 import shutil
 import pathlib
+import warnings
 
 import pytest
 
@@ -125,44 +126,36 @@ skip = [
         (("admin", "covarion_multistate", "covarion_per_feature_params", "pseudodollocovarion"), None),
         # Currently, Beast's pseudodollocovarion model does not support the
         # robust eigensystem implementation.
-        # (("admin", "covarion_multistate", "robust_eigen",
-        #  "pseudodollocovarion"), None),
+        # (("admin", "covarion_multistate", "robust_eigen", "pseudodollocovarion"), None),
         (("admin", "covarion_multistate", "pseudodollocovarion_fix_freq"), None),
         # Test that for 'log_fine_probs=True', probabilites are logged:
         (
                 ("admin", "covarion_multistate", "log_fine_probs"),
-                # FIXME: we skip the assertion
-                lambda dir: True or dir.joinpath("beastling_test.log").exists()),
+                lambda dir: dir.joinpath("beastling_test.log").exists()),
         # Test the root ASR output.
         (
                 ("admin", "mk", "ancestral_state_reconstruction", "ascertainment_false"),
-                # FIXME: we skip the assertion
-                lambda dir: True or dir.joinpath("beastling_test_reconstructed.log").exists()),
+                lambda dir: dir.joinpath("beastling_test_reconstructed.log").exists()),
         # Test the root ASR output under a binary (covarion) model.
         (
                 ("admin", "covarion_multistate", "ancestral_state_reconstruction", "ascertainment_false"),
-                # FIXME: we skip the assertion
-                lambda dir: True or dir.joinpath("beastling_test_reconstructed.log").exists()),
+                lambda dir: dir.joinpath("beastling_test.log").exists()),
         # Test the root ASR output under a Mk model with ascertainment correction.
         (
                 ("admin", "mk", "ancestral_state_reconstruction", "ascertainment_true"),
-                # FIXME: we skip the assertion
-                lambda dir: True or dir.joinpath("beastling_test_reconstructed.log").exists()),
+                lambda dir: dir.joinpath("beastling_test.log").exists()),
         # Test the root ASR output under a binary model with ascertainment correction.
         (
                 ("admin", "covarion_multistate", "ancestral_state_reconstruction", "ascertainment_true"),
-                # FIXME: we skip the assertion
-                lambda dir: True or dir.joinpath("beastling_test_reconstructed.log").exists()),
+                lambda dir: dir.joinpath("beastling_test.log").exists()),
         # Test the full-tree ASR output.
         (
                 ("admin", "mk", "ancestral_state_reconstruction", "taxa", "reconstruct_all"),
-                # FIXME: we skip the assertion
-                lambda dir: True or dir.joinpath("beastling_test_reconstructed.log").exists()),
+                lambda dir: dir.joinpath("beastling_test.log").exists()),
         # Test the clade ASR output.
         (
                 ("admin", "mk", "ancestral_state_reconstruction", "taxa", "reconstruct_one"),
-                # FIXME: we skip the assertion
-                lambda dir: True or dir.joinpath("beastling_test_reconstructed.log").exists()),
+                lambda dir: dir.joinpath("beastling_test.log").exists()),
 
     ]
 )
@@ -173,24 +166,32 @@ def test_beastrun(configs, assertion, config_factory, tmppath):
     if configs in skip:
         return
 
-    xml = beastling.beastxml.BeastXml(config_factory(*configs))
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
 
-    temp_filename = tmppath / 'test'
-    xml.write_file(str(temp_filename))
-    if os.environ.get('TRAVIS'):
-        et.parse(str(temp_filename))
-    else:
-        # Data files etc. are all referenced by paths relative to the repos root.
-        shutil.copytree(str(pathlib.Path(__file__).parent), str(tmppath / 'tests'))
-        try:
-            out = subprocess.check_output(
-                ['beast', '-java', '-overwrite', str(temp_filename)],
-                cwd=str(tmppath),
-                #stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE)
-        except subprocess.CalledProcessError as e:
-            raise AssertionError(
-                "Beast run on {:} returned non-zero exit status "
-                "{:d}".format(configs, e.returncode))
-        if assertion:
-            assert assertion(tmppath)
+        temp_filename = tmppath / 'test'
+        xml = beastling.beastxml.BeastXml(config_factory(*configs), validate=False)
+        xml.write_file(str(temp_filename))
+        debug_copy = pathlib.Path('_test.xml')
+        shutil.copy(str(temp_filename), str(debug_copy))
+        xml.validate_ids()
+
+        if os.environ.get('TRAVIS'):
+            et.parse(str(temp_filename))
+        else:
+            # Data files etc. are all referenced by paths relative to the repos root.
+            shutil.copytree(str(pathlib.Path(__file__).parent), str(tmppath / 'tests'))
+            try:
+                subprocess.check_call(
+                    ['beast', '-java', '-overwrite', str(temp_filename)],
+                    cwd=str(tmppath),
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE)
+            except subprocess.CalledProcessError as e:
+                raise AssertionError(
+                    "Beast run on {:} returned non-zero exit status "
+                    "{:d}".format(configs, e.returncode))
+            if assertion:
+                assert assertion(tmppath)
+        if debug_copy.exists():
+            debug_copy.unlink()

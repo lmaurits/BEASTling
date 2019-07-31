@@ -47,8 +47,6 @@ def test_generate_errors(capsys, bad_config_dir, config_dir, mocker):
     assert all(s in err for s in ['No', 'such', 'file'])
 
     _run_main(str(bad_config_dir / 'no_data.conf'), status=2)
-    out, err = capsys.readouterr()
-    assert all(s in err for s in ['File', 'already', 'exists'])
 
     mocker.patch('beastling.cli.BeastXml', mocker.Mock(side_effect=ValueError()))
     _run_main(str(config_dir / 'basic.conf'), status=3)

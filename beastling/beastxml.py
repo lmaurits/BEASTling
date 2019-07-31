@@ -1,11 +1,10 @@
-# -*- encoding: utf-8 -*-
 import datetime
 import itertools
-from math import log, exp
 import sys
 import xml.etree.ElementTree as ET
+import collections
 
-from six import BytesIO, PY3
+from six import BytesIO
 
 from clldutils.path import Path
 
@@ -29,7 +28,7 @@ def indent(elem, level=0):
 
 class BeastXml(object):
 
-    def __init__(self, config):
+    def __init__(self, config, validate=True):
         self.config = config
         if not self.config.processed:
             self.config.process()
@@ -42,6 +41,8 @@ class BeastXml(object):
             clock.beastxml = self
         self._taxon_sets = {}
         self.build_xml()
+        if validate:
+            self.validate_ids()
 
     def build_xml(self):
         """
@@ -474,52 +475,35 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
                     "idref": reference})
 
     def validate_ids(self):
-        ids = []
+        ids = collections.Counter()
         references = set()
-        var = None
-        range_ = None
+        parent_map = {c: p for p in self.beast.iter() for c in p}
         for e in self.beast.iter():
             for attrib, value in e.items():
-                # Quick and dirty plate handling.
-                # This doesn't "turn off" plate matching after leaving the
-                # plate's scope, but it still works as long as we don't do
-                # anything *really* dumb like use the plate syntax outside
-                # of plates
-
-                # Pick up new plate
-                if e.tag == "plate":
-                    var = "$({})".format(e.get("var"))
-                    range_ = e.get("range")
-                    continue
-
-                # Ignore non-ID-related attribs
-                if attrib not in ("id", "idref") and not value.startswith("@"):
-                    continue
-
-                # Decode a plate
-                if var and var in value:
-                    print("Decoding plate!  Turning %s into..." % value)
-                    values = [value.replace(var, v.strip()) for v in range_.split(",")]
-                    print(values)
-                else:
-                    values = [value]
-
-                # Record
                 if attrib == "id":
-                    ids.extend(values)
+                    if e in parent_map and parent_map[e].tag == 'plate':
+                        # Quick and dirty plate handling.
+                        # We only support plate matching in direct children of the plate.
+                        var = parent_map[e].get('var')
+                        for id_ in parent_map[e].get('range').split(','):
+                            ids.update([value.replace('$({0})'.format(var), id_)])
+                    else:
+                        ids.update([value])
                 elif attrib == "idref":
-                    for v in values:
-                        references.add(v)
+                    if e in parent_map and parent_map[e].tag == 'plate':
+                        var = parent_map[e].get('var')
+                        for id_ in parent_map[e].get('range').split(','):
+                            references.add(value.replace('$({0})'.format(var), id_))
+                    else:
+                        references.add(value)
                 elif value.startswith("@"):
-                    for v in values:
-                        references.add(v[1:])
+                    references.add(value[1:])
 
-        duplicate_ids = [i for i in ids if ids.count(i) > 1 ]
+        duplicate_ids = [key for key in ids if ids[key] > 1]
         if duplicate_ids:
             raise ValueError("Duplicate BEASTObject IDs found: " + ", ".join(duplicate_ids))
 
-        ids = set(ids)
-        bad_refs = [r for r in references if r not in ids]
+        bad_refs = references - set(ids)
         if bad_refs:
             raise ValueError("References to missing BEASTObject IDs found: " + ", ".join(bad_refs))
 
@@ -543,7 +527,7 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         """
         if filename in ("stdout", "-"):
             # See https://docs.python.org/3/library/sys.html#sys.stdout
-            self.write(getattr(sys.stdout, 'buffer', sys.stdout) if PY3 else sys.stdout)
+            self.write(getattr(sys.stdout, 'buffer', sys.stdout))
         else:
             with open(filename or self.config.basename + ".xml", "wb") as stream:
                 self.write(stream)
