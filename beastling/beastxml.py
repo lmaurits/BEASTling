@@ -472,6 +472,27 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
                 ET.SubElement(trait_logger, "log", {
                     "idref": reference})
 
+    def validate_ids(self):
+        ids = []
+        references = set()
+        for e in self.beast.iter():
+            for attrib, value in e.items():
+                if attrib == "id":
+                    ids.append(value)
+                elif attrib == "idref":
+                    references.add(value)
+                elif value.startswith("@"):
+                    references.add(value[1:])
+
+        duplicate_ids = [i for i in ids if ids.count(i) > 1 ]
+        if duplicate_ids:
+            raise ValueError("Duplicate BEASTObject IDs found: " + ", ".join(duplicate_ids))
+
+        ids = set(ids)
+        bad_refs = [r for r in references if r not in ids]
+        if bad_refs:
+            raise ValueError("References to missing BEASTObject IDs found: " + ", ".join(bad_refs))
+
     def tostring(self):
         """
         Return a string representation of the entire XML document.
