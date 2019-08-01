@@ -1,23 +1,18 @@
-# -*- encoding: utf-8 -*-
-
-from __future__ import division, unicode_literals
 import collections
 import importlib
 import io
 import itertools
-import math
 import os
 import random
 import re
-import six
 import sys
+from urllib.request import FancyURLopener
+from pathlib import Path
 
 import newick
 from appdirs import user_data_dir
-from six.moves.urllib.request import FancyURLopener
 from clldutils.inifile import INI
-from clldutils.dsv import reader
-from clldutils.path import Path
+from csvw.dsv import reader
 
 from beastling.fileio.datareaders import load_location_data
 from .distributions import Distribution
@@ -235,7 +230,7 @@ class Configuration(object):
         if isinstance(configfile, dict):
             self.configfile.read_dict(configfile)
         else:
-            if isinstance(configfile, six.string_types):
+            if isinstance(configfile, str):
                 configfile = (configfile,)
             for conf in configfile:
                 self.configfile.read(conf)

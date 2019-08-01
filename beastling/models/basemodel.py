@@ -1,9 +1,9 @@
-import io
-import os
 import collections
-import xml.etree.ElementTree as ET
 
 from ..fileio.datareaders import load_data
+from beastling.util.fileio import iterlines
+from beastling.util import xml
+
 
 class BaseModel(object):
     """
@@ -34,8 +34,8 @@ class BaseModel(object):
         self.frequencies = model_config.get("frequencies", "empirical")
         self.pruned = model_config.get("pruned", False)
         self.rate_variation = model_config.get("rate_variation", False)
-        self.feature_rates = model_config.get("feature_rates", None)
-        self.rate_partition = model_config.get("rate_partition", None)
+        self.feature_rates = model_config.get("feature_rates", {})
+        self.rate_partition = model_config.get("rate_partition", {})
         self.ascertained = model_config.get("ascertained", None)
         # Force removal of constant features here
         # This can be set by the user in BinaryModel only
@@ -169,51 +169,49 @@ class BaseModel(object):
         """
         Load a partition of features for sharing mutation rates.
         """
-        if not self.rate_partition:
-            self.rate_partition = {}
-            return
-        if not os.path.exists(self.rate_partition):
-            raise ValueError("Could not find feature rate file %s." % self.rate_partition)
-        fname = self.rate_partition
-        with open(fname) as fp:
-            # TODO: check that the partition includes all features
-            self.rate_partition = {}
-            for line in fp:
-                name, part = line.split(":",1)
+        if self.rate_partition:
+            res = {}
+            for line in iterlines(self.rate_partition, name='feature rate file'):
+                # TODO: check that the partition includes all features
+                name, part = line.split(":", 1)
                 name = name.strip()
                 part = [p.strip() for p in part.split(",")]
                 part = [p for p in part if p in self.features]
                 for p in part:
-                    self.rate_partition[p] = name
+                    res[p] = name
+            self.rate_partition = res
 
     def load_feature_rates(self):
         """
         Load relative feature rates from .csv file.
         """
-        if not self.feature_rates:
-            self.feature_rates = {}
-            return
-        if not os.path.exists(self.feature_rates):
-            raise ValueError("Could not find feature rate file %s." % self.feature_rates)
-        fname = self.feature_rates
-        with io.open(self.feature_rates, encoding="UTF-8") as fp:
-            self.feature_rates = {}
-            for line in fp:
+        if self.feature_rates:
+            fname = str(self.feature_rates)
+            res = {}
+            for line in iterlines(self.feature_rates, name='feature rates file'):
                 feature, rate = line.split(",")
                 feature = feature.strip()
                 # Skip irrelevant things
                 if feature not in self.all_rates:
                     continue
                 rate = float(rate.strip())
-                self.feature_rates[feature] = rate
-        if not all((rate in self.feature_rates for rate in self.all_rates)):
-            self.messages.append("""[WARNING] Model "%s": Rate file %s does not contain rates for every feature/partition.  Missing rates will default to 1.0, please check that this is okay.""" % (self.name, fname))
-        if not self.feature_rates:
-            self.messages.append("""[WARNING] Model "%s": Could not find any valid feature or partition rates in the file %s, is this the correct file for this analysis?""" % (self.name, fname))
-            return
-        norm = sum(self.feature_rates.values()) / len(self.feature_rates.values())
-        for f in self.feature_rates:
-            self.feature_rates[f] /= norm
+                res[feature] = rate
+            self.feature_rates = res
+
+            if not all((rate in self.feature_rates for rate in self.all_rates)):
+                self.messages.append(
+                    "[WARNING] Model \"%s\": Rate file %s does not contain rates for every "
+                    "feature/partition.  Missing rates will default to 1.0, please check that "
+                    "this is okay." % (self.name, fname))
+            if not self.feature_rates:
+                self.messages.append(
+                    "[WARNING] Model \"%s\": Could not find any valid feature or partition rates "
+                    "in the file %s, is this the correct file for this analysis?" % (
+                        self.name, fname))
+                return
+            norm = sum(self.feature_rates.values()) / len(self.feature_rates.values())
+            for f in self.feature_rates:
+                self.feature_rates[f] /= norm
 
     def apply_feature_filter(self):
         """
@@ -385,43 +383,52 @@ class BaseModel(object):
                 # features or partitions, we need to list each rate
                 # individually
                 for rate in self.all_rates:
-                    param = ET.SubElement(state, "parameter", {
-                        "id":"featureClockRate:%s:%s" % (self.name, rate),
-                        "name":"stateNode"})
-                    param.text=str(self.feature_rates.get(rate,1.0))
+                    xml.parameter(
+                        state,
+                        text=self.feature_rates.get(rate,1.0),
+                        id="featureClockRate:%s:%s" % (self.name, rate),
+                        name="stateNode")
             else:
                 # If not, and everything is initialised to the same
                 # value, we can just whack 'em all in a big plate
-                plate = ET.SubElement(state, "plate", {
-                    "var":"rate",
-                    "range":",".join(self.all_rates)})
-                param = ET.SubElement(plate, "parameter", {
-                    "id":"featureClockRate:%s:$(rate)" % self.name,
-                    "name":"stateNode"})
-                param.text="1.0"
+                plate = xml.plate(state, var="rate", range=self.all_rates)
+                xml.parameter(
+                    plate,
+                    text="1.0",
+                    id="featureClockRate:%s:$(rate)" % self.name,
+                    name="stateNode")
 
             # Give Gamma shape parameter a finite domain
             # Must be > 1.0 for the distribution to be bell-shaped,
             # rather than L-shaped.  The domain [1.1,1000] limits feature
             # rate variation to the realms of vague plausibity
-            parameter = ET.SubElement(state, "parameter", {"id":"featureClockRateGammaShape:%s" % self.name, "lower":"1.1","upper":"100.0","name":"stateNode"})
-            parameter.text="5.0"
+            xml.parameter(
+                state,
+                text="5.0",
+                id="featureClockRateGammaShape:%s" % self.name,
+                lower="1.1",
+                upper="100.0",
+                name="stateNode")
             # Gamma scale parameter's domain is defined *implicilty*
             # by the fact that the operators maintain shape*scale = 1.0
-            parameter = ET.SubElement(state, "parameter", {"id":"featureClockRateGammaScale:%s" % self.name, "name":"stateNode"})
-            parameter.text="0.2"
+            xml.parameter(
+                state,
+                text="0.2",
+                id="featureClockRateGammaScale:%s" % self.name,
+                name="stateNode")
 
     def add_frequency_state(self, state):
         for f in self.features:
             fname = "%s:%s" % (self.name, f)
-            param = ET.SubElement(state,"stateNode",{
-                "id":"feature_freqs_param.s:%s"%fname,
-                "spec":"parameter.RealParameter",
-                "dimension":str(self.valuecounts[f]),
-                "lower":"0.0",
-                "upper":"1.0",
-            })
-            param.text = str(1.0/self.valuecounts[f])
+            xml.stateNode(
+                state,
+                text=1.0 / self.valuecounts[f],
+                id="feature_freqs_param.s:%s"%fname,
+                spec="parameter.RealParameter",
+                dimension=self.valuecounts[f],
+                lower="0.0",
+                upper="1.0",
+            )
 
     def add_prior(self, prior):
         """
@@ -430,14 +437,22 @@ class BaseModel(object):
         """
         if self.rate_variation:
             # Gamma prior with mean 1 over all mutation rates
-            sub_prior = ET.SubElement(prior, "prior", {"id":"featureClockRatePrior.s:%s" % self.name, "name":"distribution"})
-            compound = ET.SubElement(sub_prior, "input", {"id":"featureClockRateCompound:%s" % self.name, "spec":"beast.core.parameter.CompoundValuable", "name":"x"})
-            plate = ET.SubElement(compound, "plate", {
-                "var":"rate",
-                "range":",".join(self.all_rates)})
-            ET.SubElement(plate, "var", {
-                "idref":"featureClockRate:%s:$(rate)" % self.name})
-            gamma  = ET.SubElement(sub_prior, "input", {"id":"featureClockRatePriorGamma:%s" % self.name, "spec":"beast.math.distributions.Gamma", "name":"distr", "alpha":"@featureClockRateGammaShape:%s" % self.name, "beta":"@featureClockRateGammaScale:%s" % self.name})
+            sub_prior = xml.prior(
+                prior, id="featureClockRatePrior.s:%s" % self.name, name="distribution")
+            compound = xml.input(
+                sub_prior,
+                id="featureClockRateCompound:%s" % self.name,
+                spec="beast.core.parameter.CompoundValuable",
+                name="x")
+            plate = xml.plate(compound, var="rate", range=self.all_rates)
+            xml.var(plate, idref="featureClockRate:%s:$(rate)" % self.name)
+            xml.input(
+                sub_prior,
+                id="featureClockRatePriorGamma:%s" % self.name,
+                spec="beast.math.distributions.Gamma",
+                name="distr",
+                alpha="@featureClockRateGammaShape:%s" % self.name,
+                beta="@featureClockRateGammaScale:%s" % self.name)
             # Exponential hyperprior on scale of Gamma prior
             # Exponential prior favours small scales over large scales, i.e. less rate variation
             # Mean scale 0.23 chosen for general sensibility, e.g.:
@@ -446,8 +461,16 @@ class BaseModel(object):
             #     or above 10.
             #   - Prior probability of roughly 0.90 that this ratio is below
             #     100.
-            sub_prior = ET.SubElement(prior, "prior", {"id":"featureClockRateGammaScalePrior.s:%s" % self.name, "name":"distribution", "x":"@featureClockRateGammaScale:%s" % self.name})
-            ET.SubElement(sub_prior, "Exponential", {"id":"featureClockRateGammaShapePriorExponential.s:%s" % self.name, "mean":"0.23", "name":"distr"})
+            sub_prior = xml.prior(
+                prior,
+                id="featureClockRateGammaScalePrior.s:%s" % self.name,
+                name="distribution",
+                x="@featureClockRateGammaScale:%s" % self.name)
+            xml.Exponential(
+                sub_prior,
+                id="featureClockRateGammaShapePriorExponential.s:%s" % self.name,
+                mean="0.23",
+                name="distr")
 
     def pattern_names(self, feature):
         """Content of the columns corresponding to this feature in the alignment.
@@ -461,8 +484,7 @@ class BaseModel(object):
         if self.ascertained:
             return ["{:}_dummy{:d}".format(feature, i)
                     for i in range(self.extracolumns[feature])] + [feature]
-        else:
-            return [feature]
+        return [feature]
 
     def add_likelihood(self, likelihood):
         """
@@ -476,18 +498,23 @@ class BaseModel(object):
                        "useAmbiguities": "true"}
 
             if self.pruned:
-                distribution = ET.SubElement(likelihood, "distribution",attribs)
+                distribution = xml.distribution(likelihood, attrib=attribs)
                 # Create pruned tree
                 tree_id = "Tree.t:prunedBeastlingTree.%s" % fname
-                tree = ET.SubElement(distribution, "tree", {"id":tree_id, "spec":"beast.evolution.tree.PrunedTree","quickshortcut":"true","assert":"false"})
-                ET.SubElement(tree, "tree", {"idref":"Tree.t:beastlingTree"})
-                ET.SubElement(tree, "alignment", {"idref":"pruned_data_%s"%fname})
+                tree = xml.tree(
+                    distribution,
+                    id=tree_id,
+                    spec="beast.evolution.tree.PrunedTree",
+                    quickshortcut="true",
+                    attrib={'assert': "false"})
+                xml.tree(tree, idref="Tree.t:beastlingTree")
+                xml.alignment(tree, idref="pruned_data_%s" % fname)
                 # Create pruned branchrate
                 self.clock.add_pruned_branchrate_model(distribution, fname, tree_id)
             else:
                 attribs["branchRateModel"] = "@%s" % self.clock.branchrate_model_id
                 attribs["tree"] = "@Tree.t:beastlingTree"
-                distribution = ET.SubElement(likelihood, "distribution",attribs)
+                distribution = xml.distribution(likelihood, attrib=attribs)
 
             if f in  self.reconstruct:
                 # Use a different likelihood spec (also depending on whether
@@ -513,18 +540,21 @@ class BaseModel(object):
 
     def add_sitemodel(self, distribution, feature, fname):
         mr = self.get_mutation_rate(feature, fname)
-        sitemodel = ET.SubElement(distribution, "siteModel", {"id":"SiteModel.%s"%fname,"spec":"SiteModel", "mutationRate":mr,"proportionInvariant":"0"})
-        substmodel = self.add_substmodel(sitemodel, feature, fname)
+        sitemodel = xml.siteModel(
+            distribution,
+            id="SiteModel.%s" % fname,
+            spec="SiteModel",
+            mutationRate=mr,
+            proportionInvariant="0")
+        self.add_substmodel(sitemodel, feature, fname)
 
     def add_substmodel(self, sitemodel, feature, fname):
         pass
 
     def add_master_data(self, beast):
         self.filters = {}
-        data = ET.SubElement(beast, "data", {
-            "id":"data_%s" % self.name,
-            "name":"data_%s" % self.name,
-            "dataType":"integer"})
+        data = xml.data(
+            beast, id="data_%s" % self.name, name="data_%s" % self.name, dataType="integer")
         for lang in self.languages:
             formatted_points = [
                 self.format_datapoint(
@@ -544,10 +574,8 @@ class BaseModel(object):
                     else:
                         self.filters[f] = "%d-%d" % (n, n+length-1)
                     n += length
-            seq = ET.SubElement(data, "sequence", {
-                "id":"language_data_%s:%s" % (self.name, lang),
-                "taxon":lang,
-                "value":value_string})
+            xml.sequence(
+                data, id="language_data_%s:%s" % (self.name, lang), taxon=lang, value=value_string)
 
     def format_datapoint(self, feature, point):
         point = self.reduce_multivalue_data(point)
@@ -578,17 +606,17 @@ class BaseModel(object):
         from the indicated likelihood distribution.
         """
         if self.pruned:
-            pruned_align = ET.SubElement(distribution,"data",{"id":"pruned_data_%s" % fname, "spec":"PrunedAlignment"})
-            parent = pruned_align
+            parent = xml.data(distribution, id="pruned_data_%s" % fname, spec="PrunedAlignment")
             name = "source"
         else:
             parent = distribution
             name = "data"
-        data = ET.SubElement(parent, name, {
-            "id":"feature_data_%s" % fname,
-            "spec":"FilteredAlignment",
-            "data":"@data_%s" % self.name,
-            "filter":self.filters[feature]})
+        data = getattr(xml, name)(
+            parent,
+            id="feature_data_%s" % fname,
+            spec="FilteredAlignment",
+            data="@data_%s" % self.name,
+            filter=self.filters[feature])
         if self.ascertained:
             data.set("ascertained", "true")
             data.set("excludefrom", "0")
@@ -597,7 +625,13 @@ class BaseModel(object):
         return data
 
     def get_userdatatype(self, feature, fname):
-        return ET.Element("userDataType", {"id":"featureDataType.%s"%fname,"spec":"beast.evolution.datatype.UserDataType","codeMap":self.codemaps[feature],"codelength":"-1","states":str(self.valuecounts[feature])})
+        return xml.userDataType(
+            None,
+            id="featureDataType.%s" % fname,
+            spec="beast.evolution.datatype.UserDataType",
+            codeMap=self.codemaps[feature],
+            codelength="-1",
+            states=self.valuecounts[feature])
 
     def get_mutation_rate(self, feature, fname):
         """
@@ -627,14 +661,25 @@ class BaseModel(object):
         if self.rate_variation:
             # UpDownOperator to scale the Gamma distribution for this model's
             # feature rates
-            updown = ET.SubElement(run, "operator", {"id":"featureClockRateGammaUpDown:%s" % self.name, "spec":"UpDownOperator", "scaleFactor":"0.5","weight":"0.3"})
-            ET.SubElement(updown, "parameter", {"idref":"featureClockRateGammaShape:%s" % self.name, "name":"up"})
-            ET.SubElement(updown, "parameter", {"idref":"featureClockRateGammaScale:%s" % self.name, "name":"down"})
+            updown = xml.operator(
+                run,
+                id="featureClockRateGammaUpDown:%s" % self.name,
+                spec="UpDownOperator",
+                scaleFactor="0.5",
+                weight="0.3")
+            xml.parameter(updown, idref="featureClockRateGammaShape:%s" % self.name, name="up")
+            xml.parameter(updown, idref="featureClockRateGammaScale:%s" % self.name, name="down")
 
     def add_frequency_operators(self, run):
         for f in self.features:
             fname = "%s:%s" % (self.name, f)
-            ET.SubElement(run, "operator", {"id":"estimatedFrequencyOperator:%s" % fname, "spec":"DeltaExchangeOperator", "parameter":"@feature_freqs_param.s:%s" % fname, "delta":"0.01","weight":"0.1"})
+            xml.operator(
+                run,
+                id="estimatedFrequencyOperator:%s" % fname,
+                spec="DeltaExchangeOperator",
+                parameter="@feature_freqs_param.s:%s" % fname,
+                delta="0.01",
+                weight="0.1")
 
     def add_param_logs(self, logger):
         """
@@ -643,28 +688,22 @@ class BaseModel(object):
         """
         if self.config.log_fine_probs:
             if not self.single_sitemodel:
-                plate = ET.SubElement(logger, "plate", {
-                    "var":"feature",
-                    "range":",".join(self.features)})
-                ET.SubElement(plate, "log", {
-                    "idref":"featureLikelihood:%s:$(feature)" % self.name})
+                plate = xml.plate(logger, var="feature", range=self.features)
+                xml.log(plate, idref="featureLikelihood:%s:$(feature)" % self.name)
             if self.rate_variation:
-                ET.SubElement(logger,"log",{"idref":"featureClockRatePrior.s:%s" % self.name})
-                ET.SubElement(logger,"log",{"idref":"featureClockRateGammaScalePrior.s:%s" % self.name})
+                xml.log(logger, idref="featureClockRatePrior.s:%s" % self.name)
+                xml.log(logger, idref="featureClockRateGammaScalePrior.s:%s" % self.name)
 
         if self.frequencies == "estimate":
             self.add_frequency_logs(logger)
         if self.rate_variation:
-            plate = ET.SubElement(logger, "plate", {
-                "var":"rate",
-                "range":",".join(self.all_rates)})
-            ET.SubElement(plate, "log", {
-                "idref":"featureClockRate:%s:$(rate)" % self.name})
+            plate = xml.plate(logger, var="rate", range=self.all_rates)
+            xml.log(plate, idref="featureClockRate:%s:$(rate)" % self.name)
             # Log the scale, but not the shape, as it is always 1 / scale
             # We prefer the scale because it is positively correlated with extent of variation
-            ET.SubElement(logger,"log",{"idref":"featureClockRateGammaShape:%s" % self.name})
+            xml.log(logger, idref="featureClockRateGammaShape:%s" % self.name)
 
     def add_frequency_logs(self, logger):
         for f in self.features:
             fname = "%s:%s" % (self.name, f)
-            ET.SubElement(logger,"log",{"idref":"feature_freqs_param.s:%s" % fname})
+            xml.log(logger, idref="feature_freqs_param.s:%s" % fname)

@@ -1,10 +1,9 @@
-# -*- encoding: utf-8 -*-
 import collections
 
-import xml.etree.ElementTree as ET
+from clldutils.inifile import INI
 
 from .basemodel import BaseModel
-from clldutils.inifile import INI
+from beastling.util import xml
 
 
 class BinaryModel(BaseModel):
@@ -30,8 +29,7 @@ class BinaryModel(BaseModel):
     def add_state(self, state):
         BaseModel.add_state(self, state)
         if self.gamma_categories > 0:
-            shape = ET.SubElement(state,"parameter",  {"id":"gammaShape.s:%s" % self.name, "name":"stateNode"})
-            shape.text="1.0"
+            xml.parameter(state, text="1.0", id="gammaShape.s:%s" % self.name, name="stateNode")
 
     def add_frequency_state(self, state):
         attribs = {
@@ -42,14 +40,12 @@ class BinaryModel(BaseModel):
             "upper":"1.0",
         }
         if self.share_params:
-            param = ET.SubElement(state,"stateNode",attribs)
-            param.text = "0.5 0.5"
+            xml.stateNode(state, text="0.5 0.5", attrib=attribs)
         else:
             for f in self.features:
                 fname = "%s:%s" % (self.name, f)
                 attribs["id"] = "freqs_param.s:%s" % fname
-                param = ET.SubElement(state,"stateNode",attribs)
-                param.text = "0.5 0.5"
+                xml.stateNode(state, text="0.5 0.5", attrib=attribs)
 
     def add_sitemodel(self, distribution, feature, fname):
         if feature == None and fname == None:
@@ -66,8 +62,8 @@ class BinaryModel(BaseModel):
         if self.gamma_categories > 0:
             attribs["gammaCategoryCount"] = str(self.gamma_categories)
             attribs["shape"] = "@gammaShape.s:%s" % self.name
-        sitemodel = ET.SubElement(distribution, "siteModel", attribs)
-        substmodel = self.add_substmodel(sitemodel, feature, fname)
+        sitemodel = xml.siteModel(distribution, attrib=attribs)
+        self.add_substmodel(sitemodel, feature, fname)
 
     def compute_weights(self):
         if not self.recoded:
@@ -247,20 +243,33 @@ class BinaryModel(BaseModel):
     def add_operators(self, run):
         BaseModel.add_operators(self, run)
         if self.gamma_categories > 0:
-            gamma_scaler = ET.SubElement(run,"operator",  {"id":"gammaShapeScaler.s:%s" % self.name, "spec":"ScaleOperator", "parameter":"@gammaShape.s:%s" % self.name, "scaleFactor":"0.5","weight":"0.1"})
+            xml.operator(
+                run,
+                id="gammaShapeScaler.s:%s" % self.name,
+                spec="ScaleOperator",
+                parameter="@gammaShape.s:%s" % self.name,
+                scaleFactor="0.5",
+                weight="0.1")
 
     def add_frequency_operators(self, run):
         for name in self.parameter_identifiers():
-            ET.SubElement(run, "operator", {"id":"frequency_sampler.s:%s" % name, "spec":"DeltaExchangeOperator","parameter":"@freqs_param.s:%s" % name,"delta":"0.01","weight":"1.0"})
+            xml.operator(
+                run,
+                id="frequency_sampler.s:%s" % name,
+                spec="DeltaExchangeOperator",
+                parameter="@freqs_param.s:%s" % name,
+                delta="0.01",
+                weight="1.0")
 
     def add_param_logs(self, logger):
         BaseModel.add_param_logs(self, logger)
         if self.gamma_categories > 0:
-            ET.SubElement(logger, "log", {"idref":"gammaShape.s:%s" % self.name})
+            xml.log(logger, idref="gammaShape.s:%s" % self.name)
 
     def add_frequency_logs(self, logger):
         for name in self.parameter_identifiers():
-            ET.SubElement(logger,"log",{"idref":"freqs_param.s:%s" % name})
+            xml.log(logger, idref="freqs_param.s:%s" % name)
+
 
 class BinaryModelWithShareParams(BinaryModel):
     def __init__(self, model_config, global_config):
@@ -327,13 +336,14 @@ class BinaryModelWithShareParams(BinaryModel):
            "branchRateModel": "@%s" % self.clock.branchrate_model_id,
            "tree": "@Tree.t:beastlingTree",
         }
-        distribution = ET.SubElement(likelihood, "distribution",attribs)
+        distribution = xml.distribution(likelihood, attrib=attribs)
         self.add_sitemodel(distribution, None, None)
-        data = ET.SubElement(distribution, "data", {
-            "id":"filtered_data_%s" % self.name,
-            "spec":"FilteredAlignment",
-            "data":"@data_%s" % self.name,
-            "filter":"-"})
+        data = xml.data(
+            distribution,
+            id="filtered_data_%s" % self.name,
+            spec="FilteredAlignment",
+            data="@data_%s" % self.name,
+            filter="-")
         if self.recoded:
             data.set("ascertained", "true")
             data.set("excludefrom", "0")

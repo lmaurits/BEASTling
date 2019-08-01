@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pycldf.dataset
 
-from clldutils.dsv import UnicodeDictReader
+from csvw.dsv import UnicodeDictReader
 
 
 def sniff(filename):
@@ -37,14 +37,15 @@ def sniff(filename):
                     # hope for the best...
                     return csv.excel
 
+
 def sanitise_name(name):
     """
     Take a name for a language or a feature which has come from somewhere like
     a CLDF dataset and make sure it does not contain any characters which
     will cause trouble for BEAST or postanalysis tools.
     """
-    name = name.replace(" ","_")
-    return name
+    return name.replace(" ", "_")
+
 
 def load_data(filename, file_format=None, lang_column=None, value_column=None, expect_multiple=False):
     # Handle CSV dialect issues
@@ -71,7 +72,7 @@ def load_data(filename, file_format=None, lang_column=None, value_column=None, e
         # Use CSV dialect sniffer in all other cases
         dialect = sniff(filename)
     # Read
-    with UnicodeDictReader(str(filename), dialect=dialect) as reader:
+    with UnicodeDictReader(filename, dialect=dialect) as reader:
         # Guesstimate file format if user has not been explicit
         if file_format is None:
             file_format = 'cldf-legacy' if all(
@@ -137,7 +138,6 @@ def load_cldf_data(reader, value_column, filename, expect_multiple=False):
 
 
 def load_location_data(filename):
-
     # Use CSV dialect sniffer in all other cases
     with open(str(filename), "r") as fp: # Cast PosixPath to str
         # On large files, csv.Sniffer seems to need a lot of datta to make a
@@ -309,15 +309,19 @@ def read_cldf_dataset(filename, code_column=None, expect_multiple=False):
     elif dataset.module == "StructureDataset":
         language_column = dataset["ValueTable", "languageReference"].name
         parameter_column = dataset["ValueTable", "parameterReference"].name
-        code_column = code_column or dataset["ValueTable", "codeReference"].name
+        try:
+            code_column = code_column or dataset["ValueTable", "codeReference"].name
+        except KeyError:
+            code_column = dataset["ValueTable", "value"].name
         for row in dataset["ValueTable"].iterdicts():
             lang_id = lang_ids.get(row[language_column], row[language_column])
             feature_id = feature_ids.get(row[parameter_column], row[parameter_column])
             if expect_multiple:
-                data[lang_id][feature_id].append(row[code_column])
+                data[lang_id][feature_id].append(row[code_column] or '')
             else:
-                data[lang_id][feature_id] = row[code_column]
+                data[lang_id][feature_id] = row[code_column] or ''
         return data, language_code_map
+
 
 def build_lang_ids(dataset):
     lang_ids = {}

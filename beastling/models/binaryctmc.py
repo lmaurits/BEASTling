@@ -1,6 +1,5 @@
-import xml.etree.ElementTree as ET
-
 from .binary import BinaryModelWithShareParams as BinaryModel
+from beastling.util import xml
 
 
 class BinaryCTMCModel(BinaryModel):
@@ -13,10 +12,8 @@ class BinaryCTMCModel(BinaryModel):
     def get_userdatatype(self, feature, fname):
         if not self.beastxml._binary_userdatatype_created:
             self.beastxml._binary_userdatatype_created = True
-            return ET.Element("userDataType", {"id":"BinaryDatatype", "spec":"beast.evolution.datatype.Binary"})
-        else:
-            return ET.Element("userDataType", {"idref":"BinaryDatatype"})
-
+            return xml.userDataType(None, id="BinaryDatatype", spec="beast.evolution.datatype.Binary")
+        return xml.userDataType(None, idref="BinaryDatatype")
 
     def add_substmodel(self, sitemodel, feature, fname):
         # If we're sharing one substmodel across all features and have already
@@ -30,15 +27,23 @@ class BinaryCTMCModel(BinaryModel):
         subst_model_id = "binaryCTMC.s:%s" % name
         if self.share_params:
             self.subst_model_id = subst_model_id
-        substmodel = ET.SubElement(sitemodel, "substModel",{"id":subst_model_id,"spec":"GeneralSubstitutionModel"})
-
-        rates = ET.SubElement(substmodel, "parameter",{"id":"rates.s:%s" % name, "dimension":"2", "estimate":"false","name":"rates"})
-        rates.text="1.0 1.0"
+        substmodel = xml.substModel(sitemodel, id=subst_model_id, spec="GeneralSubstitutionModel")
+        xml.parameter(
+            substmodel,
+            text="1.0 1.0",
+            id="rates.s:%s" % name,
+            dimension=2,
+            estimate="false",
+            name="rates")
 
         if self.frequencies == "estimate":
-            freq = ET.SubElement(substmodel,"frequencies",{"id":"estimatedFrequencies.s:%s"%name,"spec":"Frequencies", "frequencies":"@freqs_param.s:%s"%name})
+            xml.frequencies(
+                substmodel,
+                id="estimatedFrequencies.s:%s" % name,
+                spec="Frequencies",
+                frequencies="@freqs_param.s:%s" % name)
         elif self.frequencies == "empirical":
-            attribs = {"id":"empiricalFrequencies.s:%s"%name,"spec":"Frequencies"}
+            attribs = {"id": "empiricalFrequencies.s:%s" % name, "spec": "Frequencies"}
             if self.share_params:
                 if self.single_sitemodel:
                     attribs["data"] = "@filtered_data_%s" % name
@@ -46,7 +51,11 @@ class BinaryCTMCModel(BinaryModel):
                     attribs["frequencies"] = self.build_freq_str()
             else:
                 attribs["data"] = "@feature_data_%s" % name
-            freq = ET.SubElement(substmodel,"frequencies",attribs)
+            xml.frequencies(substmodel, attrib=attribs)
         elif self.frequencies == "uniform":
-            freq = ET.SubElement(substmodel, "frequencies", {"id":"frequencies.s:%s" % name, "dimension":"2","spec":"parameter.RealParameter"})
-            freq.text="0.5 0.5"
+            xml.frequencies(
+                substmodel,
+                text="0.5 0.5",
+                id="frequencies.s:%s" % name,
+                dimension="2",
+                spec="parameter.RealParameter")

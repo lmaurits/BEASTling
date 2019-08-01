@@ -1,11 +1,9 @@
 import itertools
 import json
-import sys
-
-from beastling import __version__
 
 _COLOURS = ["#CADA45", "#D4A2E1", "#55E0C6", "#F0B13C", "#75E160"]
 _SHAPES = ["circle", "square", "triangle", "star"]
+
 
 class BeastlingReport(object):
 

@@ -1,9 +1,9 @@
-import codecs
-import os
+from functools import partial
 import math
-import xml.etree.ElementTree as ET
 
 from .basemodel import BaseModel
+from beastling.util import xml
+
 
 class BSVSModel(BaseModel):
 
@@ -31,19 +31,19 @@ class BSVSModel(BaseModel):
             if self.symmetric:
                 dimension = int(dimension/2)
 
-            attribs = {}
-            attribs["id"] = "rateIndicator.s:%s" % fname
-            attribs["spec"] = "parameter.BooleanParameter"
-            attribs["dimension"] = str(dimension)
-            statenode = ET.SubElement(state, "stateNode", attribs)
-            statenode.text="true"
+            xml.stateNode(
+                state,
+                text="true",
+                id="rateIndicator.s:%s" % fname,
+                spec="parameter.BooleanParameter",
+                dimension=dimension)
 
-            attribs = {}
-            attribs["dimension"] = str(dimension)
-            attribs["id"] = "relativeGeoRates.s:%s" % fname
-            attribs["name"] = "stateNode"
-            parameter = ET.SubElement(state, "parameter", attribs)
-            parameter.text="1.0"
+            xml.parameter(
+                state,
+                text="1.0",
+                id="relativeGeoRates.s:%s" % fname,
+                name="stateNode",
+                dimension=dimension)
 
     def add_prior(self, prior):
 
@@ -52,8 +52,8 @@ class BSVSModel(BaseModel):
             fname = "%s:%s" % (self.name, f)
 
             # Boolean Rate on/off
-            sub_prior = ET.SubElement(prior, "prior", {"id":"nonZeroRatePrior.s:%s" % fname, "name":"distribution"})
-            x = ET.SubElement(sub_prior, "x", {"arg":"@rateIndicator.s:%s" % fname, "spec":"util.Sum"})
+            sub_prior = xml.prior(prior, id="nonZeroRatePrior.s:%s" % fname, name="distribution")
+            xml.x(sub_prior, arg="@rateIndicator.s:%s" % fname, spec="util.Sum")
             N = self.valuecounts[f]
             if self.symmetric:
                 offset = N-1
@@ -65,44 +65,84 @@ class BSVSModel(BaseModel):
                 # In this situation (e.g. N=2, symmetric), we have no real
                 # freedom in the number of non-zero rates.  So just set a
                 # uniform prior
-                distr  = ET.SubElement(sub_prior, "distr", {"id":"Poisson:%s.%d" % (fname, n), "offset":str(offset),"spec":"beast.math.distributions.Uniform", "lower":"0.0","upper":"Infinity"})
+                xml.distr(
+                    sub_prior,
+                    id="Poisson:%s.%d" % (fname, n),
+                    offset=offset,
+                    spec="beast.math.distributions.Uniform",
+                    lower="0.0",
+                    upper="Infinity")
             elif self.svsprior == "poisson":
-                distr  = ET.SubElement(sub_prior, "distr", {"id":"Poisson:%s.%d" % (fname, n), "offset":str(offset),"spec":"beast.math.distributions.Poisson"})
-                param = ET.SubElement(distr, "parameter", {"id":"RealParameter:%s.%d.0" % (fname, n),"lower":"0.0","name":"lambda","upper":"0.0"})
-                # Set Poisson mean equal to the midpoint of therange of
-                # sensible values
-                poisson_mean = (dim - offset)/2.0
-                param.text = str(poisson_mean)
+                distr  = xml.distr(
+                    sub_prior,
+                    id="Poisson:%s.%d" % (fname, n),
+                    offset=offset,
+                    spec="beast.math.distributions.Poisson")
+                xml.parameter(
+                    distr,
+                    # Set Poisson mean equal to the midpoint of the range of sensible values
+                    text=(dim - offset) / 2.0,
+                    id="RealParameter:%s.%d.0" % (fname, n),
+                    lower="0.0",
+                    name="lambda",
+                    upper="0.0")
             elif self.svsprior == "exponential":
                 # Set Exponential mean so that 99% of probability density
                 # lies inside the sensible range
                 # Exponential quantile function is
                 # F(p,lambda) = -ln(1-p) / lambda
                 exponential_mean = math.log(100.0) / (dim - offset)
-                distr  = ET.SubElement(sub_prior, "distr", {"id":"Exponential:%s.%d" % (fname, n), "offset":str(offset),"spec":"beast.math.distributions.Exponential"})
-                param = ET.SubElement(distr, "parameter", {"id":"RealParameter:%s.%d.0" % (fname, n),"lower":"0.0","name":"mean","upper":"0.0"})
-                param.text = str(exponential_mean)
+                distr  = xml.distr(
+                    sub_prior,
+                    id="Exponential:%s.%d" % (fname, n),
+                    offset=offset,
+                    spec="beast.math.distributions.Exponential")
+                xml.parameter(
+                    distr,
+                    text=exponential_mean,
+                    id="RealParameter:%s.%d.0" % (fname, n),
+                    lower="0.0",
+                    name="mean",
+                    upper="0.0")
 
             # Relative rate
-            sub_prior = ET.SubElement(prior, "prior", {"id":"relativeGeoRatesPrior.s:%s" % fname, "name":"distribution","x":"@relativeGeoRates.s:%s"% fname})
-            gamma  = ET.SubElement(sub_prior, "Gamma", {"id":"Gamma:%s.%d.0" % (fname, n), "name":"distr"})
-            param = ET.SubElement(gamma, "parameter", {"id":"RealParameter:%s.%d.1" % (fname, n),"lower":"0.0","name":"alpha","upper":"0.0"})
-            param.text = "1.0"
-            param = ET.SubElement(gamma, "parameter", {"id":"RealParameter:%s.%d.2" % (fname, n),"lower":"0.0","name":"beta","upper":"0.0"})
-            param.text = "1.0"
+            sub_prior = xml.prior(
+                prior,
+                id="relativeGeoRatesPrior.s:%s" % fname,
+                name="distribution",
+                x="@relativeGeoRates.s:%s" % fname)
+            gamma = xml.Gamma(sub_prior, id="Gamma:%s.%d.0" % (fname, n), name="distr")
+            xml.parameter(
+                gamma,
+                text="1.0",
+                id="RealParameter:%s.%d.1" % (fname, n),
+                lower="0.0",
+                name="alpha",
+                upper="0.0")
+            xml.parameter(
+                gamma,
+                text="1.0",
+                id="RealParameter:%s.%d.2" % (fname, n),
+                lower="0.0",
+                name="beta",
+                upper="0.0")
 
     def add_substmodel(self, sitemodel, feature, fname):
-        if self.symmetric:
-            substmodel = ET.SubElement(sitemodel, "substModel",{"id":"svs.s:%s"%fname,"rateIndicator":"@rateIndicator.s:%s"%fname,"rates":"@relativeGeoRates.s:%s"%fname,"spec":"SVSGeneralSubstitutionModel"})
-        else:
-            substmodel = ET.SubElement(sitemodel, "substModel",{"id":"svs.s:%s"%fname,"rateIndicator":"@rateIndicator.s:%s"%fname,"rates":"@relativeGeoRates.s:%s"%fname,"spec":"SVSGeneralSubstitutionModel", "symmetric":"false"})
-        if self.use_robust_eigensystem:
-            substmodel.set("eigenSystem","beast.evolution.substitutionmodel.RobustEigenSystem")
-
         attribs = {
-                "id":"feature_freqs.s:%s"%fname,
-                "spec":"Frequencies",
+            "id": "svs.s:%s"%fname,
+            "rateIndicator": "@rateIndicator.s:%s" % fname,
+            "rates": "@relativeGeoRates.s:%s" % fname,
+            "spec": "SVSGeneralSubstitutionModel"}
+        if not self.symmetric:
+            attribs['symmetric'] = 'false'
+        if self.use_robust_eigensystem:
+            attribs["eigenSystem"] = "beast.evolution.substitutionmodel.RobustEigenSystem"
+        substmodel = xml.substModel(sitemodel, **attribs)
+        attribs = {
+            "id": "feature_freqs.s:%s"%fname,
+            "spec": "Frequencies",
         }
+        freq_string=None
         if self.frequencies == "estimate":
             attribs["frequencies"] = "@feature_freqs_param.s:%s"%fname
         elif self.frequencies == "uniform":
@@ -124,38 +164,71 @@ class BSVSModel(BaseModel):
             raise ValueError(
                 "Model BSVS does not recognize frequencies %r, "
                 "should be 'uniform' or 'empirical'." % self.frequencies)
-        freq = ET.SubElement(substmodel,"frequencies", attribs)
+        freq = xml.frequencies(substmodel, **attribs)
         if self.frequencies != "estimate":
-            ET.SubElement(freq,"parameter",{
-                "dimension":str(self.valuecounts[feature]),
-                "id":"feature_frequencies.s:%s"%fname,
-                "name":"frequencies"}).text=freq_string
+            xml.parameter(
+                freq,
+                text=freq_string,
+                dimension=self.valuecounts[feature],
+                id="feature_frequencies.s:%s" % fname,
+                name="frequencies")
 
     def add_operators(self, run):
-
         BaseModel.add_operators(self, run)
         for n, f in enumerate(self.features):
             fname = "%s:%s" % (self.name, f)
-            ET.SubElement(run, "operator", {"id":"onGeorateScaler.s:%s"% fname,"spec":"ScaleOperator","parameter":"@relativeGeoRates.s:%s"%fname, "indicator":"@rateIndicator.s:%s" % fname, "scaleAllIndependently":"true","scaleFactor":"0.5","weight":"10.0"})
+            xml.operator(
+                run,
+                id="onGeorateScaler.s:%s" % fname,
+                spec="ScaleOperator",
+                parameter="@relativeGeoRates.s:%s" % fname,
+                indicator="@rateIndicator.s:%s" % fname,
+                scaleAllIndependently="true",
+                scaleFactor="0.5",
+                weight="10.0")
 
             if self.rate_variation:
-                ET.SubElement(run, "operator", {"id":"BSSVSoperator.c:%s"%fname,"spec":"BitFlipBSSVSOperator","indicator":"@rateIndicator.s:%s"%fname, "mu":"@featureClockRate:%s" % fname,"weight":"30.0"})
+                xml.operator(
+                    run,
+                    id="BSSVSoperator.c:%s" % fname,
+                    spec="BitFlipBSSVSOperator",
+                    indicator="@rateIndicator.s:%s" % fname,
+                    mu="@featureClockRate:%s" % fname,
+                    weight="30.0")
                 bssvs_bitflip = True
             elif not self.global_config.arbitrary_tree:
                 # Don't scale the clock of a tree with arbitrary branch
                 # lengths, as birthRate is also scaled and one or the other
                 # will run away to infinity.
-                ET.SubElement(run, "operator", {"id":"BSSVSoperator.c:%s"%fname,"spec":"BitFlipBSSVSOperator","indicator":"@rateIndicator.s:%s"%fname, "mu":self.clock.mean_rate_idref,"weight":"30.0"})
+                xml.operator(
+                    run,
+                    id="BSSVSoperator.c:%s" % fname,
+                    spec="BitFlipBSSVSOperator",
+                    indicator="@rateIndicator.s:%s" % fname,
+                    mu=self.clock.mean_rate_idref,
+                    weight="30.0")
                 bssvs_bitflip = True
             else:
                 bssvs_bitflip = False
-            ET.SubElement(run, "operator", {"id":"indicatorFlip.s:%s"%fname,"spec":"BitFlipOperator","parameter":"@rateIndicator.s:%s"%fname, "weight":"30.0" if bssvs_bitflip else "60.0"})
-            sampoffop = ET.SubElement(run, "operator", {"id":"offGeorateSampler:%s" % fname,"spec":"SampleOffValues","all":"false","values":"@relativeGeoRates.s:%s"%fname, "indicators":"@rateIndicator.s:%s" % fname, "weight":"30.0"})
-            ET.SubElement(sampoffop, "dist", {"idref":"Gamma:%s.%d.0" % (fname, n)})
+            xml.operator(
+                run,
+                id="indicatorFlip.s:%s" % fname,
+                spec="BitFlipOperator",
+                parameter="@rateIndicator.s:%s" % fname,
+                weight="30.0" if bssvs_bitflip else "60.0")
+            sampoffop = xml.operator(
+                run,
+                id="offGeorateSampler:%s" % fname,
+                spec="SampleOffValues",
+                all="false",
+                values="@relativeGeoRates.s:%s" % fname,
+                indicators="@rateIndicator.s:%s" % fname,
+                weight="30.0")
+            xml.dist(sampoffop, idref="Gamma:%s.%d.0" % (fname, n))
 
     def add_param_logs(self, logger):
         BaseModel.add_param_logs(self, logger)
         for f in self.features:
             fname = "%s:%s" % (self.name, f)
-            ET.SubElement(logger,"log",{"idref":"rateIndicator.s:%s" % fname})
-            ET.SubElement(logger,"log",{"idref":"relativeGeoRates.s:%s" % fname})
+            xml.log(logger, idref="rateIndicator.s:%s" % fname)
+            xml.log(logger, idref="relativeGeoRates.s:%s" % fname)

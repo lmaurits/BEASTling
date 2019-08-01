@@ -1,15 +1,14 @@
 import datetime
 import itertools
 import sys
-import xml.etree.ElementTree as ET
 import collections
-
-from six import BytesIO
-
-from clldutils.path import Path
+from io import BytesIO
+from pathlib import Path
 
 from beastling import __version__
 import beastling.beast_maps as beast_maps
+from beastling.util import xml
+
 
 def indent(elem, level=0):
     i = "\n" + level*"  "
@@ -26,9 +25,32 @@ def indent(elem, level=0):
         if level and (not elem.tail or not elem.tail.strip()):
             elem.tail = i
 
+
+def collect_ids_and_refs(root):
+    data = dict(id=collections.Counter(), idref=collections.Counter())
+    parent_map = {c: p for p in root.iter() for c in p}
+    for e in root.iter():
+        for attrib, value in e.items():
+            for attr, collection in data.items():
+                if attrib == attr:
+                    if e in parent_map and parent_map[e].tag == 'plate':
+                        # Quick and dirty plate handling.
+                        # We only support plate matching in direct children of the plate.
+                        var = parent_map[e].get('var')
+                        for id_ in parent_map[e].get('range').split(','):
+                            collection.update([value.replace('$({0})'.format(var), id_)])
+                    else:
+                        collection.update([value])
+            if (attrib not in data) and value.startswith("@"):
+                data['idref'].update([value[1:]])
+    return data
+
+
 class BeastXml(object):
 
     def __init__(self, config, validate=True):
+        self.beast = None
+        self.beastling_comment = None
         self.config = config
         if not self.config.processed:
             self.config.process()
@@ -49,12 +71,21 @@ class BeastXml(object):
         Creates a complete BEAST XML configuration file as an ElementTree,
         descending from the self.beast element.
         """
-        attribs = {}
-        attribs["beautitemplate"] = "Standard"
-        attribs["beautistatus"] = ""
-        attribs["namespace"] = "beast.core:beast.evolution.alignment:beast.evolution.tree.coalescent:beast.core.util:beast.evolution.nuc:beast.evolution.operators:beast.evolution.sitemodel:beast.evolution.substitutionmodel:beast.evolution.likelihood"
-        attribs["version"] ="2.0"
-        self.beast = ET.Element("beast", attrib=attribs)
+        self.beast = xml.beast(
+            version="2.0",
+            beautitemplate="Standard",
+            beautistatus="",
+            namespace=':'.join([
+                "beast.core",
+                "beast.evolution.alignment",
+                "beast.evolution.tree.coalescent",
+                "beast.core.util",
+                "beast.evolution.nuc",
+                "beast.evolution.operators",
+                "beast.evolution.sitemodel",
+                "beast.evolution.substitutionmodel",
+                "beast.evolution.likelihood"]),
+        )
         self.add_taxon_set(self.beast, "taxa", self.config.languages, define_taxa=True)
         self.add_beastling_comment()
         self.embed_data()
@@ -84,7 +115,7 @@ class BeastXml(object):
         else:
             comment_lines.append("Configuration built programmatically.")
             comment_lines.append("No config file to include.")
-        self.beastling_comment = ET.Comment("\n".join(comment_lines))
+        self.beastling_comment = xml.comment("\n".join(comment_lines))
         self.beast.append(self.beastling_comment)
 
     def embed_data(self):
@@ -105,18 +136,14 @@ class BeastXml(object):
         the text of the specified data file.
         """
         header = "BEASTling embedded data file: %s" % filename
-        fp = Path(filename).open("r")
-        data_block = "\n".join([header, fp.read()])
-        fp.close()
-        return ET.Comment(data_block)
+        return xml.comment("\n".join([header, Path(filename).read_text(encoding='utf8')]))
 
     def add_maps(self):
         """
         Add <map> elements aliasing common BEAST classes.
         """
         for a, b in beast_maps.maps:
-            mapp = ET.SubElement(self.beast, "map", attrib={"name":a})
-            mapp.text = b
+            xml.map(self.beast, text=b, name=a)
 
     def add_run(self):
         """
@@ -140,14 +167,14 @@ class BeastXml(object):
         path sampling.  The <state>, <init> etc. are added to whatever this
         method names self.run.
         """
-        attribs = {}
-        attribs["id"] = "mcmc"
-        attribs["spec"] = "MCMC"
-        attribs["chainLength"] = str(self.config.chainlength)
-        attribs["numInitializationAttempts"] = "1000"
-        if self.config.sample_from_prior:
-            attribs["sampleFromPrior"] = "true"
-        self.run = ET.SubElement(self.beast, "run", attrib=attribs)
+        self.run = xml.run(
+            self.beast,
+            id="mcmc",
+            spec="MCMC",
+            chainLength=self.config.chainlength,
+            numInitializationAttempts=1000,
+            sampleFromPrior=bool(self.config.sample_from_prior),
+        )
 
     def add_path_sampling_run(self):
         """
@@ -158,9 +185,9 @@ class BeastXml(object):
         attribs = {
             "id": "ps",
             "spec": "beast.inference.PathSampler",
-            "chainLength": str(self.config.chainlength),
-            "nrOfSteps": str(self.config.steps),
-            "alpha": str(self.config.alpha),
+            "chainLength": self.config.chainlength,
+            "nrOfSteps": self.config.steps,
+            "alpha": self.config.alpha,
             "rootdir": self.config.basename+"_path_sampling",
             "preBurnin": str(int((self.config.preburnin/100)*self.config.chainlength)),
             "burnInPercentage": str(self.config.log_burnin),
@@ -168,7 +195,7 @@ class BeastXml(object):
             }
         if self.config.do_not_run:
             attribs["doNotRun"] = "true"
-        self.ps_run = ET.SubElement(self.beast, "run", attribs)
+        self.ps_run = xml.run(self.beast, attrib=attribs)
         self.ps_run.text = """cd $(dir)
 java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -java -seed $(seed) beast.xml"""
 
@@ -176,13 +203,13 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         attribs["id"] = "mcmc"
         attribs["spec"] = "MCMC"
         attribs["chainLength"] = str(self.config.chainlength)
-        self.run = ET.SubElement(self.ps_run, "mcmc", attrib=attribs)
+        self.run = xml.mcmc(self.ps_run, attrib=attribs)
 
     def add_state(self):
         """
         Add the <state> element and all its descendants.
         """
-        self.state = ET.SubElement(self.run, "state", {"id":"state","storeEvery":"5000"})
+        self.state = xml.state(self.run, id="state", storeEvery="5000")
         self.config.treeprior.add_state_nodes(self)
         for clock in self.config.clocks:
             clock.add_state(self.state)
@@ -206,7 +233,8 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         """
         Add all probability distributions under the <run> element.
         """
-        self.posterior = ET.SubElement(self.run,"distribution",{"id":"posterior","spec":"util.CompoundDistribution"})
+        self.posterior = xml.distribution(
+            self.run, id="posterior", spec="util.CompoundDistribution")
         self.add_prior()
         self.add_likelihood()
 
@@ -214,7 +242,8 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         """
         Add all prior distribution elements.
         """
-        self.prior = ET.SubElement(self.posterior,"distribution",{"id":"prior","spec":"util.CompoundDistribution"})
+        self.prior = xml.distribution(
+            self.posterior, id="prior", spec="util.CompoundDistribution")
         self.add_monophyly_constraints()
         self.add_calibrations()
         self.config.treeprior.add_prior(self)
@@ -233,7 +262,7 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             attribs["spec"] = "beast.math.distributions.MultiMonophyleticConstraint"
             attribs["tree"] = "@{:}".format(self.config.treeprior.tree_id)
             attribs["newick"] = self.config.monophyly_newick
-            ET.SubElement(self.prior, "distribution", attribs)
+            xml.distribution(self.prior, attrib=attribs)
 
     def add_calibrations(self):
         """
@@ -258,7 +287,7 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             elif len(cal.langs) == 1:   # If there's only 1 lang and it's not an originate cal, it must be a tip cal
                 attribs["tipsonly"] = "true"
 
-            cal_prior = ET.SubElement(self.prior, "distribution", attribs)
+            cal_prior = xml.distribution(self.prior, attrib=attribs)
 
             # Create "taxonset" param for MRCAPrior
             taxonsetname = clade[:-len("_originate")] if clade.endswith("_originate") else clade
@@ -286,30 +315,29 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         # Refer to any previous TaxonSet with the same languages
         for idref, taxa in self._taxon_sets.items():
             if langs == taxa:
-                ET.SubElement(parent, "taxonset", {"idref" : idref})
+                xml.taxonset(parent, idref=idref)
                 return
         if len(langs) == 1 and label == langs[0]:
             # Single taxa are IDs already. They cannot also be taxon set ids.
             label = "tx_{:}".format(label)
         # Otherwise, create and register a new TaxonSet
-        taxonset = ET.SubElement(parent, "taxonset", {"id" : label, "spec":"TaxonSet"})
+        taxonset = xml.taxonset(parent, id=label, spec="TaxonSet")
         ## If the taxonset is more than 3 languages in size, use plate notation to minimise XML filesize
         if len(langs) > 3:
-            plate = ET.SubElement(taxonset, "plate", {
-                "var":"language",
-                "range":",".join(langs)})
-            ET.SubElement(plate, "taxon", {"id" if define_taxa else "idref" :"$(language)"})
+            plate = xml.plate(taxonset, var="language", range=langs)
+            xml.taxon(plate, attrib={"id" if define_taxa else "idref" :"$(language)"})
         ## Otherwise go for the more readable notation...
         else:
             for lang in langs:
-                ET.SubElement(taxonset, "taxon", {"id" if define_taxa else "idref" : lang})
+                xml.taxon(taxonset, attrib={"id" if define_taxa else "idref" : lang})
         self._taxon_sets[label] = langs
 
     def add_likelihood(self):
         """
         Add all likelihood distribution elements.
         """
-        self.likelihood = ET.SubElement(self.posterior,"distribution",{"id":"likelihood","spec":"util.CompoundDistribution"})
+        self.likelihood = xml.distribution(
+            self.posterior, id="likelihood", spec="util.CompoundDistribution")
         for model in self.config.all_models:
             model.add_likelihood(self.likelihood)
 
@@ -329,21 +357,23 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
                 continue
             # Add one big DeltaExchangeOperator which operates on all
             # feature clock rates from all models
-            delta = ET.SubElement(self.run, "operator", {"id":"featureClockRateDeltaExchanger:%s" % clock.name, "spec":"DeltaExchangeOperator", "weight":"3.0"})
+            delta = xml.operator(
+                self.run,
+                id="featureClockRateDeltaExchanger:%s" % clock.name,
+                spec="DeltaExchangeOperator",
+                weight="3.0")
             for model in clock_models:
-                plate = ET.SubElement(delta, "plate", {
-                    "var":"rate",
-                    "range":",".join(model.all_rates)})
-                ET.SubElement(plate, "parameter", {"idref":"featureClockRate:%s:$(rate)" % model.name})
+                plate = xml.plate(delta, var="rate", range=model.all_rates)
+                xml.parameter(plate, idref="featureClockRate:%s:$(rate)" % model.name)
             # Add weight vector if there has been any binarisation
             if any([w != 1 for w in itertools.chain(*[m.weights for m in clock_models])]):
-                weightvector = ET.SubElement(delta, "weightvector", {
-                    "id":"featureClockRateWeightParameter:%s" % clock.name,
-                    "spec":"parameter.IntegerParameter",
-                    "dimension":str(sum([len(m.weights) for m in clock_models])),
-                    "estimate":"false"
-                })
-                weightvector.text = " ".join(itertools.chain(*[map(str, m.weights) for m in clock_models]))
+                xml.weightvector(
+                    delta,
+                    text=" ".join(itertools.chain(*[map(str, m.weights) for m in clock_models])),
+                    id="featureClockRateWeightParameter:%s" % clock.name,
+                    spec="parameter.IntegerParameter",
+                    dimension=str(sum([len(m.weights) for m in clock_models])),
+                    estimate="false")
 
 
     def add_tree_operators(self):
@@ -367,11 +397,11 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         """
         if not self.config.screenlog:
             return
-        screen_logger = ET.SubElement(self.run, "logger", attrib={"id":"screenlog", "logEvery":str(self.config.log_every)})
-        log = ET.SubElement(screen_logger, "log", attrib={"arg":"@posterior", "id":"ESS.0", "spec":"util.ESS"})
-        log = ET.SubElement(screen_logger, "log", attrib={"idref":"prior"})
-        log = ET.SubElement(screen_logger, "log", attrib={"idref":"likelihood"})
-        log = ET.SubElement(screen_logger, "log", attrib={"idref":"posterior"})
+        screen_logger = xml.logger(self.run, id="screenlog", logEvery=str(self.config.log_every))
+        xml.log(screen_logger, arg="@posterior", id="ESS.0", spec="util.ESS")
+        xml.log(screen_logger, idref="prior")
+        xml.log(screen_logger, idref="likelihood")
+        xml.log(screen_logger, idref="posterior")
 
     def add_tracer_logger(self):
         """
@@ -379,12 +409,17 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         """
         if not(self.config.log_probabilities or self.config.log_params):
             return
-        tracer_logger = ET.SubElement(self.run,"logger",{"id":"tracelog","fileName":self.config.basename+".log","logEvery":str(self.config.log_every),"sort":"smart"})
+        tracer_logger = xml.logger(
+            self.run,
+            id="tracelog",
+            fileName=self.config.basename+".log",
+            logEvery=str(self.config.log_every),
+            sort="smart")
         # Log prior, likelihood and posterior
         if self.config.log_probabilities:
-            ET.SubElement(tracer_logger,"log",{"idref":"prior"})
-            ET.SubElement(tracer_logger,"log",{"idref":"likelihood"})
-            ET.SubElement(tracer_logger,"log",{"idref":"posterior"})
+            xml.log(tracer_logger, idref="prior")
+            xml.log(tracer_logger, idref="likelihood")
+            xml.log(tracer_logger, idref="posterior")
         # Log Yule birth rate
         if self.config.log_params:
             self.config.treeprior.add_logging(self, tracer_logger)
@@ -399,7 +434,7 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             if cal.dist == "point":
                 continue
             clade = clade.replace(" ","_")
-            ET.SubElement(tracer_logger,"log",{"idref":"%sMRCA" % clade})
+            xml.log(tracer_logger, idref="%sMRCA" % clade)
 
     def add_tree_loggers(self):
         """
@@ -438,72 +473,62 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             self.add_tree_logger("_geography", self.config.geo_model.clock.branchrate_model_id, True)
 
     def add_tree_logger(self, suffix="", branchrate_model_id=None, locations=False):
-        tree_logger = ET.SubElement(self.run, "logger", {"mode":"tree", "fileName":self.config.basename + suffix + ".nex", "logEvery":str(self.config.log_every),"id":"treeLogger" + suffix})
-        log = ET.SubElement(tree_logger, "log", attrib={
-            "id": "TreeLoggerWithMetaData" + suffix,
-            "spec": "beast.evolution.tree.TreeWithMetaDataLogger",
-            "tree": "@{:}".format(self.config.treeprior.tree_id),
-            "dp": str(self.config.log_dp)})
+        tree_logger = xml.logger(
+            self.run,
+            mode="tree",
+            fileName=self.config.basename + suffix + ".nex",
+            logEvery=str(self.config.log_every),
+            id="treeLogger" + suffix)
+        log = xml.log(
+            tree_logger,
+            id="TreeLoggerWithMetaData" + suffix,
+            spec="beast.evolution.tree.TreeWithMetaDataLogger",
+            tree="@{:}".format(self.config.treeprior.tree_id),
+            dp=str(self.config.log_dp))
         if branchrate_model_id:
-            ET.SubElement(log, "branchratemodel", {"idref":branchrate_model_id})
+            xml.branchratemodel(log, idref=branchrate_model_id)
         if locations:
-            ET.SubElement(log, "metadata", {
-                "id":"location",
-                "spec":"sphericalGeo.TraitFunction",
-                "likelihood":"@sphericalGeographyLikelihood"}).text = "0.0"
+            xml.metadata(
+                log,
+                text="0.0",
+                id="location",
+                spec="sphericalGeo.TraitFunction",
+                likelihood="@sphericalGeographyLikelihood")
 
     def add_trait_tree_logger(self, suffix=""):
-        tree_logger = ET.SubElement(self.run, "logger", {"mode":"tree", "fileName":self.config.basename + suffix + ".nex", "logEvery":str(self.config.log_every),"id":"treeLogger" + suffix})
-        log = ET.SubElement(tree_logger, "log", attrib={
-            "id": "ReconstructedStateTreeLogger",
-            "spec": "beast.evolution.tree.TreeWithTraitLogger",
-            "tree": "@{:}".format(self.config.treeprior.tree_id)
-        })
+        tree_logger = xml.logger(
+            self.run,
+            mode="tree",
+            fileName=self.config.basename + suffix + ".nex",
+            logEvery=str(self.config.log_every),
+            id="treeLogger" + suffix)
+        log = xml.log(
+            tree_logger,
+            id="ReconstructedStateTreeLogger",
+            spec="beast.evolution.tree.TreeWithTraitLogger",
+            tree="@{:}".format(self.config.treeprior.tree_id))
         for model in self.config.models:
             for md in model.treedata:
-                ET.SubElement(log, "metadata", {"idref": md})
+                xml.metadata(log, idref=md)
 
     def add_trait_logger(self, suffix=""):
         """Add a logger referencing all AncestralStateLogger likelihoods in the tree."""
-        trait_logger = ET.SubElement(self.run, "logger",
-                                     {"fileName": self.config.basename + suffix + ".log",
-                                      "logEvery": str(self.config.log_every),
-                                      "id":"traitLogger" + suffix})
+        trait_logger = xml.logger(
+            self.run,
+            fileName=self.config.basename + suffix + ".log",
+            logEvery=str(self.config.log_every),
+            id="traitLogger" + suffix)
         for model in self.config.models:
             for reference in model.metadata:
-                ET.SubElement(trait_logger, "log", {
-                    "idref": reference})
+                xml.log(trait_logger, idref=reference)
 
     def validate_ids(self):
-        ids = collections.Counter()
-        references = set()
-        parent_map = {c: p for p in self.beast.iter() for c in p}
-        for e in self.beast.iter():
-            for attrib, value in e.items():
-                if attrib == "id":
-                    if e in parent_map and parent_map[e].tag == 'plate':
-                        # Quick and dirty plate handling.
-                        # We only support plate matching in direct children of the plate.
-                        var = parent_map[e].get('var')
-                        for id_ in parent_map[e].get('range').split(','):
-                            ids.update([value.replace('$({0})'.format(var), id_)])
-                    else:
-                        ids.update([value])
-                elif attrib == "idref":
-                    if e in parent_map and parent_map[e].tag == 'plate':
-                        var = parent_map[e].get('var')
-                        for id_ in parent_map[e].get('range').split(','):
-                            references.add(value.replace('$({0})'.format(var), id_))
-                    else:
-                        references.add(value)
-                elif value.startswith("@"):
-                    references.add(value[1:])
-
-        duplicate_ids = [key for key in ids if ids[key] > 1]
+        data = collect_ids_and_refs(self.beast)
+        duplicate_ids = {id_ for id_, count in data['id'].most_common() if count > 1}
         if duplicate_ids:
-            raise ValueError("Duplicate BEASTObject IDs found: " + ", ".join(duplicate_ids))
+            raise ValueError("Duplicate BEASTObject IDs found: " + ", ".join(sorted(duplicate_ids)))
 
-        bad_refs = references - set(ids)
+        bad_refs = set(data['idref']) - set(data['id'])
         if bad_refs:
             raise ValueError("References to missing BEASTObject IDs found: " + ", ".join(bad_refs))
 
@@ -518,7 +543,7 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
 
     def write(self, stream):
         indent(self.beast)
-        tree = ET.ElementTree(self.beast)
+        tree = xml.ElementTree(self.beast)
         tree.write(stream, encoding='UTF-8', xml_declaration=True)
 
     def write_file(self, filename=None):

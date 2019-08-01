@@ -19,6 +19,7 @@ def test_load_data(data_dir):
                     data, x = load_data(p)
                 assert len(data) != 0
 
+
 @pytest.mark.parametrize(
     'fname,kw',
     [

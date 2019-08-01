@@ -1,8 +1,7 @@
-from __future__ import unicode_literals
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 from clldutils.inifile import INI
-from clldutils.path import Path, as_posix
 
 # The standard library XML parser does not give access to comments, which we
 # need.  The following extended parser remedies this.  # Code taken from
@@ -16,36 +15,20 @@ _do_not_edit_str = "Please DO NOT manually edit this file"
 _data_file_str = "BEASTling embedded data file"
 
 
-if getattr(ET, 'XMLTreeBuilder', None):  # pragma: no cover
-    # Ensure compatibility with Python 2.7
-    class CommentParser(ET.XMLTreeBuilder):
-        def __init__(self):
-            ET.XMLTreeBuilder.__init__(self)
-            self._parser.CommentHandler = self.comment
+class CommentParser(ET.TreeBuilder):
+    def comment(self, data):
+        self.start(ET.Comment, {})
+        self.data(data)
+        self.end(ET.Comment)
 
-        def comment(self, data):
-            self._target.start(ET.Comment, {})
-            self._target.data(data)
-            self._target.end(ET.Comment)
-
-        @classmethod
-        def get_parser(cls):
-            return CommentParser()
-else:  # pragma: no cover
-    class CommentParser(ET.TreeBuilder):
-        def comment(self, data):
-            self.start(ET.Comment, {})
-            self.data(data)
-            self.end(ET.Comment)
-
-        @classmethod
-        def get_parser(cls):
-            return ET.XMLParser(target=cls())
+    @classmethod
+    def get_parser(cls):
+        return ET.XMLParser(target=cls())
 
 
 def read_comments(filename):
     parser = CommentParser.get_parser()
-    with open(as_posix(filename), "rb") as fp:
+    with open(str(filename), "rb") as fp:
         parser.feed(fp.read())
     return [e for e in parser.close() if e.tag == ET.Comment]
 

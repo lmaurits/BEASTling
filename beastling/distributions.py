@@ -2,7 +2,7 @@ import sys
 import math
 import collections
 
-import xml.etree.ElementTree as ET
+from beastling.util import xml
 
 
 registered_distributions = (
@@ -55,7 +55,7 @@ def add_prior_density_description(compound_distribution, distribution):
         attribs["offset"] = str(distribution.offset)
     for parameter, value in zip(ps, distribution.param):
         attribs[parameter] = str(value)
-    ET.SubElement(compound_distribution, dist_type, attribs)
+    getattr(xml, dist_type)(compound_distribution, attrib=attribs)
 
 
 def parse_prior_string(cs, prior_name="?", is_point=False):

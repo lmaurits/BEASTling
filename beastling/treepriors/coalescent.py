@@ -1,5 +1,6 @@
-import xml.etree.ElementTree as ET
 from .base import TreePrior
+from beastling.util import xml
+
 
 class CoalescentTree (TreePrior):
     def __init__(self):
@@ -8,21 +9,10 @@ class CoalescentTree (TreePrior):
 
     def add_prior(self, beastxml):
         """Add a Yule tree prior."""
-        coalescent = ET.SubElement(beastxml.prior, "distribution", {
-            "id": "Coalescent.t:beastlingTree",
-            "spec": "Coalescent",
-            })
-        popmod = ET.SubElement(coalescent, "populationModel", {
-            "id": "ConstantPopulation:beastlingTree",
-            "spec": "ConstantPopulation",
-            })
-        ET.SubElement(popmod, "parameter", {
-            "idref": "popSize.t:beastlingTree",
-            "name": "popSize",
-            })
-        ET.SubElement(coalescent, "treeIntervals", {
-            "id": "TreeIntervals",
-            "spec": "TreeIntervals",
-            "tree": "@Tree.t:beastlingTree",
-            })
-
+        coalescent = xml.distribution(
+            beastxml.prior, id="Coalescent.t:beastlingTree", spec="Coalescent")
+        popmod = xml.populationModel(
+            coalescent, id="ConstantPopulation:beastlingTree", spec="ConstantPopulation")
+        xml.parameter(popmod, idref="popSize.t:beastlingTree", name="popSize")
+        xml.treeIntervals(
+            coalescent, id="TreeIntervals", spec="TreeIntervals", tree="@Tree.t:beastlingTree")

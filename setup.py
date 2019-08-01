@@ -1,9 +1,4 @@
-#!/usr/bin/env python
-
-try:
-    from setuptools import setup
-except ImportError:
-    from distutils.core import setup
+from setuptools import setup, find_packages
 
 from beastling import __version__ as version
 
@@ -22,10 +17,11 @@ setup(
         'Programming Language :: Python :: 3.7',
         'License :: OSI Approved :: BSD License',
     ],
-    packages=['beastling', 'beastling.clocks', 'beastling.fileio', 'beastling.models', 'beastling.treepriors'],
+    packages=find_packages(),
     install_requires=[
         'newick>=0.6.0',
         'appdirs',
+        'csvw',
         'clldutils>=2.8',
         'pycldf',
     ],
