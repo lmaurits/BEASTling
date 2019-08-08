@@ -7,7 +7,6 @@ A linguistics-focussed command line tool for generating
 [![Build Status](https://travis-ci.org/lmaurits/BEASTling.svg?branch=develop)](https://travis-ci.org/lmaurits/BEASTling)
 [![codecov.io](http://codecov.io/github/lmaurits/BEASTling/coverage.svg?branch=develop)](http://codecov.io/github/lmaurits/BEASTling?branch=develop)
 [![PyPI](https://img.shields.io/pypi/v/beastling.svg)](https://pypi.python.org/pypi/beastling)
-[![PyPI](https://img.shields.io/pypi/pyversions/beastling.svg)](https://pypi.python.org/pypi/beastling)
 
 BEASTling is written in [Python](http://python.org).  Python versions 2.7 and
 3.4+ are supported.  It is available from the Python Package Index, aka "the
@@ -21,9 +20,8 @@ you will also have to manually install the dependencies before BEASTling will
 work.  The dependencies are:
 
 * [appdirs](https://pypi.python.org/pypi/appdirs)
-* [clldutils](https://pypi.python.org/pypi/clldutils)
 * [newick](https://pypi.python.org/pypi/newick)
-* [six](https://pypi.python.org/pypi/six)
+* [attrs](https://pypi.python.org/pypi/attrs)
 
 BEASTling will run without BEAST installed, but it won't be very useful.
 Therefore, you should install the latest version of [BEAST
