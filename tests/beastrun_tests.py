@@ -35,6 +35,7 @@ skip = [
         (("admin", "cldf1_wordlist"), None),
         (("admin", "cldf1_wordlist_with_lang_table"), None),
         (("admin", "cldf1_wordlist_external_codes"), None),
+        (("admin", "cldf1_wordlist_synonyms"), None),
         (("admin", "cldf1_structure"), None),
         (("admin", "nonnumeric"), None),
         (("admin", "noncode"), None),
