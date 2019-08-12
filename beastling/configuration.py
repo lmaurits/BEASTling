@@ -98,16 +98,10 @@ class Configuration(object):
         cli_params = {k: v for k, v in locals().items()}
 
         # Options set by the user, with default values
-        self.alpha = 0.3
-        """Alpha parameter for path sampling intervals."""
         self.calibration_configs = {}
         """A dictionary whose keys are glottocodes or lowercase Glottolog clade names, and whose values are length-2 tuples of flatoing point dates (lower and upper bounds of 95% credible interval)."""
-        self.chainlength = 10000000
-        """Number of iterations to run the Markov chain for."""
         self.clock_configs = []
         """A list of dictionaries, each of which specifies the configuration for a single clock model."""
-        self.do_not_run = False
-        """A boolean value, controlling whether or not BEAST should run path sampling analyses or just generate the file and scripts to do so."""
         """A list of languages to exclude from the analysis, or a name of a file containing such a list."""
         self.exclusions = ""
         self.families = []
@@ -122,8 +116,6 @@ class Configuration(object):
         """A dictionary giving names to arbitrary collections of tip languages."""
         self.location_data = None
         """Name of a file containing latitude/longitude data."""
-        self.log_burnin = 50
-        """Proportion of logs to discard as burnin when calculating marginal likelihood from path sampling."""
         self.macroareas = []
         """A floating point value, indicated the percentage of datapoints, across ALL models, which a language must have in order to be included in the analysis."""
         self.minimum_data = 0.0
@@ -144,20 +136,12 @@ class Configuration(object):
         """Either a Newick tree string or the name of a file containing a Newick tree string which represents the desired monophyly constraints if a classification other than Glottolog is required."""
         self.overlap = "union"
         """Either the string 'union' or the string 'intersection', controlling how to handle multiple datasets with non-equal language sets."""
-        self.path_sampling = False
-        """A boolean value, controlling whether to do a standard MCMC run or a Path Sampling analysis for marginal likelihood estimation."""
-        self.preburnin = 10
-        """Percentage of chainlength to discard as burnin for the first step in a path sampling analysis."""
         self.sample_branch_lengths = True
         """A boolean value, controlling whether or not to estimate tree branch lengths."""
-        self.sample_from_prior = False
-        """Boolean parameter; if True, data is ignored and the MCMC chain will sample from the prior."""
         self.sample_topology = True
         """A boolean value, controlling whether or not to estimate tree topology."""
         self.starting_tree = ""
         """A starting tree in Newick format, or the name of a file containing the same."""
-        self.steps = 8
-        """Number of steps between prior and posterior in path sampling analysis."""
         self.stdin_data = stdin_data
         """A boolean value, controlling whether or not to read data from stdin as opposed to the file given in the config."""
         self.subsample_size = 0
@@ -194,6 +178,7 @@ class Configuration(object):
                     self.cfg.read(conf)
         self.read_cfg()
         self.admin = sections.Admin.from_config(cli_params, 'admin', self.cfg)
+        self.mcmc = sections.MCMC.from_config(cli_params, 'MCMC', self.cfg)
 
         # If log_every was not explicitly set to some non-zero
         # value, then set it such that we expect 10,000 log
@@ -202,7 +187,7 @@ class Configuration(object):
             # If chainlength < 10000, this results in log_every = zero.
             # This causes BEAST to die.
             # So in this case, just log everything.
-            self.admin.log_every = self.chainlength // 10000 or 1
+            self.admin.log_every = self.mcmc.chainlength // 10000 or 1
 
     def read_cfg(self):
         """
@@ -214,16 +199,6 @@ class Configuration(object):
         # Set some logging options according to log_all
         # Note that these can still be overridden later
         for sec, getters in {
-            'MCMC': {
-                'alpha': p.getfloat,
-                'chainlength': p.getint,
-                'do_not_run': p.getboolean,
-                'log_burnin': p.getint,
-                'path_sampling': p.getboolean,
-                'preburnin': p.getint,
-                'sample_from_prior': p.getboolean,
-                'steps': p.getint,
-            },
             'languages': {
                 'exclusions': p.get,
                 'languages': p.get,
@@ -251,12 +226,6 @@ class Configuration(object):
                     except KeyError:
                         raise ValueError("Unrecognised option %s in section %s!" % (opt, sec))
 
-        ## MCMC
-        self.sample_from_prior |= self.prior
-        if self.prior and self.path_sampling:
-            raise ValueError(
-                "Cannot sample from the prior during a path sampling analysis."
-            )
 
         ## Languages
         sec = "languages"
@@ -406,13 +375,8 @@ class Configuration(object):
         # Add dependency notices if required
         if self.monophyly and not self.starting_tree:
             self.messages.append("[DEPENDENCY] ConstrainedRandomTree is implemented in the BEAST package BEASTLabs.")
-        if self.path_sampling:
+        if self.mcmc.path_sampling:
             self.messages.append("[DEPENDENCY] Path sampling is implemented in the BEAST package MODEL_SELECTION.")
-
-        # BEAST can't handle really long chains
-        if self.chainlength > _BEAST_MAX_LENGTH:
-            self.chainlength = _BEAST_MAX_LENGTH
-            self.messages.append("[INFO] Chain length truncated to %d, as BEAST cannot handle longer chains." % self.chainlength)
 
         self.load_glottolog_data()
         self.load_user_geo()

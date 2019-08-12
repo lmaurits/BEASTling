@@ -35,9 +35,10 @@ def test_MCMC(caplog):
     mcmc = MCMC.from_config({}, 'mcmc', _make_cfg('mcmc', {}))
     assert mcmc.log_burnin == 50
 
-    MCMC.from_config({}, 'mcmc', _make_cfg('mcmc', {'chainlength': _BEAST_MAX_LENGTH + 1}))
+    mcmc = MCMC.from_config({}, 'mcmc', _make_cfg('mcmc', {'chainlength': _BEAST_MAX_LENGTH + 1}))
     for record in caplog.records:
         assert record.levelname != 'INFO'
+    assert mcmc.chainlength == _BEAST_MAX_LENGTH
 
 
 def test_Languages(tmppath):

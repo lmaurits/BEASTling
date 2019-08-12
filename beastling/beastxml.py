@@ -152,7 +152,7 @@ class BeastXml(object):
         Add the <run> element and all its descendants, which is most of the
         analysis.
         """
-        if self.config.path_sampling:
+        if self.config.mcmc.path_sampling:
             self.add_path_sampling_run()
         else:
             self.add_standard_sampling_run()
@@ -173,9 +173,9 @@ class BeastXml(object):
             self.beast,
             id="mcmc",
             spec="MCMC",
-            chainLength=self.config.chainlength,
+            chainLength=self.config.mcmc.chainlength,
             numInitializationAttempts=1000,
-            sampleFromPrior=bool(self.config.sample_from_prior),
+            sampleFromPrior=self.config.mcmc.sample_from_prior,
         )
 
     def add_path_sampling_run(self):
@@ -187,15 +187,15 @@ class BeastXml(object):
         attribs = {
             "id": "ps",
             "spec": "beast.inference.PathSampler",
-            "chainLength": self.config.chainlength,
-            "nrOfSteps": self.config.steps,
-            "alpha": self.config.alpha,
+            "chainLength": self.config.mcmc.chainlength,
+            "nrOfSteps": self.config.mcmc.steps,
+            "alpha": self.config.mcmc.alpha,
             "rootdir": self.config.admin.basename + "_path_sampling",
-            "preBurnin": str(int((self.config.preburnin/100)*self.config.chainlength)),
-            "burnInPercentage": str(self.config.log_burnin),
+            "preBurnin": int((self.config.mcmc.preburnin / 100) * self.config.mcmc.chainlength),
+            "burnInPercentage": self.config.mcmc.log_burnin,
             "deleteOldLogs": "true",
             }
-        if self.config.do_not_run:
+        if self.config.mcmc.do_not_run:
             attribs["doNotRun"] = "true"
         self.ps_run = xml.run(self.beast, attrib=attribs)
         self.ps_run.text = """cd $(dir)
@@ -204,7 +204,7 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         attribs = {}
         attribs["id"] = "mcmc"
         attribs["spec"] = "MCMC"
-        attribs["chainLength"] = str(self.config.chainlength)
+        attribs["chainLength"] = str(self.config.mcmc.chainlength)
         self.run = xml.mcmc(self.ps_run, attrib=attribs)
 
     def add_state(self):

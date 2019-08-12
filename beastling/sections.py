@@ -237,6 +237,9 @@ class MCMC(Section):
             log = logging.getLogger(beastling.__name__)
             log.info("Chain length truncated to {0}, as BEAST cannot handle longer chains.".format(
                 _BEAST_MAX_LENGTH))
+        if bool(self.cli_params.get('prior')) and self.path_sampling:
+            raise ValueError("Cannot sample from the prior during a path sampling analysis.")
+        self.sample_from_prior = bool(self.cli_params.get('prior')) or self.sample_from_prior
 
 
 @attr.s

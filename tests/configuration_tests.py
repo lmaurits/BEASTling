@@ -162,13 +162,6 @@ def test_calibration_string_formats(config_factory, cfg, dist, assertion):
         assert assertion(list(config.calibrations.values())[0])
 
 
-def test_overlong_chain(config_factory):
-    config = config_factory('basic')
-    config.chainlength = 9e999
-    config.process()
-    assert config.chainlength == _BEAST_MAX_LENGTH
-
-
 def test_minimum_data(config_factory):
     # f8 has 60% missing data.  By default it should be included...
     config = _processed_config(config_factory, 'basic')
