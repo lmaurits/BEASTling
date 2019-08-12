@@ -22,7 +22,7 @@ setup(
         'newick>=0.6.0',
         'appdirs',
         'csvw',
-        'clldutils>=2.8',
+        'attrs>=19.1',
         'pycldf',
     ],
     extras_require={

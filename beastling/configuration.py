@@ -8,10 +8,10 @@ import re
 import sys
 from urllib.request import FancyURLopener
 from pathlib import Path
+from configparser import ConfigParser
 
 import newick
 from appdirs import user_data_dir
-from clldutils.inifile import INI
 from csvw.dsv import reader
 
 from beastling.fileio.datareaders import load_location_data
@@ -27,6 +27,8 @@ import beastling.models.bsvs as bsvs
 import beastling.models.covarion as covarion
 import beastling.models.pseudodollocovarion as pseudodollocovarion
 import beastling.models.mk as mk
+
+from beastling import sections
 
 import beastling.treepriors.base as treepriors
 from beastling.treepriors.coalescent import CoalescentTree
@@ -93,12 +95,11 @@ class Configuration(object):
         file has been provided, override the default values for those options
         set in the file.
         """
+        cli_params = {k: v for k, v in locals().items()}
 
         # Options set by the user, with default values
         self.alpha = 0.3
         """Alpha parameter for path sampling intervals."""
-        self.basename = basename+"_prior" if prior else basename
-        """This will be used as a common prefix for output filenames (e.g. the log will be called basename.log)."""
         self.calibration_configs = {}
         """A dictionary whose keys are glottocodes or lowercase Glottolog clade names, and whose values are length-2 tuples of flatoing point dates (lower and upper bounds of 95% credible interval)."""
         self.chainlength = 10000000
@@ -107,16 +108,12 @@ class Configuration(object):
         """A list of dictionaries, each of which specifies the configuration for a single clock model."""
         self.do_not_run = False
         """A boolean value, controlling whether or not BEAST should run path sampling analyses or just generate the file and scripts to do so."""
-        self.embed_data = False
         """A list of languages to exclude from the analysis, or a name of a file containing such a list."""
         self.exclusions = ""
-        """A boolean value, controlling whether or not to embed data files in the XML."""
         self.families = []
         """List of families to filter down to, or name of a file containing such a list."""
         self.geo_config = {}
         """A dictionary with keys and values corresponding to a [geography] section in a configuration file."""
-        self.glottolog_release = '4.0'
-        """A string representing a Glottolog release number."""
         self.languages = []
         """List of languages to filter down to, or name of a file containing such a list."""
         self.language_group_configs = collections.OrderedDict()
@@ -125,24 +122,8 @@ class Configuration(object):
         """A dictionary giving names to arbitrary collections of tip languages."""
         self.location_data = None
         """Name of a file containing latitude/longitude data."""
-        self._log_all = False
-        """A boolean value, setting this True is a shortcut for setting log_params, log_probabilities, log_fine_probs and log_trees True."""
         self.log_burnin = 50
         """Proportion of logs to discard as burnin when calculating marginal likelihood from path sampling."""
-        self.log_dp = 4
-        """An integer value, setting the number of decimal points to use when logging rates, locations, etc.  Defaults to 4.  Use -1 to enable full precision."""
-        self.log_every = 0
-        """An integer indicating how many MCMC iterations should occurr between consecutive log entries."""
-        self.log_params = False
-        """A boolean value, controlling whether or not to log model parameters."""
-        self.log_probabilities = True
-        """A boolean value, controlling whether or not to log the prior, likelihood and posterior of the analysis."""
-        self.log_fine_probs = False
-        """A boolean value, controlling whether or not to log individual components of the prior and likelihood.  Setting this True automatically sets log_probabilities True."""
-        self.log_trees = True
-        """A boolean value, controlling whether or not to log the sampled trees."""
-        self.log_pure_tree = False
-        """A boolean value, controlling whether or not to log a separate file of the sampled trees with no metadata included."""
         self.macroareas = []
         """A floating point value, indicated the percentage of datapoints, across ALL models, which a language must have in order to be included in the analysis."""
         self.minimum_data = 0.0
@@ -173,8 +154,6 @@ class Configuration(object):
         """Boolean parameter; if True, data is ignored and the MCMC chain will sample from the prior."""
         self.sample_topology = True
         """A boolean value, controlling whether or not to estimate tree topology."""
-        self.screenlog = True
-        """A boolean parameter, controlling whether or not to log some basic output to stdout."""
         self.starting_tree = ""
         """A starting tree in Newick format, or the name of a file containing the same."""
         self.steps = 8
@@ -198,63 +177,43 @@ class Configuration(object):
 
         # Stuff we compute ourselves
         self.processed = False
-        self.configfile = None
-        self.files_to_embed = []
+        self._files_to_embed = []
         self.messages = []
         self.urgent_messages = []
         self.message_flags = []
 
+        self.cfg = ConfigParser(interpolation=None)
+        self.cfg.optionxform = str
         if configfile:
-            self.read_from_file(configfile)
+            if isinstance(configfile, dict):
+                self.cfg.read_dict(configfile)
+            else:
+                if isinstance(configfile, str):
+                    configfile = (configfile,)
+                for conf in configfile:
+                    self.cfg.read(conf)
+        self.read_cfg()
+        self.admin = sections.Admin.from_config(cli_params, 'admin', self.cfg)
 
-    @property
-    def log_all(self):
-        return self._log_all
+        # If log_every was not explicitly set to some non-zero
+        # value, then set it such that we expect 10,000 log
+        # entries
+        if not self.admin.log_every:
+            # If chainlength < 10000, this results in log_every = zero.
+            # This causes BEAST to die.
+            # So in this case, just log everything.
+            self.admin.log_every = self.chainlength // 10000 or 1
 
-    @log_all.setter
-    def log_all(self, log_all):
-        self._log_all = log_all
-        if log_all:
-            self.log_trees = True
-            self.log_params = True
-            self.log_probabilities = True
-            self.log_fine_probs = True
-
-    def read_from_file(self, configfile):
+    def read_cfg(self):
         """
         Read one or several INI-style configuration files and overwrite
         default option settings accordingly.
         """
-        self.configfile = INI(interpolation=None)
-        self.configfile.optionxform = str
-        if isinstance(configfile, dict):
-            self.configfile.read_dict(configfile)
-        else:
-            if isinstance(configfile, str):
-                configfile = (configfile,)
-            for conf in configfile:
-                self.configfile.read(conf)
-        p = self.configfile
+        p = self.cfg
 
         # Set some logging options according to log_all
         # Note that these can still be overridden later
-        self.log_all = p.get("admin", "log_all", fallback=False)
-
         for sec, getters in {
-            'admin': {
-                'basename': p.get,
-                'embed_data': p.getboolean,
-                'screenlog': p.getboolean,
-                'log_all': p.getboolean,
-                'log_dp': p.getint,
-                'log_every': p.getint,
-                'log_probabilities': p.getboolean,
-                'log_fine_probs': p.getboolean,
-                'log_params': p.getboolean,
-                'log_trees': p.getboolean,
-                'log_pure_tree': p.getboolean,
-                'glottolog_release': p.get,
-            },
             'MCMC': {
                 'alpha': p.getfloat,
                 'chainlength': p.getint,
@@ -292,18 +251,12 @@ class Configuration(object):
                     except KeyError:
                         raise ValueError("Unrecognised option %s in section %s!" % (opt, sec))
 
-        # Handle some logical implications
-        if self.log_fine_probs:
-            self.log_probabilities = True
-
         ## MCMC
         self.sample_from_prior |= self.prior
         if self.prior and self.path_sampling:
             raise ValueError(
                 "Cannot sample from the prior during a path sampling analysis."
             )
-        if self.prior and not self.basename.endswith("_prior"):
-            self.basename += "_prior"
 
         ## Languages
         sec = "languages"
@@ -460,14 +413,6 @@ class Configuration(object):
         if self.chainlength > _BEAST_MAX_LENGTH:
             self.chainlength = _BEAST_MAX_LENGTH
             self.messages.append("[INFO] Chain length truncated to %d, as BEAST cannot handle longer chains." % self.chainlength)
-        # If log_every was not explicitly set to some non-zero
-        # value, then set it such that we expect 10,000 log
-        # entries
-        if not self.log_every:
-            # If chainlength < 10000, this results in log_every = zero.
-            # This causes BEAST to die.
-            # So in this case, just log everything.
-            self.log_every = self.chainlength // 10000 or 1
 
         self.load_glottolog_data()
         self.load_user_geo()
@@ -574,7 +519,7 @@ class Configuration(object):
             return list(reversed(res))
 
         # Walk the tree and build the classifications dictionary
-        glottolog_trees = newick.read(get_glottolog_data('newick', self.glottolog_release))
+        glottolog_trees = newick.read(get_glottolog_data('newick', self.admin.glottolog_release))
         for tree in glottolog_trees:
             for node in tree.walk():
                 name, glottocode, isocode = parse_label(node.name)
@@ -586,7 +531,7 @@ class Configuration(object):
 
         # Load geographic metadata
         for t in reader(
-                get_glottolog_data('geo', self.glottolog_release), namedtuples=True):
+                get_glottolog_data('geo', self.admin.glottolog_release), namedtuples=True):
             if t.macroarea:
                 self.glotto_macroareas[t.glottocode] = t.macroarea
                 for isocode in t.isocodes.split():
@@ -601,7 +546,7 @@ class Configuration(object):
         # Second pass of geographic data to handle dialects, which inherit
         # their parent language's location
         for t in reader(
-                get_glottolog_data('geo', self.glottolog_release), namedtuples=True):
+                get_glottolog_data('geo', self.admin.glottolog_release), namedtuples=True):
             if t.level == "dialect":
                 failed = False
                 if node not in glottocode2node:
@@ -679,12 +624,16 @@ class Configuration(object):
             datapoint_props[lang] = 1.0*count / N
         self.sparse_languages = [l for l in all_langs if datapoint_props[l] < self.minimum_data]
 
+    @property
+    def files_to_embed(self):
+        return self.admin.files_to_embed.union(self._files_to_embed)
+
     def handle_file_or_list(self, value):
         if not (isinstance(value, list) or isinstance(value, set)):
             if os.path.exists(value):
                 with io.open(value, encoding="UTF-8") as fp:
                     result = [x.strip() for x in fp.readlines()]
-                self.files_to_embed.append(value)
+                self._files_to_embed.append(value)
             else:
                 result = [x.strip() for x in value.split(",")]
         else:

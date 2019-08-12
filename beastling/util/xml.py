@@ -1,7 +1,12 @@
+import re
 import functools
 from xml.etree import ElementTree as ET
 
 ElementTree = ET.ElementTree
+
+
+def valid_id(s):
+    return re.sub('\s+', '', s).replace(',', '_')
 
 
 def _to_string(v, attrib=None):

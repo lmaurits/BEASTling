@@ -1,3 +1,5 @@
+import logging
+
 import newick
 
 
@@ -35,10 +37,10 @@ def sanitise_tree(tree, tree_type, languages):
     # If the trees' language set is a proper superset, prune the tree to fit the analysis
     if not tree_langs == set(languages):
         tree.prune_by_names(languages, inverse=True)
-        # FIXME: what to do with messages?
-        #self.messages.append(
-        #    "[INFO] %s tree includes languages not present in any data set
-        #    and will be pruned." % tree_type.capitalize())
+        log = logging.getLogger(__name__)
+        log.info(
+            "%s tree includes languages not present in any data set and will be pruned.".format(
+                tree_type.capitalize()))
     # Get the tree looking nice
     tree.remove_redundant_nodes()
     tree.remove_internal_names()

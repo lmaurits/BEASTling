@@ -29,9 +29,15 @@ def test_Admin():
     assert admin.log_fine_probs == True
 
 
-def test_MCMC():
+def test_MCMC(caplog):
+    from beastling.sections import _BEAST_MAX_LENGTH
+
     mcmc = MCMC.from_config({}, 'mcmc', _make_cfg('mcmc', {}))
     assert mcmc.log_burnin == 50
+
+    MCMC.from_config({}, 'mcmc', _make_cfg('mcmc', {'chainlength': _BEAST_MAX_LENGTH + 1}))
+    for record in caplog.records:
+        assert record.levelname != 'INFO'
 
 
 def test_Languages(tmppath):
@@ -45,6 +51,7 @@ def test_Languages(tmppath):
     langs.write_text('ä\nö\nü', encoding='utf8')
     sec = Languages.from_config({}, 'languages', _make_cfg('languages', {'languages': langs}))
     assert sec.languages == ['ä', 'ö', 'ü']
+    assert langs in sec.files_to_embed
 
     with pytest.raises(ValueError):
         Languages.from_config({}, 'languages', _make_cfg('languages', {'starting_tree': 'a'}))

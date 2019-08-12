@@ -2,6 +2,7 @@ import argparse
 import os
 import sys
 import traceback
+import pathlib
 
 from beastling import __version__
 from beastling.beastxml import BeastXml
@@ -112,8 +113,8 @@ def do_generate(args):
         sys.exit(2)
 
     # Make sure we can write to the appropriate output filename
-    output_filename = args.output if args.output else config.basename+".xml"
-    if os.path.exists(output_filename) and not args.overwrite:
+    output_filename = pathlib.Path(args.output) if args.output else config.admin.path(".xml")
+    if output_filename.exists() and not args.overwrite:
         errmsg("File %s already exists!  Run beastling with the --overwrite option if you wish to overwrite it.\n" % output_filename)
         sys.exit(4)
 
@@ -149,15 +150,14 @@ def do_generate(args):
     # Build and write report
     if args.report:
         report = BeastlingReport(config)
-        report.write_file(config.basename+".md")
+        report.write_file(config.admin.path(".md"))
         geojson = BeastlingGeoJSON(config)
-        geojson.write_file(config.basename+".geojson")
+        geojson.write_file(config.admin.path(".geojson"))
 
     # Build and write language list
     if args.language_list:
         write_language_list(config)
 
-def write_language_list(config):
 
-    with open(config.basename + "_languages.txt", "w") as fp:
-        fp.write("\n".join(config.languages)+"\n")
+def write_language_list(config):
+    config.admin.path("_languages.txt").write_text("\n".join(config.languages)+"\n", encoding='utf8')

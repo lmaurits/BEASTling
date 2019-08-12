@@ -233,11 +233,6 @@ class TreePrior (object):
                 spec="beast.evolution.tree.TreeStatLogger",
                 tree="@Tree.t:beastlingTree")
 
-        # Fine-grained logging
-        if beastxml.config.log_fine_probs:
-            xml.log(tracer_logger, idref="YuleModel.t:beastlingTree")
-            xml.log(tracer_logger, idref="YuleBirthRatePrior.t:beastlingTree")
-
 
 class YuleTree (TreePrior):
     def __init__(self):
@@ -277,12 +272,20 @@ class YuleTree (TreePrior):
         xml.distribution(beastxml.prior, attrib=attribs)
 
         # Birth rate prior
-        attribs = {}
-        attribs["id"] = "YuleBirthRatePrior.t:beastlingTree"
-        attribs["name"] = "distribution"
-        attribs["x"] = "@birthRate.t:beastlingTree"
-        sub_prior = xml.prior(beastxml.prior, attrib=attribs)
+        sub_prior = xml.prior(
+            beastxml.prior,
+            id="YuleBirthRatePrior.t:beastlingTree",
+            name="distribution",
+            x="@birthRate.t:beastlingTree")
         xml.Uniform(sub_prior, id="Uniform.0", name="distr", upper="Infinity")
+
+    def add_logging(self, beastxml, tracer_logger):
+        super().add_logging(beastxml, tracer_logger)
+
+        # Fine-grained logging
+        if beastxml.config.admin.log_fine_probs:
+            xml.log(tracer_logger, idref="YuleModel.t:beastlingTree")
+            xml.log(tracer_logger, idref="YuleBirthRatePrior.t:beastlingTree")
 
 
 class BirthDeathTree (TreePrior):

@@ -1,5 +1,6 @@
 import itertools
 import json
+import pathlib
 
 _COLOURS = ["#CADA45", "#D4A2E1", "#55E0C6", "#F0B13C", "#75E160"]
 _SHAPES = ["circle", "square", "triangle", "star"]
@@ -33,7 +34,7 @@ class BeastlingReport(object):
     def tostring(self):
         lines = []
         lines.append("# BEASTling analysis report\n")
-        lines.append("Analysis: %s" % self.config.basename)
+        lines.append("Analysis: %s" % self.config.admin.basename)
 
         lines.append("## Languages\n")
         lines.append("%d languages total, from %d Glottolog families and %d macroareas." % (self.n_languages, self.n_families, self.n_macroareas))
@@ -72,8 +73,9 @@ class BeastlingReport(object):
         """
         Write the report to a file.
         """
-        with open(filename or self.config.basename + ".md", "w") as fp:
-            fp.write(self.tostring())
+        filename = pathlib.Path(filename) if filename else self.config.admin.path('.md')
+        filename.write_text(self.tostring(), encoding='utf8')
+
 
 class BeastlingGeoJSON(object):
 
@@ -122,6 +124,5 @@ class BeastlingGeoJSON(object):
         """
         Write the report to a file.
         """
-        with open(filename or self.config.basename + ".md", "w") as fp:
-            fp.write(json.dumps(self.geojson, sort_keys=True))
-
+        filename = pathlib.Path(filename) if filename else self.config.admin.path('.geojson')
+        filename.write_text(json.dumps(self.geojson, sort_keys=True), encoding='utf8')

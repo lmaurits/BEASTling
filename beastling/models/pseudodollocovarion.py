@@ -229,7 +229,7 @@ class PseudoDolloCovarionModel(BinaryModel):
             xml.log(logger, idref="%s:pdcovarion_s.s" % fname)
             xml.log(logger, idref="%s:pdcovarion_origin.s" % fname)
             xml.log(logger, idref="%s:pdcovarion_death.s" % fname)
-            if self.config.log_fine_probs:
+            if self.config.admin.log_fine_probs:
                 xml.log(logger, idref="%s:pdcovarion_s_prior.s" % fname)
                 xml.log(logger, idref="%s:pdcovarion_origin_prior.s" % fname)
                 xml.log(logger, idref="%s:pdcovarion_death_prior.s" % fname)

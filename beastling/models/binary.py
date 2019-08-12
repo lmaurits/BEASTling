@@ -1,6 +1,5 @@
 import collections
-
-from clldutils.inifile import INI
+from configparser import ConfigParser
 
 from .basemodel import BaseModel
 from beastling.util import xml
@@ -276,7 +275,7 @@ class BinaryModelWithShareParams(BinaryModel):
         BinaryModel.__init__(self, model_config, global_config)
         try:
             share_params = model_config.get("share_params", "True")
-            self.share_params = INI.BOOLEAN_STATES[share_params.lower().strip()]
+            self.share_params = ConfigParser.BOOLEAN_STATES[share_params.lower().strip()]
         except KeyError:
             raise ValueError("Invalid setting of 'share_params' (%s) for model %s, not a boolean" % (share_params, self.name))
         self.single_sitemodel = self.share_params and not (self.rate_variation or self.feature_rates)

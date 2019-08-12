@@ -492,7 +492,7 @@ class BaseModel(object):
         dataset.
         """
         for n, f in enumerate(self.features):
-            fname = "%s:%s" % (self.name, f)
+            fname = "%s:%s" % (self.name, xml.valid_id(f))
             attribs = {"id": "featureLikelihood:%s" % fname,
                        "spec": "TreeLikelihood",
                        "useAmbiguities": "true"}
@@ -686,9 +686,9 @@ class BaseModel(object):
         Add entires to the logfile corresponding to individual feature
         substition rates if rate variation is configured.
         """
-        if self.config.log_fine_probs:
+        if self.config.admin.log_fine_probs:
             if not self.single_sitemodel:
-                plate = xml.plate(logger, var="feature", range=self.features)
+                plate = xml.plate(logger, var="feature", range=[xml.valid_id(f) for f in self.features])
                 xml.log(plate, idref="featureLikelihood:%s:$(feature)" % self.name)
             if self.rate_variation:
                 xml.log(logger, idref="featureClockRatePrior.s:%s" % self.name)

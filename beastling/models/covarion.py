@@ -163,6 +163,6 @@ class CovarionModel(BinaryModel):
         for fname in self.parameter_identifiers():
             xml.log(logger, idref="covarion_alpha.s:%s" % fname)
             xml.log(logger, idref="covarion_s.s:%s" % fname)
-            if self.config.log_fine_probs:
+            if self.config.admin.log_fine_probs:
                 xml.log(logger, idref="covarion_alpha_prior.s:%s" % fname)
                 xml.log(logger, idref="covarion_s_prior.s:%s" % fname)
