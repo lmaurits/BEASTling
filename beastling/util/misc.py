@@ -16,6 +16,7 @@ def sanitise_tree(tree, tree_type, languages):
         * has no polytomies or unifurcations.
     """
     # Make sure tree can be parsed
+    _s = tree
     try:
         tree = newick.loads(tree)[0]
     except:
@@ -23,12 +24,12 @@ def sanitise_tree(tree, tree_type, languages):
     # Make sure starting tree contains no duplicate taxa
     tree_langs = tree.get_leaf_names()
     if not len(set(tree_langs)) == len(tree_langs):
-        dupes = set([l for l in tree_langs if tree_langs.count(l) > 1])
+        dupes = set(l for l in tree_langs if tree_langs.count(l) > 1)
         dupestring = ",".join(["%s (%d)" % (d, tree_langs.count(d)) for d in dupes])
         raise ValueError(
             "%s tree contains duplicate taxa: %s" % (tree_type.capitalize(), dupestring))
     tree_langs = set(tree_langs)
-    # Make sure languges in tree is a superset of languages in the analysis
+    # Make sure languages in tree is a superset of languages in the analysis
     if not tree_langs.issuperset(languages):
         missing_langs = set(languages).difference(tree_langs)
         miss_string = ",".join(missing_langs)

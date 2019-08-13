@@ -43,7 +43,10 @@ def test_MCMC(caplog):
 
 def test_Languages(tmppath):
     sec = Languages.from_config({}, 'languages', _make_cfg('languages', {}))
-    assert sec.exclusions == []
+    assert sec.exclusions == set()
+
+    sec = Languages.from_config({}, 'languages', _make_cfg('languages', {'overlap': 'Union'}))
+    assert sec.overlap == 'union'
 
     sec = Languages.from_config({}, 'languages', _make_cfg('languages', {'languages': 'a,b'}))
     assert sec.languages == ['a', 'b']
@@ -61,4 +64,5 @@ def test_Languages(tmppath):
     tree.write_text('(a,b,(d,c))', encoding='utf8')
     sec = Languages.from_config(
         {}, 'languages', _make_cfg('languages', {'languages': 'a,b,c', 'starting_tree': tree}))
+    sec.sanitise_trees()
     assert sec.starting_tree == '(a,(c:0.0,b):0.0);'

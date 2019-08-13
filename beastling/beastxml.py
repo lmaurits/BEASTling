@@ -86,7 +86,7 @@ class BeastXml(object):
                 "beast.evolution.substitutionmodel",
                 "beast.evolution.likelihood"]),
         )
-        self.add_taxon_set(self.beast, "taxa", self.config.languages, define_taxa=True)
+        self.add_taxon_set(self.beast, "taxa", self.config.languages.languages, define_taxa=True)
         self.add_beastling_comment()
         self.embed_data()
         self.add_maps()
@@ -258,12 +258,12 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
         """
         Add monophyly constraints to prior distribution.
         """
-        if self.config.monophyly:
+        if self.config.languages.monophyly:
             attribs = {}
             attribs["id"] = "constraints"
             attribs["spec"] = "beast.math.distributions.MultiMonophyleticConstraint"
             attribs["tree"] = "@{:}".format(self.config.treeprior.tree_id)
-            attribs["newick"] = self.config.monophyly_newick
+            attribs["newick"] = self.config.languages.monophyly_newick
             xml.distribution(self.prior, attrib=attribs)
 
     def add_calibrations(self):

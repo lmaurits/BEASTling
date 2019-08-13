@@ -17,6 +17,12 @@ _BEAST_MAX_LENGTH = 2147483647
 ConfigValue = collections.namedtuple('ConfigValue', ['value', 'fname'])
 
 
+def _to_cfg(v):
+    if isinstance(v, (list, set, tuple)):
+        return '\n'.join(str(vv) for vv in v)
+    return str(v)
+
+
 @attr.s
 class Section(object):
     name = attr.ib()  # We keep the section name ...
@@ -49,6 +55,9 @@ class Section(object):
                         files_to_embed.add(res.fname)
                     else:
                         kw[field.name] = res
+                    # Update the ConfigParser because we use this object to embed the config in
+                    # a BEAST XML comment:
+                    cfg[section][opt] = field.metadata.get('setter', _to_cfg)(kw[field.name])
         if section in cfg:
             opts = [f.name[:-1] if f.name.endswith('_') else f.name for f in fields]
             for opt in cfg[section]:
@@ -57,7 +66,7 @@ class Section(object):
         return cls(name=section, cli_params=cli_params, files_to_embed=files_to_embed, **kw)
 
 
-def opt(default, help, getter=ConfigParser.get, **kw):
+def opt(default, help, getter=ConfigParser.get, setter=_to_cfg, **kw):
     """
     Wrap `attr.ib` to add syntactic sugar for creation of `metadata`.
 
@@ -67,7 +76,7 @@ def opt(default, help, getter=ConfigParser.get, **kw):
     :param kw: additional keyword arguments to pass into `attr.ib`
     :return: an attribute instance
     """
-    return attr.ib(default, metadata=dict(help=help, getter=getter), **kw)
+    return attr.ib(default, metadata=dict(help=help, getter=getter, setter=setter), **kw)
 
 
 def get_file_or_list(cfg, section, option):
@@ -264,6 +273,8 @@ class Languages(Section):
         "union",
         "Either the string 'union' or the string 'intersection', controlling how to handle "
         "multiple datasets with non-equal language sets.",
+        validator=attr.validators.in_(['union', 'intersection']),
+        converter=lambda s: s.lower(),
     )
     starting_tree = opt(
         None,
@@ -316,18 +327,29 @@ class Languages(Section):
         "top_down",
         "Either the string 'top_down' or 'bottom_up', controlling whether 'monophyly_levels' "
         "counts from roots (families) or leaves (languages) of the Glottolog classification.",
+        validator=attr.validators.in_(['top_down', 'bottom_up']),
         converter=lambda s: s.lower())
     tree_prior = opt(
         "yule",
-        "Tree prior. Can be overridden by calibrations.")
+        "Tree prior. Can be overridden by calibrations.",
+        validator=attr.validators.in_(['yule', 'coalescent', 'birthdeath', 'uniform']),
+        converter=lambda s: s.lower())
 
     def __attrs_post_init__(self):
-        # Now that languages are loaded, we can sanitise the trees ...
+        self.exclusions = set(self.exclusions)
+        # ... and honor backwards-compat hacks:
+        if self.monophyletic is not None:
+            self.monophyly = self.monophyletic
+
+    def sanitise_trees(self):
+        """
+        The list of languages in the analysis may also be derived from language specifications of
+        models. Thus, proper pruning and sanitising of trees can only happen after models have been
+        loaded. Once this is done, this method must be called.
+        """
         if self.starting_tree:
             self.starting_tree = sanitise_tree(self.starting_tree, 'starting', self.languages)
         if self.monophyly_newick:
             self.monophyly_newick = sanitise_tree(
                 self.monophyly_newick, 'monophyly', self.languages)
-        # ... and honor backwards-compat hacks:
-        if self.monophyletic is not None:
-            self.monophyly = self.monophyletic
+            self.monophyly = True

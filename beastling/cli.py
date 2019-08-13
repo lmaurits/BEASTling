@@ -127,11 +127,6 @@ def do_generate(args):
         traceback.print_exc()
         sys.exit(2)
 
-    # Print messages
-    ## Urgent messages are printed first, whether verbose mode is on or not
-    for msg in config.urgent_messages:
-        errmsg(msg + "\n")
-    ## Non-urgent messages are next, but only if verbose mode is on
     if args.verbose:
         for msg in config.messages:
             errmsg(msg + "\n")
@@ -160,4 +155,4 @@ def do_generate(args):
 
 
 def write_language_list(config):
-    config.admin.path("_languages.txt").write_text("\n".join(config.languages)+"\n", encoding='utf8')
+    config.admin.path("_languages.txt").write_text("\n".join(config.languages.languages)+"\n", encoding='utf8')

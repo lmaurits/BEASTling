@@ -88,7 +88,7 @@ class GeoModel(object):
             for clade in self.sampling_points:
                 # Get languages in clade
                 if clade == "root":
-                    langs = self.config.languages
+                    langs = self.config.languages.languages
                 else:
                     langs = self.config.language_group(clade)
                 if not langs:
@@ -144,10 +144,10 @@ class GeoModel(object):
             text="0.0 0.0",
             id="locationParameter",
             spec="sphericalGeo.LocationParameter",
-            dimension=2 * (2 * len(self.config.languages) -1),
+            dimension=2 * (2 * len(self.config.languages.languages) -1),
             minordimension="2")
         loc_data_text_bits = []
-        for lang in self.config.languages:
+        for lang in self.config.languages.languages:
             lat, lon = self.config.locations.get(lang, ("?", "?"))
             if "?" in (lat, lon):
                 if lang not in self.sampling_points:

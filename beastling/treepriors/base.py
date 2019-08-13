@@ -66,7 +66,7 @@ class TreePrior (object):
         self.birthrate_estimate = round(sum(birthrate_estimates) / len(birthrate_estimates), 4)
         # Find the expected height of a tree with this birthrate
         self.treeheight_estimate = round((1.0 / self.birthrate_estimate)
-                                         * (log(len(config.config.languages))
+                                         * (log(len(config.config.languages.languages))
                                             + 0.5772156649 - 1), 4)
 
     def add_tip_heights(self, tip_calibrations):
@@ -96,7 +96,7 @@ class TreePrior (object):
         Add the <init> element for the tree.
         """
         # If a starting tree is specified, use it...
-        if beastxml.config.starting_tree:
+        if beastxml.config.languages.starting_tree:
             beastxml.init = xml.init(
                 beastxml.run,
                 estimate="false",
@@ -104,11 +104,11 @@ class TreePrior (object):
                 initial="@Tree.t:beastlingTree",
                 spec="beast.util.TreeParser",
                 IsLabelledNewick="true",
-                newick=beastxml.config.starting_tree)
+                newick=beastxml.config.languages.starting_tree)
         # ...if not, use the simplest random tree initialiser possible
         else:
             # If we have non-trivial monophyly constraints, use ConstrainedRandomTree
-            if beastxml.config.monophyly and len(beastxml.config.languages) > 2:
+            if beastxml.config.languages.monophyly and len(beastxml.config.languages.languages) > 2:
                 self.add_constrainedrandomtree_init(beastxml)
             # If we have hard-bound calibrations, use SimpleRandomTree
             elif any([c.dist == "uniform" for c in beastxml.config.calibrations.values()]):
@@ -153,13 +153,13 @@ class TreePrior (object):
         # Tree operators
         # Operators which affect the tree must respect the sample_topology and
         # sample_branch_length options.
-        if beastxml.config.sample_topology:
+        if beastxml.config.languages.sample_topology:
             ## Tree topology operators
             xml.operator(beastxml.run, attrib={"id":"SubtreeSlide.t:beastlingTree","spec":"SubtreeSlide","tree":"@Tree.t:beastlingTree","markclades":"true", "weight":"15.0"})
             xml.operator(beastxml.run, attrib={"id":"narrow.t:beastlingTree","spec":"Exchange","tree":"@Tree.t:beastlingTree","markclades":"true", "weight":"15.0"})
             xml.operator(beastxml.run, attrib={"id":"wide.t:beastlingTree","isNarrow":"false","spec":"Exchange","tree":"@Tree.t:beastlingTree","markclades":"true", "weight":"3.0"})
             xml.operator(beastxml.run, attrib={"id":"WilsonBalding.t:beastlingTree","spec":"WilsonBalding","tree":"@Tree.t:beastlingTree","markclades":"true","weight":"3.0"})
-        if beastxml.config.sample_branch_lengths:
+        if beastxml.config.languages.sample_branch_lengths:
             ## Branch length operators
             xml.operator(beastxml.run, attrib={"id":"UniformOperator.t:beastlingTree","spec":"Uniform","tree":"@Tree.t:beastlingTree","weight":"30.0"})
             xml.operator(beastxml.run, attrib={"id":"treeScaler.t:beastlingTree","scaleFactor":"0.5","spec":"ScaleOperator","tree":"@Tree.t:beastlingTree","weight":"3.0"})
@@ -199,7 +199,7 @@ class TreePrior (object):
                            "weight": "3.0"})
  
         # Add a Tip Date scaling operator if required
-        if beastxml.config.tip_calibrations and beastxml.config.sample_branch_lengths:
+        if beastxml.config.tip_calibrations and beastxml.config.languages.sample_branch_lengths:
             # Get a list of taxa with non-point tip cals
             tip_taxa = [next(cal.langs.__iter__()) for cal in beastxml.config.tip_calibrations.values() if cal.dist != "point"]
             for taxon in tip_taxa:

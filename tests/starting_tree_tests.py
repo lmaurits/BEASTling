@@ -3,8 +3,10 @@ import pytest
 
 def _make_tree_cfg(config_factory, tree_dir, tree_file):
     cfg = config_factory('admin', 'mk', tree_file)
-    cfg.starting_tree = str(tree_dir / "{0}.nex".format(tree_file))
+    cfg.languages.starting_tree = tree_dir.joinpath(
+        "{0}.nex".format(tree_file)).read_text(encoding='utf8')
     return cfg
+
 
 def test_basic_starting_tree(config_factory, tree_dir):
     cfg = _make_tree_cfg(config_factory, tree_dir, "basic")
