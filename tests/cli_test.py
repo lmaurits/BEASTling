@@ -52,10 +52,11 @@ def test_generate_errors(capsys, bad_config_dir, config_dir, mocker):
     _run_main(str(config_dir / 'basic.conf'), status=3)
 
 
-def test_generate_extract(capsys, tmppath, config_dir):
+def test_generate_extract(capsys, tmppath, config_dir, caplog):
     xml = tmppath / 'test.xml'
     _run_main('-v -o {0} {1}'.format(xml, config_dir / 'basic.conf'))
     assert xml.exists()
+    assert len([r for r in caplog.records if r.levelname == 'INFO']) > 0
     # Overwriting existing files must be specified explicitely:
     _run_main('-o {0} {1}'.format(xml, config_dir / 'basic.conf'), status=4)
     _run_main('--overwrite -o {0} {1}'.format(xml, config_dir / 'basic.conf'), status=0)

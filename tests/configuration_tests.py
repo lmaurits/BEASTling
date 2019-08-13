@@ -180,10 +180,10 @@ def test_pruned_rlc(config_factory):
     assert not config.models[0].pruned
 
 
-def test_no_monophyly_geo(config_factory):
+def test_no_monophyly_geo(config_factory, caplog):
     # Make sure that geographic sampling without monophyly constraints emits a warning
-    config = _processed_config(config_factory, 'basic', 'geo', 'geo_sampled')
-    assert any("[WARNING] Geographic sampling" in m for m in config.messages)
+    _processed_config(config_factory, 'basic', 'geo', 'geo_sampled')
+    assert any("Geographic sampling" in r.message for r in caplog.records)
 
 
 def test_ascertainment_auto_setting(config_factory):

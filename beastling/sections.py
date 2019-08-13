@@ -3,12 +3,11 @@ from configparser import ConfigParser
 import pathlib
 import collections
 import functools
-import logging
 
 import attr
 
-import beastling
 from beastling.util.misc import sanitise_tree
+from beastling.util import log
 
 __all__ = ['Admin', 'MCMC', 'Languages']
 
@@ -249,7 +248,6 @@ class MCMC(Section):
     def __attrs_post_init__(self):
         if self.chainlength > _BEAST_MAX_LENGTH:
             self.chainlength = _BEAST_MAX_LENGTH
-            log = logging.getLogger(beastling.__name__)
             log.info("Chain length truncated to {0}, as BEAST cannot handle longer chains.".format(
                 _BEAST_MAX_LENGTH))
         if bool(self.cli_params.get('prior')) and self.path_sampling:

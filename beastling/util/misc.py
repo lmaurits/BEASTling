@@ -1,6 +1,6 @@
-import logging
-
 import newick
+
+from beastling.util import log
 
 
 def sanitise_tree(tree, tree_type, languages):
@@ -38,7 +38,6 @@ def sanitise_tree(tree, tree_type, languages):
     # If the trees' language set is a proper superset, prune the tree to fit the analysis
     if not tree_langs == set(languages):
         tree.prune_by_names(languages, inverse=True)
-        log = logging.getLogger(__name__)
         log.info(
             "%s tree includes languages not present in any data set and will be pruned.".format(
                 tree_type.capitalize()))

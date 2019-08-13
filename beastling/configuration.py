@@ -29,6 +29,7 @@ import beastling.models.pseudodollocovarion as pseudodollocovarion
 import beastling.models.mk as mk
 
 from beastling import sections
+from beastling.util import log
 
 import beastling.treepriors.base as treepriors
 from beastling.treepriors.coalescent import CoalescentTree
@@ -131,8 +132,6 @@ class Configuration(object):
         # Stuff we compute ourselves
         self.processed = False
         self._files_to_embed = []
-        self.messages = []
-        self.message_flags = []
 
         self.cfg = ConfigParser(interpolation=None)
         self.cfg.optionxform = str
@@ -159,7 +158,9 @@ class Configuration(object):
 
         sampled_points = self.geo_config.get("sampling_points",[])
         if [p for p in sampled_points if p.lower() != "root"] and self.languages.sample_topology and not self.languages.monophyly:
-            self.messages.append("[WARNING] Geographic sampling and/or prior specified for clades other than root, but tree topology is being sampled without monophyly constraints.  BEAST may crash.")
+            log.warning(
+                "Geographic sampling and/or prior specified for clades other than root, but tree "
+                "topology is being sampled without monophyly constraints. BEAST may crash.")
 
     def read_cfg(self):
         """
@@ -295,9 +296,9 @@ class Configuration(object):
 
         # Add dependency notices if required
         if self.languages.monophyly and not self.languages.starting_tree:
-            self.messages.append("[DEPENDENCY] ConstrainedRandomTree is implemented in the BEAST package BEASTLabs.")
+            log.dependency("ConstrainedRandomTree", "BEASTLabs")
         if self.mcmc.path_sampling:
-            self.messages.append("[DEPENDENCY] Path sampling is implemented in the BEAST package MODEL_SELECTION.")
+            log.dependency("Path sampling", "MODEL_SELECTION")
 
         self.load_glottolog_data()
         self.load_user_geo()
@@ -340,8 +341,9 @@ class Configuration(object):
             all([c.is_strict for c in self.clocks if c.is_used])
         ):
             self.tree_logging_pointless = True
-            self.messages.append(
-                "[INFO] Tree logging disabled because starting tree is known and fixed and all clocks are strict.")
+            log.info(
+                "Tree logging disabled because starting tree is known and fixed and all clocks "
+                "are strict.")
         else:
             self.tree_logging_pointless = False
 
@@ -491,7 +493,7 @@ class Configuration(object):
         """
         # Load requirements
         if len(self.languages.families) == 1:
-            self.messages.append("""[WARNING] value of 'families' has length 1: have you misspelled a filename?""")
+            log.warning("value of 'families' has length 1: have you misspelled a filename?")
 
         # Enforce minimum data constraint
         all_langs = set(itertools.chain(*[model.data.keys() for model in self.models]))
@@ -547,7 +549,9 @@ class Configuration(object):
         if len(self.languages.languages) < 3:
             # Monophyly constraints are meaningless for so few languages
             self.languages.monophyly = False
-            self.messages.append("""[INFO] Disabling Glottolog monophyly constraints because there are only %d languages in analysis.""" % len(self.languages.languages))
+            log.info(
+                "Disabling Glottolog monophyly constraints because there are only %d languages in "
+                "analysis." % len(self.languages.languages))
             return
         # Build a list-based representation of the Glottolog monophyly constraints
         # This can be done in either a "top-down" or "bottom-up" way.
@@ -561,8 +565,9 @@ class Configuration(object):
             missing_count = len(missing_langs)
             if missing_count > 3:
                 missing_str += ",..."
-            self.messages.append("""[WARNING] %d languages could not be found in Glottolog (%s).  Monophyly constraints will force them into an outgroup.""" %
-                    (missing_count, missing_str))
+            log.warning(
+                "%d languages could not be found in Glottolog (%s). Monophyly constraints will "
+                "force them into an outgroup." % (missing_count, missing_str))
         if self.languages.monophyly_end_depth is not None:
             # A power user has explicitly provided start and end depths
             start = self.languages.monophyly_start_depth
@@ -580,7 +585,9 @@ class Configuration(object):
         # Make sure this struct is not pointlessly flat
         if not self.check_monophyly_structure(struct):
             self.languages.monophyly = False
-            self.messages.append("""[INFO] Disabling Glottolog monophyly constraints because all languages in the analysis are classified identically.""")
+            log.info(
+                "Disabling Glottolog monophyly constraints because all languages in the analysis "
+                "are classified identically.")
         # At this point everything looks good, so keep monophyly on and serialise the "monophyly structure" into a Newick tree.
         self.languages.monophyly_newick = self.make_monophyly_string(struct)
 
@@ -731,9 +738,7 @@ class Configuration(object):
             # Instantiate model
             if config["model"].lower() == "bsvs":
                 model = bsvs.BSVSModel(config, self)
-                if "bsvs_used" not in self.message_flags:
-                    self.message_flags.append("bsvs_used")
-                    self.messages.append(bsvs.BSVSModel.package_notice)
+                log.dependency(*bsvs.BSVSModel.package_notice)
             elif config["model"].lower() == "covarion":
                 model = covarion.CovarionModel(config, self)
             elif config["model"].lower() == "binaryctmc":
@@ -743,14 +748,9 @@ class Configuration(object):
                     config, self)
             elif config["model"].lower() == "mk":
                 model = mk.MKModel(config, self)
-                if "mk_used" not in self.message_flags:
-                    self.message_flags.append("mk_used")
-                    self.messages.append(mk.MKModel.package_notice)
+                log.dependency(*mk.MKModel.package_notice)
             elif config["model"].lower() == "dollo": # pragma: no cover
                 raise NotImplementedError("The stochastic Dollo model is not implemented yet.")
-                model = dollo.StochasticDolloModel(config, self)
-                if dollo.StochasticDolloModel.package_notice not in self.messages:
-                    self.messages.append(dollo.StochasticDolloModel.package_notice)
             else:
                 try:
                     sys.path.insert(0, os.getcwd())
@@ -765,7 +765,6 @@ class Configuration(object):
             
         if self.geo_config:
             self.geo_model = geo.GeoModel(self.geo_config, self)
-            self.messages.extend(self.geo_model.messages)
             self.all_models = [self.geo_model] + self.models
         else:
             self.all_models = self.models
@@ -773,7 +772,6 @@ class Configuration(object):
     def process_models(self):
         for model in self.models:
             model.process()
-            self.messages.extend(model.messages)
 
     def link_clocks_to_models(self):
         """
@@ -799,12 +797,18 @@ class Configuration(object):
         for model in self.models:
             if model.pruned and isinstance(model.clock, random_clock.RandomLocalClock):
                 model.pruned = False
-                self.messages.append("""[INFO] Disabling pruned trees in model %s because associated clock %s is a RandomLocalClock.  Pruned trees are currently only compatible with StrictClocks and RelaxedClocks.""" % (model.name, model.clock.name))
+                log.info(
+                    "Disabling pruned trees because associated clock %s is a "
+                    "RandomLocalClock. Pruned trees are currently only compatible with "
+                    "StrictClocks and RelaxedClocks." % model.clock.name,
+                    model=model)
 
         # Warn user about unused clock(s) (but not the default clock)
         for clock in self.clocks:
             if clock.name != "default" and not clock.is_used:
-                self.messages.append("""[INFO] Clock %s is not being used.  Change its name to "default", or explicitly associate it with a model.""" % clock.name)
+                log.info(
+                    "Clock %s is not being used. Change its name to \"default\", or explicitly "
+                    "associate it with a model." % clock.name)
 
         # Remove unused clocks from the master clock list
         self.clocks = [c for c in self.clocks if c.is_used]
@@ -823,7 +827,10 @@ class Configuration(object):
             if self.arbitrary_tree and all(
                 [m.clock.estimate_rate for m in self.models]):
                 free_clocks[0].estimate_rate = False
-                self.messages.append("""[INFO] Clock "%s" has had it's mean rate fixed to 1.0.  Tree branch lengths are in units of expected substitutions for features in models using this clock.""" % free_clocks[0].name)
+                log.info(
+                    "Clock \"%s\" has had it's mean rate fixed to 1.0. Tree branch lengths are in "
+                    "units of expected substitutions for features in models using this "
+                    "clock." % free_clocks[0].name)
 
         # Determine whether or not precision-scaling is required
         if self.geo_config:
@@ -831,7 +838,8 @@ class Configuration(object):
             geo_clock = self.geo_model.clock
             for m in self.models:
                 if m.clock == geo_clock:
-                    self.messages.append("""[WARNING] Geography model is sharing a clock with one or more data models.  This may lead to a bad fit.""")
+                    log.warning(
+                        "Geography model is sharing a clock with one or more data models. This may lead to a bad fit.")
                     self.geo_model.scale_precision = True
                     break
             # If geo has it's own clock, estimate the mean
@@ -857,9 +865,10 @@ class Configuration(object):
             # If we're about to do a non-trivial union/intersect, alert the
             # user.
             if addition != self.languages.languages and not self.overlap_warning:
-                self.messages.append("""\
-[INFO] Not all data files have equal language sets.  BEASTling will use the %s of all language sets.  
-Set the "overlap" option in [languages] to change this.""" % self.languages.overlap)
+                log.info(
+                    "Not all data files have equal language sets. BEASTling will use the %s of all "
+                    "language sets. Set the \"overlap\" option in [languages] to change "
+                    "this." % self.languages.overlap)
                 self.overlap_warning = True
             self.languages.languages = getattr(set, self.languages.overlap)(
                 self.languages.languages, addition)
@@ -873,7 +882,7 @@ Set the "overlap" option in [languages] to change this.""" % self.languages.over
 
         ## Perform subsampling, if requested
         self.languages.languages = sorted(self.subsample_languages(self.languages.languages))
-        self.messages.append("[INFO] %d languages included in analysis." % len(self.languages.languages))
+        log.info("%d languages included in analysis." % len(self.languages.languages))
 
         ## SPREAD THE WORD!
         for m in self.models:
@@ -888,13 +897,16 @@ Set the "overlap" option in [languages] to change this.""" % self.languages.over
         if not self.languages.subsample_size:
             return languages
         if self.languages.subsample_size > len(languages):
-            self.messages.append("[INFO] Requested subsample size is %d, but only %d languages to work with!  Disabling subsampling." % (self.languages.subsample_size, len(languages)))
+            log.info(
+                "Requested subsample size is %d, but only %d languages to work with! Disabling "
+                "subsampling." % (self.languages.subsample_size, len(languages)))
             return languages
         # Seed PRNG with sorted language names
         # Python will convert to an integer hash
         # This means we always take the same subsample for a particular
         # initial language set.
-        self.messages.append("[INFO] Subsampling %d languages down to %d." % (len(languages), self.languages.subsample_size))
+        log.info("Subsampling %d languages down to %d." % (
+            len(languages), self.languages.subsample_size))
         random.seed(",".join(sorted(languages)))
         return random.sample(languages, self.languages.subsample_size)
 
@@ -945,7 +957,7 @@ Set the "overlap" option in [languages] to change this.""" % self.languages.over
                 # because empty calibrations can only be specified by
                 # empty language groups, which should be caught before
                 # this.
-                self.messages.append("[INFO] Calibration on clade '%s' ignored as no matching languages in analysis." % clade)
+                log.info("Calibration on clade '%s' ignored as no matching languages in analysis." % clade)
                 continue
             # At this point we know that len(langs) == 1, so that condition is
             # implicit in the conditions for all the branches below
@@ -957,7 +969,7 @@ Set the "overlap" option in [languages] to change this.""" % self.languages.over
                 ## only one identifier, not a comma-separated list, and that
                 ## identifier matches a language, not a Glottolog family that we
                 ## happen to only have one language for
-                self.messages.append("[INFO] Calibration on '%s' taken as tip age calibration." % clade)
+                log.info("Calibration on '%s' taken as tip age calibration." % clade)
                 is_tip_calibration = True
                 self.languages.tree_prior = "coalescent"
             else: # pragma: no cover
@@ -972,7 +984,11 @@ Set the "overlap" option in [languages] to change this.""" % self.languages.over
                 # specified by empty language groups, which should be
                 # caught before this.
 
-                self.messages.append("[INFO] Calibration on clade '%s' matches only one language.  Ignoring due to ambiguity.  Use 'originate(%s)' if this was supposed to be an originate calibration, or explicitly identify the single language using '%s' if this was supposed to be a tip calibration." % (clade, clade, langs[0]))
+                log.info(
+                    "Calibration on clade '%s' matches only one language. Ignoring due to "
+                    "ambiguity. Use 'originate(%s)' if this was supposed to be an originate "
+                    "calibration, or explicitly identify the single language using '%s' if this "
+                    "was supposed to be a tip calibration." % (clade, clade, langs[0]))
                 continue
 
             # Make sure this calibration point, which will induce a monophyly

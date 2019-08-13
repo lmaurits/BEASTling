@@ -4,7 +4,7 @@ from beastling.util import xml
 
 class MKModel(BaseModel):
 
-    package_notice = """[DEPENDENCY]: The Lewis Mk substitution model is implemented in the BEAST package "morph-models"."""
+    package_notice = ("The Lewis Mk substitution model", "morph-models")
 
     def __init__(self, model_config, global_config):
 

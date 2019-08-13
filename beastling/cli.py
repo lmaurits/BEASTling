@@ -3,6 +3,7 @@ import os
 import sys
 import traceback
 import pathlib
+import logging
 
 from beastling import __version__
 from beastling.beastxml import BeastXml
@@ -70,6 +71,10 @@ def main(*args):
         action="version",
         version = "BEASTling %s" % __version__)
     args = parser.parse_args(args or None)
+    if args.verbose:
+        # set the log level:
+        logging.basicConfig()
+        logging.getLogger().setLevel(logging.INFO)
     if args.extract:
         do_extract(args)
     else:
@@ -126,10 +131,6 @@ def do_generate(args):
         errmsg("Error encountered while parsing configuration file:\n")
         traceback.print_exc()
         sys.exit(2)
-
-    if args.verbose:
-        for msg in config.messages:
-            errmsg(msg + "\n")
 
     # Build XML file
     try:

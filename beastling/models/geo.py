@@ -1,4 +1,5 @@
 from beastling.util import xml
+from beastling.util import log
 
 
 class GeoModel(object):
@@ -17,7 +18,6 @@ class GeoModel(object):
         Parse configuration options, load data from file and pre-process data.
         """
         self.config = global_config
-        self.messages = []
         self.name = model_config["name"]
         self.clock = model_config.get("clock", None)
         self.sampling_points = model_config.get("sampling_points", [])
@@ -152,7 +152,7 @@ class GeoModel(object):
             if "?" in (lat, lon):
                 if lang not in self.sampling_points:
                     self.sampling_points.append(lang)
-                    self.messages.append("""[INFO] Geo model: Location of language %s will be sampled.  You may wish to add a prior.""" % lang)
+                    log.info("Location of language %s will be sampled.  You may wish to add a prior." % lang, model=self)
             else:
                 bit = "%s=%.2f %.2f" % (lang, lat, lon)
                 loc_data_text_bits.append(bit)

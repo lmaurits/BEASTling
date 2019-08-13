@@ -1,7 +1,9 @@
 from configparser import ConfigParser
+import logging
 
 import pytest
 
+import beastling
 from beastling.sections import Admin, MCMC, Languages
 
 
@@ -35,10 +37,10 @@ def test_MCMC(caplog):
     mcmc = MCMC.from_config({}, 'mcmc', _make_cfg('mcmc', {}))
     assert mcmc.log_burnin == 50
 
-    mcmc = MCMC.from_config({}, 'mcmc', _make_cfg('mcmc', {'chainlength': _BEAST_MAX_LENGTH + 1}))
-    for record in caplog.records:
-        assert record.levelname != 'INFO'
-    assert mcmc.chainlength == _BEAST_MAX_LENGTH
+    with caplog.at_level(logging.INFO, logger=beastling.__name__):
+        mcmc = MCMC.from_config({}, 'mcmc', _make_cfg('mcmc', {'chainlength': _BEAST_MAX_LENGTH + 1}))
+        assert caplog.records[-1].levelname == 'INFO'
+        assert mcmc.chainlength == _BEAST_MAX_LENGTH
 
 
 def test_Languages(tmppath):
