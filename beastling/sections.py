@@ -88,7 +88,13 @@ def get_file_or_list(cfg, section, option):
     :param option: option name
     :return: `list`of values for the option
     """
-    value = cfg.get(section, option)
+    return handle_file_or_list(cfg.get(section, option))
+
+
+def handle_file_or_list(value):
+    """
+    Provides the functionality formerly available as `Configuration.handle_file_or_list`.
+    """
     if not isinstance(value, (list, tuple, set)):
         fname = pathlib.Path(value)
         if fname.exists():

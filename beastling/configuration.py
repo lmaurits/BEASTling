@@ -506,19 +506,17 @@ class Configuration(object):
 
     @property
     def files_to_embed(self):
-        return self.admin.files_to_embed.union(self._files_to_embed)
+        res = set(fname for fname in self._files_to_embed)
+        for section in [self.admin, self.mcmc, self.languages]:
+            res = res.union(section.files_to_embed)
+        return res
 
     def handle_file_or_list(self, value):
-        if not (isinstance(value, list) or isinstance(value, set)):
-            if os.path.exists(value):
-                with io.open(value, encoding="UTF-8") as fp:
-                    result = [x.strip() for x in fp.readlines()]
-                self._files_to_embed.append(value)
-            else:
-                result = [x.strip() for x in value.split(",")]
-        else:
-            result = value
-        return result
+        res = sections.handle_file_or_list(value)
+        if isinstance(res, sections.ConfigValue):
+            self._files_to_embed.append(res.fname)
+            res = res.value
+        return res
 
     def filter_language(self, l):
         if self.languages.languages and l not in self.languages.languages:
