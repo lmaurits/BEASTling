@@ -77,19 +77,18 @@ class TreePrior (object):
         units befor a reference date, eg. BP.
 
         """
-        if not tip_calibrations:
-            return
-        string_bits = []
-        for cal in tip_calibrations.values():
-            initial_height = cal.mean()
-            string_bits.append("{:s} = {:}".format(next(cal.langs.__iter__()), initial_height))
-        xml.trait(
-            self.tree,
-            text=",\n".join(string_bits),
-            id="datetrait",
-            spec="beast.evolution.tree.TraitSet",
-            taxa="@taxa",
-            traitname="date-backward")
+        if tip_calibrations:
+            string_bits = []
+            for cal in tip_calibrations.values():
+                initial_height = cal.mean()
+                string_bits.append("{:s} = {:}".format(next(cal.langs.__iter__()), initial_height))
+            xml.trait(
+                self.tree,
+                text=",\n".join(string_bits),
+                id="datetrait",
+                spec="beast.evolution.tree.TraitSet",
+                taxa="@taxa",
+                traitname="date-backward")
 
     def add_init(self, beastxml):
         """
@@ -140,8 +139,7 @@ class TreePrior (object):
         xml.popSize(popmod, spec="parameter.RealParameter", value="1")
 
     def add_prior(self, beastxml):
-        raise ValueError("Tree prior {:} is unknown.".format(
-            self.type))
+        raise ValueError("Tree prior {:} is unknown.".format(self.type))  # pragma: no cover
 
     def add_operators(self, beastxml):
         """

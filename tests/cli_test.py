@@ -3,7 +3,12 @@ from pathlib import Path
 
 import pytest
 
+import beastling.cli
 from beastling.cli import main
+import beastling.__main__
+
+# Now we must reset the `wrap_errors` global which was altered in __main__:
+beastling.cli.wrap_errors = Exception
 
 
 def _run_main(commandline='', status=0):

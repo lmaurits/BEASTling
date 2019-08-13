@@ -121,7 +121,7 @@ def get_tree(tree_type, cfg, section, option):
     assert tree_type in ("starting", "monophyly")
     # Read from file if necessary
     fname = pathlib.Path(value)
-    if fname.exists():
+    if fname.exists() and fname.is_file():
         value = fname.read_text(encoding='utf8').strip()
     if value:
         if ")" in value:

@@ -4,13 +4,17 @@ import logging
 import pytest
 
 import beastling
-from beastling.sections import Admin, MCMC, Languages
+from beastling.sections import Admin, MCMC, Languages, handle_file_or_list
 
 
 def _make_cfg(section, d):
     cfg = ConfigParser()
     cfg.read_dict({section: d})
     return cfg
+
+
+def test_legacy_handle_file_or_list():
+    assert handle_file_or_list([1, 2, 3]) == [1, 2, 3]
 
 
 def test_Admin():
@@ -30,6 +34,10 @@ def test_Admin():
     admin = Admin.from_config({}, 'admin', _make_cfg('admin', {'log_all': 'true'}))
     assert admin.log_fine_probs == True
 
+    # Test unrecognized option:
+    with pytest.raises(ValueError):
+        Admin.from_config({}, 'admin', _make_cfg('admin', {'xyzlog': 'true'}))
+
 
 def test_MCMC(caplog):
     from beastling.sections import _BEAST_MAX_LENGTH
@@ -41,6 +49,9 @@ def test_MCMC(caplog):
         mcmc = MCMC.from_config({}, 'mcmc', _make_cfg('mcmc', {'chainlength': _BEAST_MAX_LENGTH + 1}))
         assert caplog.records[-1].levelname == 'INFO'
         assert mcmc.chainlength == _BEAST_MAX_LENGTH
+
+    with pytest.raises(ValueError):
+        MCMC.from_config({'prior': True}, 'mcmc', _make_cfg('mcmc', {'path_sampling': 'true'}))
 
 
 def test_Languages(tmppath):
@@ -62,9 +73,17 @@ def test_Languages(tmppath):
     with pytest.raises(ValueError):
         Languages.from_config({}, 'languages', _make_cfg('languages', {'starting_tree': 'a'}))
 
+    sec = Languages.from_config({}, 'languages', _make_cfg('languages', {'starting_tree': ''}))
+    assert not sec.starting_tree
+
     tree = tmppath / 'tree.newick'
     tree.write_text('(a,b,(d,c))', encoding='utf8')
     sec = Languages.from_config(
         {}, 'languages', _make_cfg('languages', {'languages': 'a,b,c', 'starting_tree': tree}))
     sec.sanitise_trees()
     assert sec.starting_tree == '(a,(c:0.0,b):0.0);'
+
+    with pytest.raises(ValueError):
+        sec = Languages.from_config(
+            {}, 'languages', _make_cfg('languages', {'languages': 'a,b,c', 'starting_tree': '(;)'}))
+        sec.sanitise_trees()

@@ -40,7 +40,7 @@ def extract(filename, overwrite=False):
         # Zero or several embedded configs - is this one of our files?!
         raise ValueError("%s doesn't look like a BEASTling-generated XML file" % filename)
     messages.append(write_config(beastling_confs[0].text, overwrite))
-    
+
     data_files = [c for c in comments if c.text.startswith(_data_file_str)]
     for data_file in data_files:
         messages.append(write_data_file(data_file.text, overwrite))

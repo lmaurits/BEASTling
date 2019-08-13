@@ -531,7 +531,6 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
 
         bad_refs = set(data['idref']) - set(data['id'])
         if bad_refs:
-            print(sorted(data['id'].keys()))
             raise ValueError("References to missing BEASTObject IDs found: " + ", ".join(bad_refs))
 
     def tostring(self):
