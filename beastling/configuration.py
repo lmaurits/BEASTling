@@ -144,7 +144,8 @@ class Configuration(object):
                 self.cfg.read([str(c) for c in configfile])
         self.read_cfg()
         self.admin = sections.Admin.from_config(cli_params, 'admin', self.cfg)
-        self.mcmc = sections.MCMC.from_config(cli_params, 'MCMC', self.cfg)
+        self.mcmc = sections.MCMC.from_config(
+            cli_params, 'mcmc' if self.cfg.has_section('mcmc') else 'MCMC', self.cfg)
         self.languages = sections.Languages.from_config(cli_params, 'languages', self.cfg)
 
         # If log_every was not explicitly set to some non-zero
