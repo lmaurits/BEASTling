@@ -126,7 +126,7 @@ class Configuration(object):
                 {}, "calibration", self.cfg).options.items():
             self.calibration_configs[clade] = calibration
 
-        # [model ...]
+        # [model ...] and [clock ...]
         for prefix, cfg_cls in [('clock', sections.Clock), ('model', sections.Model)]:
             for section in [s for s in self.cfg.sections() if s.lower().startswith(prefix)]:
                 getattr(self, prefix + 's').append(
