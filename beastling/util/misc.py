@@ -5,6 +5,16 @@ import newick
 from beastling.util import log
 
 
+class FromOptions(object):
+    def __init__(self, options, config):
+        self.config = config
+        self.options = options
+
+    @property
+    def name(self):
+        return self.options.name
+
+
 def all_subclasses(cls):
     """
     We use subclassing as a cheap registration mechanism, thus we want to be able to enumerate

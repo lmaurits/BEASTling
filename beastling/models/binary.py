@@ -1,5 +1,4 @@
 import collections
-from configparser import ConfigParser
 
 from .basemodel import BaseModel
 from beastling.util import xml
@@ -11,17 +10,16 @@ class BinaryModel(BaseModel):
     def __init__(self, model_config, global_config):
 
         BaseModel.__init__(self, model_config, global_config)
-        self.remove_constant_features = model_config.get("remove_constant_features", True)
-        self.gamma_categories = int(model_config.get("gamma_categories", 0))
+        self.remove_constant_features = model_config.remove_constant_features
+        self.gamma_categories = int(model_config.options.get("gamma_categories", 0))
         # Compute feature properties early to facilitate auto-detection of binarisation
         self.compute_feature_properties()
         # Don't need a separating comma because each datapoint is a string
         # of length 1
         self.data_separator = ""
-        self.binarised = model_config.get("binarised", None)
-        assert type(self.binarised) in (bool, type(None))
+        self.binarised = model_config.binarised
         # Do we need to recode multistate data?
-        self.recoded = any([self.valuecounts[f]>2 for f in self.features])
+        self.recoded = any(self.valuecounts[f] > 2 for f in self.features)
         # Check for inconsistent configuration
         if self.recoded and self.binarised:
             raise ValueError("Data for model '%s' contains features with more than two states, but binarised=True was given.  Have you specified the correct data file or feature list?" % self.name)
@@ -283,11 +281,7 @@ class BinaryModel(BaseModel):
 class BinaryModelWithShareParams(BinaryModel):
     def __init__(self, model_config, global_config):
         BinaryModel.__init__(self, model_config, global_config)
-        try:
-            share_params = model_config.get("share_params", "True")
-            self.share_params = ConfigParser.BOOLEAN_STATES[share_params.lower().strip()]
-        except KeyError:
-            raise ValueError("Invalid setting of 'share_params' (%s) for model %s, not a boolean" % (share_params, self.name))
+        self.share_params = model_config.share_params
         self.single_sitemodel = self.share_params and not (self.rate_variation or self.feature_rates)
 
     def build_freq_str(self, feature=None):

@@ -3,7 +3,6 @@ from beastling.util import xml
 
 
 class CovarionModel(BinaryModel):
-
     def __init__(self, model_config, global_config):
 
         BinaryModel.__init__(self, model_config, global_config)

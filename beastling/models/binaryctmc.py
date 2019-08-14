@@ -3,9 +3,7 @@ from beastling.util import xml
 
 
 class BinaryCTMCModel(BinaryModel):
-
     def __init__(self, model_config, global_config):
-
         BinaryModel.__init__(self, model_config, global_config)
         self.subst_model_id = None
 

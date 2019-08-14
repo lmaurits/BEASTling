@@ -5,9 +5,7 @@ from pathlib import Path
 import pytest
 import newick
 
-from beastling.configuration import (
-    Configuration, get_glottolog_data, _BEAST_MAX_LENGTH,
-)
+from beastling.configuration import Configuration, get_glottolog_data
 from beastling.beastxml import BeastXml
 
 
@@ -96,7 +94,7 @@ def test_config(config_factory):
         },
     })
     assert cfg.calibration_configs['abcd1234, efgh5678'] == "10-20"
-    assert cfg.model_configs[1]['binarised']
+    assert cfg.models[1].binarised
 
     with pytest.raises(ValueError, match="'overlap' must be"):
         Configuration(configfile={'languages': {'overlap': 'invalid'}, 'models T': {'model': 'mk'}})
@@ -170,7 +168,7 @@ def test_minimum_data(config_factory):
 def test_pruned_rlc(config_factory):
     # Make sure pruned trees are disabled if used in conjunction with RLC
     config = config_factory('basic', 'pruned', 'random')
-    assert config.model_configs[0]["pruned"]
+    assert config.models[0].pruned
     config.process()
     assert not config.models[0].pruned
 
@@ -190,7 +188,7 @@ def test_ascertainment_auto_setting(config_factory):
     assert config.models[0].ascertained
     # Unless, of course, we have constant data...
     config = config_factory('covarion_multistate', 'calibration')
-    config.model_configs[0]["remove_constant_features"] = False
+    config.models[0].remove_constant_features = False
     config.process()
     assert not config.models[0].ascertained
 
@@ -207,7 +205,7 @@ def test_ascertainment_override(config_factory):
 def test_bad_ascertainment(config_factory):
     # Make sure we refuse to produce a misspecified model
     config = config_factory('covarion_multistate', 'ascertainment_true')
-    config.model_configs[0]["remove_constant_features"] = False
+    config.models[0].remove_constant_features = False
     with pytest.raises(ValueError):
         config.process()
 
@@ -311,4 +309,5 @@ def test_calibration(config_factory):
 def test_xml(config_factory, cfgs, in_xml):
     config = _processed_config(config_factory, *cfgs)
     xml = BeastXml(config).tostring().decode('utf8')
-    assert all(s in xml for s in in_xml)
+    for s in in_xml:
+        assert s in xml, s

@@ -3,6 +3,7 @@ from configparser import ConfigParser
 import pathlib
 import collections
 import functools
+import importlib
 
 import attr
 
@@ -10,6 +11,8 @@ from beastling.util.misc import sanitise_tree, all_subclasses
 from beastling.util import log
 from beastling.clocks import *  # Make sure all clocks are imported.
 from beastling.clocks.baseclock import BaseClock
+from beastling.models import *  # Make sure all models are imported.
+from beastling.models.basemodel import BaseModel
 
 __all__ = ['Admin', 'MCMC', 'Languages']
 
@@ -420,6 +423,67 @@ class Clock(Section):
             if clock.__distribution__ == self.distribution:
                 return clock(self, global_config)
         raise ValueError('no matching clock')
+
+
+def valid_path(instance, attribute, value):
+    if not value.exists():
+        raise ValueError('Path {0} does not exist'.format(value))
+
+
+@attr.s
+class Model(Section):
+    __allow_arbitrary_options__ = True
+
+    name = opt(
+        None,
+        converter=lambda s: s.split(None, 1)[1].strip().replace(' ', '_'))
+    model = opt(
+        None,
+    )
+
+    binarised = opt(None, getter=ConfigParser.getboolean)
+    # "binarised" is the canonical name for this option and used everywhere
+    # internally, but "binarized" is accepted in the config file.
+    binarized = opt(None, getter=ConfigParser.getboolean)
+
+    ascertained = opt(None, getter=ConfigParser.getboolean)
+    pruned = opt(False, getter=ConfigParser.getboolean)
+    use_robust_eigensystem = opt(False, getter=ConfigParser.getboolean)
+    rate_variation = opt(False, getter=ConfigParser.getboolean)
+    remove_constant_features = opt(True, getter=ConfigParser.getboolean)
+    symmetric = opt(True, getter=ConfigParser.getboolean)
+    share_params = opt(True, getter=ConfigParser.getboolean)
+
+    minimum_data = opt(0.0, getter=ConfigParser.getfloat)
+
+    features = opt(attr.Factory(lambda: ["*"]), getter=get_file_or_list)
+    exclusions = opt(attr.Factory(list), getter=get_file_or_list)
+    reconstruct = opt(attr.Factory(list), getter=get_file_or_list)
+    reconstruct_at = opt(attr.Factory(list), getter=get_file_or_list)
+
+    data = opt(
+        None,
+        converter=lambda s: pathlib.Path(s) if s else None,
+        validator=attr.validators.optional(valid_path))
+
+    def __attrs_post_init__(self):
+        if self.binarized is not None and self.binarised is None:
+            self.binarised = self.binarized
+
+    def get_model(self, global_config):
+        for cls in all_subclasses(BaseModel):
+            if cls.__model_name__() == self.model:
+                if cls.package_notice:
+                    log.dependency(*cls.package_notice)
+                return cls(self, global_config)
+        try:
+            module_path, class_name = self.model.rsplit(".", 1)
+            cls = getattr(importlib.import_module(module_path), class_name)
+            return cls(self, global_config)
+        except:
+            raise ValueError(
+                "Unknown model type '%s' for model section '%s', and failed to import a "
+                "third-party model." % (self.model, self.name))
 
 
 @attr.s

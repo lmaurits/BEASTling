@@ -1,10 +1,6 @@
-import collections
-import importlib
 import itertools
-import os
 import random
 import re
-import sys
 from pathlib import Path
 from configparser import ConfigParser
 
@@ -13,17 +9,9 @@ from appdirs import user_data_dir
 from csvw.dsv import reader
 
 from beastling.fileio.datareaders import iterlocations
-import beastling.clocks.strict as strict
-import beastling.clocks.relaxed as relaxed
 import beastling.clocks.random as random_clock
-import beastling.clocks.prior as prior_clock
 
 import beastling.models.geo as geo
-import beastling.models.binaryctmc as binaryctmc
-import beastling.models.bsvs as bsvs
-import beastling.models.covarion as covarion
-import beastling.models.pseudodollocovarion as pseudodollocovarion
-import beastling.models.mk as mk
 
 from beastling import sections
 from beastling.util import log
@@ -89,15 +77,15 @@ class Configuration(object):
         """A dictionary whose keys are glottocodes or lowercase Glottolog clade names, and whose values are length-2 tuples of flatoing point dates (lower and upper bounds of 95% credible interval)."""
         self.calibration_configs = {}
         """A list of `sections.Clock`s, each of which specifies the configuration for a single clock model."""
-        self.clock_configs = []
         self.clocks = []
         self.clocks_by_name = {}
 
         """An ordered dictionary whose keys are language group names and whose values are language group definitions."""
         self.language_groups = {}
         """A dictionary giving names to arbitrary collections of tip languages."""
-        self.model_configs = []
+
         """A list of dictionaries, each of which specifies the configuration for a single evolutionary model."""
+        self.models = []
         self.stdin_data = stdin_data
         """A boolean value, controlling whether or not to read data from stdin as opposed to the file given in the config."""
 
@@ -167,15 +155,10 @@ class Configuration(object):
             for clade, calibration in p.items("calibration"):
                 self.calibration_configs[clade] = calibration
 
-        ## Clocks
-        clock_sections = [s for s in p.sections() if s.lower().startswith("clock")]
-        for section in clock_sections:
-            self.clock_configs.append(sections.Clock.from_config({}, section, self.cfg))
-
-        ## Models
-        model_sections = [s for s in p.sections() if s.lower().startswith("model")]
-        for section in model_sections:
-            self.model_configs.append(self.get_model_config(p, section))
+        for prefix, cfg_cls in [('clock', sections.Clock), ('model', sections.Model)]:
+            for section in [s for s in p.sections() if s.lower().startswith(prefix)]:
+                getattr(self, prefix + 's').append(
+                    cfg_cls.from_config({}, section, self.cfg))
 
         # Geographic priors
         if p.has_section("geo_priors"):
@@ -187,38 +170,10 @@ class Configuration(object):
                     if clade not in self.geography.sampling_points:
                         self.geography.sampling_points.append(clade)
                     self.geography.priors[clade] = klm
+
         # Make sure analysis is non-empty
-        if not model_sections and not self.geography:
+        if not (self.models or self.geography):
             raise ValueError("Config file contains no model sections and no geography section.")
-
-    def get_model_config(self, p, section):
-        section_parts = section.split(None, 1)
-        if len(section_parts) == 1:
-            raise ValueError("All model sections must have a name!")
-        cfg = {
-            'name': section_parts[1].strip().replace(" ","_"),
-            'binarised': None,
-            'rate_variation': False,
-            'remove_constant_features': True,
-        }
-        for key, value in p[section].items():
-            # "binarised" is the canonical name for this option and used everywhere
-            # internally, but "binarized" is accepted in the config file.
-            if key in ('binarised', 'binarized'):
-                value = p.getboolean(section, key)
-                key = 'binarised'
-            if key in ("features", "reconstruct", "exclusions", "reconstruct_at"):
-                value = self.handle_file_or_list(value)
-            if key in ['ascertained','pruned','rate_variation', 'remove_constant_features', 'use_robust_eigensystem']:
-                value = p.getboolean(section, key)
-
-            if key in ['minimum_data']:
-                value = p.getfloat(section, key)
-
-            if key in ['data']:
-                value = Path(value)
-            cfg[key] = value
-        return cfg
 
     def process(self):
         """
@@ -233,6 +188,8 @@ class Configuration(object):
         BeastXml object can be instantiated from this Configuration with no
         problems.
         """
+        if self.processed:
+            return
 
         # Add dependency notices if required
         if self.languages.monophyly and not self.languages.starting_tree:
@@ -631,11 +588,9 @@ class Configuration(object):
         Populates self.clocks with a list of BaseClock subclasses, one for each
         dictionary of settings in self.clock_configs.
         """
-        for config in self.clock_configs:
-            clock = config.get_clock(self)
-            self.clocks.append(clock)
-            self.clocks_by_name[clock.name] = clock
-        # Create default clock if necessary
+        self.clocks = [clock.get_clock(self) for clock in self.clocks]
+        self.clocks_by_name = {clock.name: clock for clock in self.clocks}
+
         if "default" not in self.clocks_by_name:
             clock = sections.Clock(cli_params={}, name='clock default').get_clock(self)
             self.clocks.append(clock)
@@ -646,49 +601,12 @@ class Configuration(object):
         Populates self.models with a list of BaseModel subclasses, one for each
         dictionary of settings in self.model_configs.
         """
-        if not (self.model_configs or 'geography' in self.cfg.sections()):
-            raise ValueError("No models or geography specified!")
-
         # Handle request to read data from stdin
         if self.stdin_data:
-            for config in self.model_configs:
+            for config in self.models:
                 config["data"] = "stdin"
 
-        self.models = []
-        for config in self.model_configs:
-            # Validate config
-            if "model" not in config:
-                raise ValueError("Model not specified for model section %s." % config["name"])
-            if "data" not in config:
-                raise ValueError("Data source not specified in model section %s." % config["name"])
-
-            # Instantiate model
-            if config["model"].lower() == "bsvs":
-                model = bsvs.BSVSModel(config, self)
-                log.dependency(*bsvs.BSVSModel.package_notice)
-            elif config["model"].lower() == "covarion":
-                model = covarion.CovarionModel(config, self)
-            elif config["model"].lower() == "binaryctmc":
-                model = binaryctmc.BinaryCTMCModel(config, self)
-            elif config["model"].lower() == "pseudodollocovarion":
-                model = pseudodollocovarion.PseudoDolloCovarionModel(
-                    config, self)
-            elif config["model"].lower() == "mk":
-                model = mk.MKModel(config, self)
-                log.dependency(*mk.MKModel.package_notice)
-            elif config["model"].lower() == "dollo": # pragma: no cover
-                raise NotImplementedError("The stochastic Dollo model is not implemented yet.")
-            else:
-                try:
-                    sys.path.insert(0, os.getcwd())
-                    module_path, class_name = config["model"].rsplit(".",1)
-                    module = importlib.import_module(module_path)
-                    UserClass = getattr(module, class_name)
-                except:
-                    raise ValueError("Unknown model type '%s' for model section '%s', and failed to import a third-party model." % (config["model"], config["name"]))
-                model = UserClass(config, self)
-
-            self.models.append(model)
+        self.models = [model.get_model(self) for model in self.models]
 
         if self.geography:
             self.geo_model = geo.GeoModel(self.geography, self)

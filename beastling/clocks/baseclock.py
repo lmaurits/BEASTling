@@ -1,13 +1,13 @@
 from beastling.util import xml
+from beastling.util.misc import FromOptions
 
 
-class BaseClock(object):
+class BaseClock(FromOptions):
     __type__ = None
     __distribution__ = None
 
     def __init__(self, clock_config, global_config):
-
-        self.config = global_config
+        FromOptions.__init__(self, clock_config, global_config)
         # By default, whether or not to estimate the rate is left up to BEASTling.
         # But if the user specifies a rate, we assume they do not want it estimated...
         if clock_config.mean or clock_config.rate:
@@ -19,7 +19,6 @@ class BaseClock(object):
             self.initial_mean = 1.0
         self.estimate_rate = clock_config.estimate_rate
         self.calibrations = global_config.calibrations
-        self.name = clock_config.name
         self.mean_rate_id = "clockRate.c:%s" % self.name
         self.mean_rate_idref = "@%s" % self.mean_rate_id
         self.is_used = False
