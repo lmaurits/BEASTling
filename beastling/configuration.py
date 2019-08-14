@@ -1,12 +1,10 @@
 import collections
 import importlib
-import io
 import itertools
 import os
 import random
 import re
 import sys
-from urllib.request import FancyURLopener
 from pathlib import Path
 from configparser import ConfigParser
 
@@ -15,7 +13,6 @@ from appdirs import user_data_dir
 from csvw.dsv import reader
 
 from beastling.fileio.datareaders import load_location_data
-from .distributions import Distribution
 import beastling.clocks.strict as strict
 import beastling.clocks.relaxed as relaxed
 import beastling.clocks.random as random_clock
@@ -30,25 +27,15 @@ import beastling.models.mk as mk
 
 from beastling import sections
 from beastling.util import log
+from beastling.util.misc import retrieve_url
 
 import beastling.treepriors.base as treepriors
 from beastling.treepriors.coalescent import CoalescentTree
+from beastling.distributions import Calibration
 
 _BEAST_MAX_LENGTH = 2147483647
 GLOTTOLOG_NODE_LABEL = re.compile(
     "'(?P<name>[^\[]+)\[(?P<glottocode>[a-z0-9]{8})\](\[(?P<isocode>[a-z]{3})\])?(?P<appendix>-l-)?'")
-
-
-class Calibration(
-        collections.namedtuple(
-            "Calibration", ["langs", "originate", "offset", "dist", "param"]),
-        Distribution):
-    pass
-
-
-class URLopener(FancyURLopener):
-    def http_error_default(self, url, fp, errcode, errmsg, headers):
-        raise ValueError()  # pragma: no cover
 
 
 def get_glottolog_data(datatype, release):
@@ -65,17 +52,17 @@ def get_glottolog_data(datatype, release):
     }
     fname_pattern, fname_source = path_spec[datatype]
     fname = fname_pattern.format(release)
-    path = os.path.join(os.path.dirname(__file__), 'data', fname)
-    if not os.path.exists(path):
-        data_dir = user_data_dir('beastling')
-        if not os.path.exists(data_dir):
-            os.makedirs(data_dir)
-        path = os.path.join(data_dir, fname)
-        if not os.path.exists(path):
+
+    path = Path(__file__).parent / 'data' / fname
+    if not path.exists():
+        data_dir = Path(user_data_dir('beastling'))
+        if not data_dir.exists():
+            data_dir.mkdir(parents=True)
+        path = data_dir / fname
+        if not path.exists():
             try:
-                URLopener().retrieve(
-                    'http://glottolog.org/static/download/{0}/{1}'.format(
-                        release, fname_source),
+                retrieve_url(
+                    'https://glottolog.org/static/download/{0}/{1}'.format(release, fname_source),
                     path)
             except (IOError, ValueError):
                 raise ValueError(
@@ -104,14 +91,10 @@ class Configuration(object):
         self.clock_configs = []
         """A list of dictionaries, each of which specifies the configuration for a single clock model."""
 
-        self.geo_config = {}
-        """A dictionary with keys and values corresponding to a [geography] section in a configuration file."""
         self.language_group_configs = collections.OrderedDict()
         """An ordered dictionary whose keys are language group names and whose values are language group definitions."""
         self.language_groups = {}
         """A dictionary giving names to arbitrary collections of tip languages."""
-        self.location_data = None
-        """Name of a file containing latitude/longitude data."""
         """A floating point value, indicated the percentage of datapoints, across ALL models, which a language must have in order to be included in the analysis."""
         self.minimum_data = 0.0
         self.model_configs = []
@@ -142,7 +125,14 @@ class Configuration(object):
                 if isinstance(configfile, str):
                     configfile = (configfile,)
                 self.cfg.read([str(c) for c in configfile])
+
+        if 'geography' in self.cfg.sections():
+            self.geography = sections.Geography.from_config(cli_params, 'geography', self.cfg)
+        else:
+            self.geography = None
+
         self.read_cfg()
+
         self.admin = sections.Admin.from_config(cli_params, 'admin', self.cfg)
         self.mcmc = sections.MCMC.from_config(
             cli_params, 'mcmc' if self.cfg.has_section('mcmc') else 'MCMC', self.cfg)
@@ -157,8 +147,9 @@ class Configuration(object):
             # So in this case, just log everything.
             self.admin.log_every = self.mcmc.chainlength // 10000 or 1
 
-        sampled_points = self.geo_config.get("sampling_points",[])
-        if [p for p in sampled_points if p.lower() != "root"] and self.languages.sample_topology and not self.languages.monophyly:
+        if self.geography \
+                and [p for p in self.geography.sampling_points if p.lower() != "root"] \
+                and self.languages.sample_topology and not self.languages.monophyly:
             log.warning(
                 "Geographic sampling and/or prior specified for clades other than root, but tree "
                 "topology is being sampled without monophyly constraints. BEAST may crash.")
@@ -195,25 +186,18 @@ class Configuration(object):
         for section in model_sections:
             self.model_configs.append(self.get_model_config(p, section))
 
-        # Geography
-        if p.has_section("geography"):
-            self.geo_config = self.get_geo_config(p, "geography")
-        else:
-            self.geo_config = {}
-
         # Geographic priors
         if p.has_section("geo_priors"):
-            if not p.has_section("geography"):
+            if not self.geography:
                 raise ValueError("Config file contains geo_priors section but no geography section.")
-            self.geo_config["geo_priors"] = {}
             for clades, klm in p.items("geo_priors"):
                 for clade in clades.split(','):
                     clade = clade.strip()
-                    if clade not in self.geo_config["sampling_points"]:
-                        self.geo_config["sampling_points"].append(clade)
-                    self.geo_config["geo_priors"][clade] = klm
+                    if clade not in self.geography.sampling_points:
+                        self.geography.sampling_points.append(clade)
+                    self.geography.priors[clade] = klm
         # Make sure analysis is non-empty
-        if not model_sections and not self.geo_config:
+        if not model_sections and not self.geography:
             raise ValueError("Config file contains no model sections and no geography section.")
 
     def get_clock_config(self, p, section):
@@ -259,25 +243,6 @@ class Configuration(object):
 
             if key in ['data']:
                 value = Path(value)
-            cfg[key] = value
-        return cfg
-
-    def get_geo_config(self, p, section):
-        cfg = {
-            'name': 'geography',
-            'model': 'geo',
-            'log_locations': True,
-            'sampling_points': [],
-        }
-        for key, value in p[section].items():
-            if key == "log_locations":
-                value = p.getboolean(section, key)
-            elif key == "sampling_points":
-                value = self.handle_file_or_list(value)
-            elif key == "data":
-                # Just set the Configuration class attribute, don't put it in this dict
-                self.location_data = value
-                continue 
             cfg[key] = value
         return cfg
 
@@ -406,7 +371,8 @@ class Configuration(object):
             return list(reversed(res))
 
         # Walk the tree and build the classifications dictionary
-        glottolog_trees = newick.read(get_glottolog_data('newick', self.admin.glottolog_release))
+        glottolog_trees = newick.read(
+            str(get_glottolog_data('newick', self.admin.glottolog_release)))
         for tree in glottolog_trees:
             for node in tree.walk():
                 name, glottocode, isocode = parse_label(node.name)
@@ -467,19 +433,17 @@ class Configuration(object):
             # ...we're using calibrations (well, sometimes)
             or self.calibration_configs
             # ...we're using geography
-            or self.geo_config
+            or self.geography
             # ...we've been forced to by greater powers (like the CLI)
             or self.force_glottolog_load
         )
 
     def load_user_geo(self):
-        if not self.location_data:
-            return
-        # Read location data from file, patching (rather than replacing) Glottolog
-        location_files = [x.strip() for x in self.location_data.split(",")]
-        for loc_file in location_files:
-            for language, location in load_location_data(loc_file).items():
-                self.locations[language] = location
+        if self.geography:
+            # Read location data from file, patching (rather than replacing) Glottolog
+            for loc_file in self.geography.data:
+                for language, location in load_location_data(loc_file).items():
+                    self.locations[language] = location
 
     def build_language_filter(self):
         """
@@ -720,7 +684,7 @@ class Configuration(object):
         Populates self.models with a list of BaseModel subclasses, one for each
         dictionary of settings in self.model_configs.
         """
-        if not (self.model_configs or self.geo_config):
+        if not (self.model_configs or 'geography' in self.cfg.sections()):
             raise ValueError("No models or geography specified!")
 
         # Handle request to read data from stdin
@@ -763,9 +727,9 @@ class Configuration(object):
                 model = UserClass(config, self)
 
             self.models.append(model)
-            
-        if self.geo_config:
-            self.geo_model = geo.GeoModel(self.geo_config, self)
+
+        if self.geography:
+            self.geo_model = geo.GeoModel(self.geography, self)
             self.all_models = [self.geo_model] + self.models
         else:
             self.all_models = self.models
@@ -834,7 +798,7 @@ class Configuration(object):
                     "clock." % free_clocks[0].name)
 
         # Determine whether or not precision-scaling is required
-        if self.geo_config:
+        if self.geography:
             self.geo_model.scale_precision = False
             geo_clock = self.geo_model.clock
             for m in self.models:

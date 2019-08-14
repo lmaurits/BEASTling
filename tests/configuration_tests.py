@@ -42,7 +42,7 @@ def test_get_glottolog_newick(tmppath, mocker):
     mocker.patch(
         'beastling.configuration.user_data_dir',
         new=mocker.Mock(return_value=str(tmppath)))
-    trees = newick.read(get_glottolog_data('newick', '2.5'))
+    trees = newick.read(str(get_glottolog_data('newick', '2.5')))
     assert trees[0].name == 'A [abcd1234]'
 
 
@@ -58,17 +58,12 @@ def test_get_glottolog_data_download(tmppath, mocker):
         def retrieve(self, url, fname):
             raise IOError()
 
-    mocker.patch.multiple(
-        'beastling.configuration',
-        user_data_dir=mocker.Mock(return_value=str(data_dir)),
-        URLopener=URLopenerError)
+    mocker.patch('beastling.configuration.user_data_dir', mocker.Mock(return_value=str(data_dir)))
+    mocker.patch('beastling.util.misc.URLopener', URLopenerError)
     with pytest.raises(ValueError):
         get_glottolog_data('newick', '2.5')
 
-    mocker.patch.multiple(
-        'beastling.configuration',
-        user_data_dir=mocker.Mock(return_value=str(data_dir)),
-        URLopener=URLopener)
+    mocker.patch('beastling.util.misc.URLopener', URLopener)
     assert get_glottolog_data('newick', '2.5')
 
 

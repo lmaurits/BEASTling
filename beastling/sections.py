@@ -65,7 +65,7 @@ class Section(object):
         return cls(name=section, cli_params=cli_params, files_to_embed=files_to_embed, **kw)
 
 
-def opt(default, help, getter=ConfigParser.get, setter=_to_cfg, **kw):
+def opt(default, help=None, getter=ConfigParser.get, setter=_to_cfg, **kw):
     """
     Wrap `attr.ib` to add syntactic sugar for creation of `metadata`.
 
@@ -76,6 +76,10 @@ def opt(default, help, getter=ConfigParser.get, setter=_to_cfg, **kw):
     :return: an attribute instance
     """
     return attr.ib(default, metadata=dict(help=help, getter=getter, setter=setter), **kw)
+
+
+def get_list_of_files(cfg, section, option):
+    return [pathlib.Path(f.strip()) for f in cfg.get(section, option).split(',') if f.strip()]
 
 
 def get_file_or_list(cfg, section, option):
@@ -357,3 +361,14 @@ class Languages(Section):
             self.monophyly_newick = sanitise_tree(
                 self.monophyly_newick, 'monophyly', self.languages)
             self.monophyly = True
+
+
+@attr.s
+class Geography(Section):
+    name = opt('geography')
+    model = opt('geo')
+    log_locations = opt(True, getter=ConfigParser.getboolean)
+    sampling_points = opt(attr.Factory(list), getter=get_file_or_list)
+    data = opt(attr.Factory(list), getter=get_list_of_files)
+    priors = opt(attr.Factory(dict))
+    clock = opt(None)

@@ -467,10 +467,10 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
 
         # Created a dedicated geographic tree log if asked to log locations,
         # or if the geo model's clock is non-strict
-        if not self.config.geo_config:
-            return
-        if self.config.geo_config["log_locations"] or not self.config.geo_model.clock.is_strict:
-            self.add_tree_logger("_geography", self.config.geo_model.clock.branchrate_model_id, True)
+        if self.config.geography:
+            if self.config.geography.log_locations or not self.config.geo_model.clock.is_strict:
+                self.add_tree_logger(
+                    "_geography", self.config.geo_model.clock.branchrate_model_id, True)
 
     def add_tree_logger(self, suffix="", branchrate_model_id=None, locations=False):
         tree_logger = xml.logger(

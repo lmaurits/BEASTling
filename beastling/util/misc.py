@@ -1,6 +1,17 @@
+from urllib.request import FancyURLopener
+
 import newick
 
 from beastling.util import log
+
+
+class URLopener(FancyURLopener):
+    def http_error_default(self, url, fp, errcode, errmsg, headers):
+        raise ValueError()  # pragma: no cover
+
+
+def retrieve_url(url, fname):
+    return URLopener().retrieve(url, str(fname))
 
 
 def sanitise_tree(tree, tree_type, languages):

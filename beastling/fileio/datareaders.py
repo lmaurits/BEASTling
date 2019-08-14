@@ -140,8 +140,7 @@ def load_cldf_data(reader, value_column, filename, expect_multiple=False):
 def load_location_data(filename):
     # Use CSV dialect sniffer in all other cases
     with open(str(filename), "r") as fp: # Cast PosixPath to str
-        # On large files, csv.Sniffer seems to need a lot of datta to make a
-        # successful inference...
+        # On large files, csv.Sniffer seems to need a lot of data to make a successful inference...
         sample = fp.read(1024)
         while True:
             try:
