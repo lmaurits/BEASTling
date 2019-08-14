@@ -1,9 +1,9 @@
 import collections
-
-from clldutils.inifile import INI
+from configparser import ConfigParser
 
 from .basemodel import BaseModel
 from beastling.util import xml
+from beastling.util import log
 
 
 class BinaryModel(BaseModel):
@@ -109,7 +109,9 @@ class BinaryModel(BaseModel):
                 # necessity, so it makes sense to separate these cases
                 self.ascertained = not self.global_config.arbitrary_tree
         elif self.ascertained and not self.remove_constant_features:
-            raise ValueError("Incompatible settings for model '%s': ascertained=True and remove_constant_features=False together constitute a model misspecification.")
+            raise ValueError("Incompatible settings for model '%s': ascertained=True and "
+                             "remove_constant_features=False together constitute a model "
+                             "misspecification.")
         # If the data has only two values, we need to decide what kind to treat
         # it as
         if not self.recoded:
@@ -122,7 +124,14 @@ class BinaryModel(BaseModel):
                 # because this could cause problems.
                 self.recoded = False
                 if not self.ascertained:
-                    self.messages.append("""[INFO] Model "%s": Assuming that data source %s contains binary structural data (e.g. absence/presence).  If this is cognate set data which has been pre-binarised, please set "binarised=True" in your config to enable appropriate ascertainment correction for the recoding.  If you don't do this, estimates of branch lengths and clade ages may be biased.""" % (self.name, self.data_filename))
+                    log.info(
+                        "Assuming that data source %s contains binary structural data "
+                        "(e.g. absence/presence).  If this is cognate set data which has been "
+                        "pre-binarised, please set \"binarised=True\" in your config to enable "
+                        "appropriate ascertainment correction for the recoding. If you don't do "
+                        "this, estimates of branch lengths and clade ages may be "
+                        "biased." % self.data_filename,
+                        model=self)
 
     def compute_feature_properties(self):
         """Compute various items of metadata for all remaining features.
@@ -276,7 +285,7 @@ class BinaryModelWithShareParams(BinaryModel):
         BinaryModel.__init__(self, model_config, global_config)
         try:
             share_params = model_config.get("share_params", "True")
-            self.share_params = INI.BOOLEAN_STATES[share_params.lower().strip()]
+            self.share_params = ConfigParser.BOOLEAN_STATES[share_params.lower().strip()]
         except KeyError:
             raise ValueError("Invalid setting of 'share_params' (%s) for model %s, not a boolean" % (share_params, self.name))
         self.single_sitemodel = self.share_params and not (self.rate_variation or self.feature_rates)

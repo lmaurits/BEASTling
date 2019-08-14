@@ -1,7 +1,12 @@
+import re
 import functools
 from xml.etree import ElementTree as ET
 
 ElementTree = ET.ElementTree
+
+
+def valid_id(s):
+    return re.sub('\s+', '_', s).replace(',', '_')
 
 
 def _to_string(v, attrib=None):
@@ -10,9 +15,11 @@ def _to_string(v, attrib=None):
         return 'true'
     if v is False:
         return 'false'
+    if attrib in ['id', 'idref']:
+        return valid_id(v)
     # Serialize range attributes for plate tags:
     if isinstance(v, (list, tuple)) and attrib == 'range':
-        return ','.join('{0}'.format(vv) for vv in v)
+        return ','.join(valid_id('{0}'.format(vv)) for vv in v)
     return '{0}'.format(v)
 
 

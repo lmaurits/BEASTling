@@ -3,6 +3,7 @@ import collections
 from ..fileio.datareaders import load_data
 from beastling.util.fileio import iterlines
 from beastling.util import xml
+from beastling.util import log
 
 
 class BaseModel(object):
@@ -19,7 +20,6 @@ class BaseModel(object):
         """
         Parse configuration options, load data from file and pre-process data.
         """
-        self.messages = []
         self.config = global_config
 
         self.name = model_config["name"]
@@ -102,15 +102,11 @@ class BaseModel(object):
         elif self.reconstruct:
             fail_to_find = [f for f in self.reconstruct if f not in self.features]
             if fail_to_find:
-                self.messages.append(
-                    "[WARNING] Model {:s}:"
-                    " Features {:} not found, cannot be reconstructed.""".format(
-                        self.name, fail_to_find))
+                log.warning(
+                    "Features {:} not found, cannot be reconstructed.".format(fail_to_find),
+                    model=self)
             self.reconstruct = [f for f in self.reconstruct if f in self.features]
-            self.messages.append(
-                    "[INFO] Model \"{:s}\":"
-                    " Features {:} will be reconstructed.""".format(
-                        self.name, self.reconstruct))
+            log.info("Features {:} will be reconstructed.""".format(self.reconstruct), model=self)
             # Note: That is a lie. Features can still be filtered out by
             # subsequent decisions, eg. because they are constant.
         else:
@@ -144,11 +140,13 @@ class BaseModel(object):
             self.all_rates = self.features
         self.load_feature_rates()
         if self.rate_partition and not (self.feature_rates or self.rate_variation):
-            self.messages.append("""[WARNING] Model %s: Estimating rates for feature partitions because no fixed rates were provided, is this what you wnated?  Use rate_variation=True to make this implicit.""" % self.name)
+            log.warning("Estimating rates for feature partitions because no fixed rates "
+                        "were provided, is this what you wanted?  Use rate_variation=True to make "
+                        "this implicit.", model=self)
             self.rate_variation = True
         self.compute_weights()
         if self.pruned:
-            self.messages.append("""[DEPENDENCY] Model %s: Pruned trees are implemented in the BEAST package "BEASTlabs".""" % self.name)
+            log.dependency("Pruned trees", "BEASTlabs", model=self)
 
     def apply_language_filter(self):
         """
@@ -199,15 +197,15 @@ class BaseModel(object):
             self.feature_rates = res
 
             if not all((rate in self.feature_rates for rate in self.all_rates)):
-                self.messages.append(
-                    "[WARNING] Model \"%s\": Rate file %s does not contain rates for every "
+                log.warning(
+                    "Rate file %s does not contain rates for every "
                     "feature/partition.  Missing rates will default to 1.0, please check that "
-                    "this is okay." % (self.name, fname))
+                    "this is okay." % fname, model=self)
             if not self.feature_rates:
-                self.messages.append(
-                    "[WARNING] Model \"%s\": Could not find any valid feature or partition rates "
-                    "in the file %s, is this the correct file for this analysis?" % (
-                        self.name, fname))
+                log.warning(
+                    "Could not find any valid feature or partition rates "
+                    "in the file %s, is this the correct file for this analysis?" % fname,
+                    model=self)
                 return
             norm = sum(self.feature_rates.values()) / len(self.feature_rates.values())
             for f in self.feature_rates:
@@ -293,14 +291,18 @@ class BaseModel(object):
 
             # Exclude features with no data
             if self.valuecounts[f] == 0:
-                self.messages.append("""[INFO] Model "%s": Feature %s excluded because there are no datapoints for selected languages.""" % (self.name, f))
+                log.info(
+                    "Feature %s excluded because there are no datapoints for selected languages." % f,
+                    model=self)
                 bad_feats.append(f)
                 continue
 
             # Exclude features with lots of missing data
             missing_ratio = self.missing_ratios[f]
-            if int(100*(1.0-missing_ratio)) < self.minimum_data:
-                self.messages.append("""[INFO] Model "%s": Feature %s excluded because of excessive missing data (%d%%).""" % (self.name, f, int(missing_ratio*100)))
+            if int(100 * (1.0 - missing_ratio)) < self.minimum_data:
+                log.info(
+                    "Feature %s excluded because of excessive missing data (%d%%)." % (f, int(missing_ratio*100)),
+                    model=self)
                 bad_feats.append(f)
                 continue
 
@@ -308,7 +310,11 @@ class BaseModel(object):
             if self.valuecounts[f] == 1:
                 if self.remove_constant_features:
                     self.constant_feature_removed = True
-                    self.messages.append("""[INFO] Model "%s": Feature %s excluded because its value is constant across selected languages.  Set "remove_constant_features=False" in config to stop this.""" % (self.name, f))
+                    log.info(
+                        "Feature %s excluded because its value is constant across selected "
+                        "languages.  Set \"remove_constant_features=False\" in config to stop "
+                        "this." % f,
+                        model=self)
                     bad_feats.append(f)
                     continue
                 else:
@@ -324,9 +330,14 @@ class BaseModel(object):
         if not self.features:
             raise ValueError("No features specified for model %s!" % self.name)
         self.features.sort()
-        self.messages.append("""[INFO] Model "%s": Using %d features from data source %s""" % (self.name, len(self.features), self.data_filename))
+        log.info(
+            "Using %d features from data source %s" % (len(self.features), self.data_filename),
+            model=self)
         if self.constant_feature and self.rate_variation:
-            self.messages.append("""[WARNING] Model "%s": Rate variation enabled with constant features retained in data.  This *may* skew rate estimates for non-constant features.""" % self.name)
+            log.warning(
+                "Rate variation enabled with constant features retained in data. "
+                "This *may* skew rate estimates for non-constant features.",
+                model=self)
 
     def compute_weights(self):
         self.weights = []
@@ -492,7 +503,7 @@ class BaseModel(object):
         dataset.
         """
         for n, f in enumerate(self.features):
-            fname = "%s:%s" % (self.name, f)
+            fname = "%s:%s" % (self.name, xml.valid_id(f))
             attribs = {"id": "featureLikelihood:%s" % fname,
                        "spec": "TreeLikelihood",
                        "useAmbiguities": "true"}
@@ -686,7 +697,7 @@ class BaseModel(object):
         Add entires to the logfile corresponding to individual feature
         substition rates if rate variation is configured.
         """
-        if self.config.log_fine_probs:
+        if self.config.admin.log_fine_probs:
             if not self.single_sitemodel:
                 plate = xml.plate(logger, var="feature", range=self.features)
                 xml.log(plate, idref="featureLikelihood:%s:$(feature)" % self.name)

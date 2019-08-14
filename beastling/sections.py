@@ -7,23 +7,41 @@ import functools
 import attr
 
 from beastling.util.misc import sanitise_tree
+from beastling.util import log
 
-__all__ = ['Admin']
+__all__ = ['Admin', 'MCMC', 'Languages']
 
+_BEAST_MAX_LENGTH = 2147483647
 
 ConfigValue = collections.namedtuple('ConfigValue', ['value', 'fname'])
 
 
+def _to_cfg(v):
+    if isinstance(v, (list, set, tuple)):
+        return '\n'.join(str(vv) for vv in v)
+    return str(v)
+
+
 @attr.s
 class Section(object):
-    name = attr.ib()
-    cli_params = attr.ib(default=attr.Factory(dict))
+    name = attr.ib()  # We keep the section name ...
+    cli_params = attr.ib(default=attr.Factory(dict))  # ... and the parameters passed on the cli.
+    # We also need to keep track of all the data loaded from extra files:
     files_to_embed = attr.ib(default=attr.Factory(set))
 
     @classmethod
     def from_config(cls, cli_params, section, cfg):
+        """
+        Initialize a Section object from a ConfigParser section.
+
+        :param cli_params: `dict` of parameters passed on the command line
+        :param section: The name of the section.
+        :param cfg: The `ConfigParser` instance.
+        :return: Initialized `cls` instance.
+        """
         kw, files_to_embed = {}, set()
-        for field in attr.fields(cls):
+        fields = attr.fields(cls)
+        for field in fields:
             if field.name not in ['name', 'cli_params', 'files_to_embed']:
                 opt = field.name
                 if opt.endswith('_'):
@@ -36,15 +54,46 @@ class Section(object):
                         files_to_embed.add(res.fname)
                     else:
                         kw[field.name] = res
+                    # Update the ConfigParser because we use this object to embed the config in
+                    # a BEAST XML comment:
+                    cfg[section][opt] = field.metadata.get('setter', _to_cfg)(kw[field.name])
+        if section in cfg:
+            opts = [f.name[:-1] if f.name.endswith('_') else f.name for f in fields]
+            for opt in cfg[section]:
+                if opt not in opts:
+                    raise ValueError("Unrecognised option %s in section %s!" % (opt, section))
         return cls(name=section, cli_params=cli_params, files_to_embed=files_to_embed, **kw)
 
 
-def opt(default, help, getter=ConfigParser.get, **kw):
-    return attr.ib(default, metadata=dict(help=help, getter=getter), **kw)
+def opt(default, help, getter=ConfigParser.get, setter=_to_cfg, **kw):
+    """
+    Wrap `attr.ib` to add syntactic sugar for creation of `metadata`.
+
+    :param default: default value for the attribute
+    :param help: help string, documenting the usage of the attribute
+    :param getter: callable to use to extract a value from a `ConfigParser` instance
+    :param kw: additional keyword arguments to pass into `attr.ib`
+    :return: an attribute instance
+    """
+    return attr.ib(default, metadata=dict(help=help, getter=getter, setter=setter), **kw)
 
 
 def get_file_or_list(cfg, section, option):
-    value = cfg.get(section, option)
+    """
+    Retrieves a list-valued config option from a string or a file.
+
+    :param cfg: `ConfigParser` instance
+    :param section: section name
+    :param option: option name
+    :return: `list`of values for the option
+    """
+    return handle_file_or_list(cfg.get(section, option))
+
+
+def handle_file_or_list(value):
+    """
+    Provides the functionality formerly available as `Configuration.handle_file_or_list`.
+    """
     if not isinstance(value, (list, tuple, set)):
         fname = pathlib.Path(value)
         if fname.exists():
@@ -56,33 +105,29 @@ def get_file_or_list(cfg, section, option):
 
 
 def get_tree(tree_type, cfg, section, option):
-    """Load a tree from file or parse a string, and simplify.
+    """Load a tree from file or parse a string.
 
-    If the provided value is the name of an existing file, read
-    the contents and treat it as a Newick tree
-    specification. Otherwise, assume the provided value is a
-    Newick tree specification.
+    If the provided value is the name of an existing file, read the contents and treat it as a
+    Newick tree specification. Otherwise, assume the provided value is a Newick tree specification.
 
-    Trees consisting of only one leaf are considered errors,
-    because they are never useful and can easily arise when a
-    non-existing file name is parsed as tree, leading to confusing
-    error messages down the line.
+    Trees consisting of only one leaf are considered errors, because they are never useful and can
+    easily arise when a non-existing file name is parsed as tree, leading to confusing error
+    messages down the line.
 
-    In either case, inspect the tree and make appropriate minor
-    changes so it is suitable for inclusion in the BEAST XML file.
+    In either case, inspect the tree and make appropriate minor changes so it is suitable for
+    inclusion in the BEAST XML file.
     """
     value = cfg.get(section, option)
     assert tree_type in ("starting", "monophyly")
     # Read from file if necessary
     fname = pathlib.Path(value)
-    if fname.exists():
+    if fname.exists() and fname.is_file():
         value = fname.read_text(encoding='utf8').strip()
     if value:
         if ")" in value:
             return value
-        # A tree with only one node (which is the only Newick
-        # string without bracket) is not a useful tree
-        # specification.
+        # A tree with only one node (which is the only Newick string without bracket) is not a
+        # useful tree specification.
         raise ValueError(
             "Tree specification {:} is neither an existing file nor does it look "
             "like a useful tree.".format(value))
@@ -149,11 +194,16 @@ class Admin(Section):
     def __attrs_post_init__(self):
         if self.log_all:
             self.log_trees = self.log_params = self.log_probabilities = self.log_fine_probs = True
+        if self.log_fine_probs:
+            self.log_probabilities = True
 
     @property
     def basename(self):
         return '{0}_prior'.format(self.basename_) \
             if self.cli_params.get('prior') else self.basename_
+
+    def path(self, suffix):
+        return pathlib.Path(self.basename + suffix)
 
 
 @attr.s
@@ -195,6 +245,15 @@ class MCMC(Section):
         "Number of steps between prior and posterior in path sampling analysis.",
         getter=ConfigParser.getint)
 
+    def __attrs_post_init__(self):
+        if self.chainlength > _BEAST_MAX_LENGTH:
+            self.chainlength = _BEAST_MAX_LENGTH
+            log.info("Chain length truncated to {0}, as BEAST cannot handle longer chains.".format(
+                _BEAST_MAX_LENGTH))
+        if bool(self.cli_params.get('prior')) and self.path_sampling:
+            raise ValueError("Cannot sample from the prior during a path sampling analysis.")
+        self.sample_from_prior = bool(self.cli_params.get('prior')) or self.sample_from_prior
+
 
 @attr.s
 class Languages(Section):
@@ -218,6 +277,8 @@ class Languages(Section):
         "union",
         "Either the string 'union' or the string 'intersection', controlling how to handle "
         "multiple datasets with non-equal language sets.",
+        validator=attr.validators.in_(['union', 'intersection']),
+        converter=lambda s: s.lower(),
     )
     starting_tree = opt(
         None,
@@ -270,17 +331,29 @@ class Languages(Section):
         "top_down",
         "Either the string 'top_down' or 'bottom_up', controlling whether 'monophyly_levels' "
         "counts from roots (families) or leaves (languages) of the Glottolog classification.",
+        validator=attr.validators.in_(['top_down', 'bottom_up']),
         converter=lambda s: s.lower())
     tree_prior = opt(
         "yule",
-        "Tree prior. Can be overridden by calibrations.")
+        "Tree prior. Can be overridden by calibrations.",
+        validator=attr.validators.in_(['yule', 'coalescent', 'birthdeath', 'uniform']),
+        converter=lambda s: s.lower())
 
     def __attrs_post_init__(self):
-        # Now that languages are loaded, we can sanitise the trees:
+        self.exclusions = set(self.exclusions)
+        # ... and honor backwards-compat hacks:
+        if self.monophyletic is not None:
+            self.monophyly = self.monophyletic
+
+    def sanitise_trees(self):
+        """
+        The list of languages in the analysis may also be derived from language specifications of
+        models. Thus, proper pruning and sanitising of trees can only happen after models have been
+        loaded. Once this is done, this method must be called.
+        """
         if self.starting_tree:
             self.starting_tree = sanitise_tree(self.starting_tree, 'starting', self.languages)
         if self.monophyly_newick:
             self.monophyly_newick = sanitise_tree(
                 self.monophyly_newick, 'monophyly', self.languages)
-        if self.monophyletic is not None:
-            self.monophyly = self.monophyletic
+            self.monophyly = True

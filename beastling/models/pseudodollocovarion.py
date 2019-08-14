@@ -1,14 +1,13 @@
 from .binary import BinaryModelWithShareParams as BinaryModel
 from beastling.util import xml
+from beastling.util import log
 
 
 class PseudoDolloCovarionModel(BinaryModel):
     def __init__(self, model_config, global_config):
         BinaryModel.__init__(self, model_config, global_config)
         self.subst_model_id = None
-        self.messages.append(
-            """[DEPENDENCY] Model %s: Pseudo-Dollo Covarion is implemented in"""
-            """ the BEAST package "Babel".""" % self.name)
+        log.dependency("Pseudo-Dollo Covarion", "Babel", model=self)
 
     def add_state(self, state):
         BinaryModel.add_state(self, state)
@@ -229,7 +228,7 @@ class PseudoDolloCovarionModel(BinaryModel):
             xml.log(logger, idref="%s:pdcovarion_s.s" % fname)
             xml.log(logger, idref="%s:pdcovarion_origin.s" % fname)
             xml.log(logger, idref="%s:pdcovarion_death.s" % fname)
-            if self.config.log_fine_probs:
+            if self.config.admin.log_fine_probs:
                 xml.log(logger, idref="%s:pdcovarion_s_prior.s" % fname)
                 xml.log(logger, idref="%s:pdcovarion_origin_prior.s" % fname)
                 xml.log(logger, idref="%s:pdcovarion_death_prior.s" % fname)

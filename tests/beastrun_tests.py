@@ -22,6 +22,7 @@ skip = [
 ]
 
 
+@pytest.mark.beast
 @pytest.mark.parametrize(
     'configs,assertion',
     [

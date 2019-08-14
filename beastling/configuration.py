@@ -8,10 +8,10 @@ import re
 import sys
 from urllib.request import FancyURLopener
 from pathlib import Path
+from configparser import ConfigParser
 
 import newick
 from appdirs import user_data_dir
-from clldutils.inifile import INI
 from csvw.dsv import reader
 
 from beastling.fileio.datareaders import load_location_data
@@ -27,6 +27,9 @@ import beastling.models.bsvs as bsvs
 import beastling.models.covarion as covarion
 import beastling.models.pseudodollocovarion as pseudodollocovarion
 import beastling.models.mk as mk
+
+from beastling import sections
+from beastling.util import log
 
 import beastling.treepriors.base as treepriors
 from beastling.treepriors.coalescent import CoalescentTree
@@ -93,98 +96,28 @@ class Configuration(object):
         file has been provided, override the default values for those options
         set in the file.
         """
+        cli_params = {k: v for k, v in locals().items()}
 
         # Options set by the user, with default values
-        self.alpha = 0.3
-        """Alpha parameter for path sampling intervals."""
-        self.basename = basename+"_prior" if prior else basename
-        """This will be used as a common prefix for output filenames (e.g. the log will be called basename.log)."""
         self.calibration_configs = {}
         """A dictionary whose keys are glottocodes or lowercase Glottolog clade names, and whose values are length-2 tuples of flatoing point dates (lower and upper bounds of 95% credible interval)."""
-        self.chainlength = 10000000
-        """Number of iterations to run the Markov chain for."""
         self.clock_configs = []
         """A list of dictionaries, each of which specifies the configuration for a single clock model."""
-        self.do_not_run = False
-        """A boolean value, controlling whether or not BEAST should run path sampling analyses or just generate the file and scripts to do so."""
-        self.embed_data = False
-        """A list of languages to exclude from the analysis, or a name of a file containing such a list."""
-        self.exclusions = ""
-        """A boolean value, controlling whether or not to embed data files in the XML."""
-        self.families = []
-        """List of families to filter down to, or name of a file containing such a list."""
+
         self.geo_config = {}
         """A dictionary with keys and values corresponding to a [geography] section in a configuration file."""
-        self.glottolog_release = '4.0'
-        """A string representing a Glottolog release number."""
-        self.languages = []
-        """List of languages to filter down to, or name of a file containing such a list."""
         self.language_group_configs = collections.OrderedDict()
         """An ordered dictionary whose keys are language group names and whose values are language group definitions."""
         self.language_groups = {}
         """A dictionary giving names to arbitrary collections of tip languages."""
         self.location_data = None
         """Name of a file containing latitude/longitude data."""
-        self._log_all = False
-        """A boolean value, setting this True is a shortcut for setting log_params, log_probabilities, log_fine_probs and log_trees True."""
-        self.log_burnin = 50
-        """Proportion of logs to discard as burnin when calculating marginal likelihood from path sampling."""
-        self.log_dp = 4
-        """An integer value, setting the number of decimal points to use when logging rates, locations, etc.  Defaults to 4.  Use -1 to enable full precision."""
-        self.log_every = 0
-        """An integer indicating how many MCMC iterations should occurr between consecutive log entries."""
-        self.log_params = False
-        """A boolean value, controlling whether or not to log model parameters."""
-        self.log_probabilities = True
-        """A boolean value, controlling whether or not to log the prior, likelihood and posterior of the analysis."""
-        self.log_fine_probs = False
-        """A boolean value, controlling whether or not to log individual components of the prior and likelihood.  Setting this True automatically sets log_probabilities True."""
-        self.log_trees = True
-        """A boolean value, controlling whether or not to log the sampled trees."""
-        self.log_pure_tree = False
-        """A boolean value, controlling whether or not to log a separate file of the sampled trees with no metadata included."""
-        self.macroareas = []
         """A floating point value, indicated the percentage of datapoints, across ALL models, which a language must have in order to be included in the analysis."""
         self.minimum_data = 0.0
-        """List of Glottolog macro-areas to filter down to, or name of a file containing such a list."""
         self.model_configs = []
         """A list of dictionaries, each of which specifies the configuration for a single evolutionary model."""
-        self.monophyly = False
-        """A boolean parameter, controlling whether or not to enforce monophyly constraints derived from Glottolog's classification."""
-        self.monophyly_start_depth = 0
-        """Integer; Starting depth in the Glottlog classification hierarchy for monophyly constraints"""
-        self.monophyly_end_depth = None
-        """Integer; Ending depth in the Glottlog classification hierarchy for monophyly constraints"""
-        self.monophyly_levels = sys.maxsize
-        """Integer; Number of levels of the Glottolog classification to include in monophyly constraints."""
-        self.monophyly_direction = "top_down"
-        """Either the string 'top_down' or 'bottom_up', controlling whether 'monophyly_levels' counts from roots (families) or leaves (languages) of the Glottolog classification."""
-        self.monophyly_newick = None
-        """Either a Newick tree string or the name of a file containing a Newick tree string which represents the desired monophyly constraints if a classification other than Glottolog is required."""
-        self.overlap = "union"
-        """Either the string 'union' or the string 'intersection', controlling how to handle multiple datasets with non-equal language sets."""
-        self.path_sampling = False
-        """A boolean value, controlling whether to do a standard MCMC run or a Path Sampling analysis for marginal likelihood estimation."""
-        self.preburnin = 10
-        """Percentage of chainlength to discard as burnin for the first step in a path sampling analysis."""
-        self.sample_branch_lengths = True
-        """A boolean value, controlling whether or not to estimate tree branch lengths."""
-        self.sample_from_prior = False
-        """Boolean parameter; if True, data is ignored and the MCMC chain will sample from the prior."""
-        self.sample_topology = True
-        """A boolean value, controlling whether or not to estimate tree topology."""
-        self.screenlog = True
-        """A boolean parameter, controlling whether or not to log some basic output to stdout."""
-        self.starting_tree = ""
-        """A starting tree in Newick format, or the name of a file containing the same."""
-        self.steps = 8
-        """Number of steps between prior and posterior in path sampling analysis."""
         self.stdin_data = stdin_data
         """A boolean value, controlling whether or not to read data from stdin as opposed to the file given in the config."""
-        self.subsample_size = 0
-        """Number of languages to subsample from the set defined by the dataset(s) and other filtering options like "families" or "macroareas"."""
-        self.tree_prior = "yule"
-        """Tree prior. Can be overridden by calibrations."""
 
         # Glottolog data
         self.glottolog_loaded = False
@@ -198,131 +131,47 @@ class Configuration(object):
 
         # Stuff we compute ourselves
         self.processed = False
-        self.configfile = None
-        self.files_to_embed = []
-        self.messages = []
-        self.urgent_messages = []
-        self.message_flags = []
+        self._files_to_embed = []
 
+        self.cfg = ConfigParser(interpolation=None)
+        self.cfg.optionxform = str
         if configfile:
-            self.read_from_file(configfile)
+            if isinstance(configfile, dict):
+                self.cfg.read_dict(configfile)
+            else:
+                if isinstance(configfile, str):
+                    configfile = (configfile,)
+                self.cfg.read([str(c) for c in configfile])
+        self.read_cfg()
+        self.admin = sections.Admin.from_config(cli_params, 'admin', self.cfg)
+        self.mcmc = sections.MCMC.from_config(
+            cli_params, 'mcmc' if self.cfg.has_section('mcmc') else 'MCMC', self.cfg)
+        self.languages = sections.Languages.from_config(cli_params, 'languages', self.cfg)
 
-    @property
-    def log_all(self):
-        return self._log_all
+        # If log_every was not explicitly set to some non-zero
+        # value, then set it such that we expect 10,000 log
+        # entries
+        if not self.admin.log_every:
+            # If chainlength < 10000, this results in log_every = zero.
+            # This causes BEAST to die.
+            # So in this case, just log everything.
+            self.admin.log_every = self.mcmc.chainlength // 10000 or 1
 
-    @log_all.setter
-    def log_all(self, log_all):
-        self._log_all = log_all
-        if log_all:
-            self.log_trees = True
-            self.log_params = True
-            self.log_probabilities = True
-            self.log_fine_probs = True
+        sampled_points = self.geo_config.get("sampling_points",[])
+        if [p for p in sampled_points if p.lower() != "root"] and self.languages.sample_topology and not self.languages.monophyly:
+            log.warning(
+                "Geographic sampling and/or prior specified for clades other than root, but tree "
+                "topology is being sampled without monophyly constraints. BEAST may crash.")
 
-    def read_from_file(self, configfile):
+    def read_cfg(self):
         """
         Read one or several INI-style configuration files and overwrite
         default option settings accordingly.
         """
-        self.configfile = INI(interpolation=None)
-        self.configfile.optionxform = str
-        if isinstance(configfile, dict):
-            self.configfile.read_dict(configfile)
-        else:
-            if isinstance(configfile, str):
-                configfile = (configfile,)
-            for conf in configfile:
-                self.configfile.read(conf)
-        p = self.configfile
-
-        # Set some logging options according to log_all
-        # Note that these can still be overridden later
-        self.log_all = p.get("admin", "log_all", fallback=False)
-
-        for sec, getters in {
-            'admin': {
-                'basename': p.get,
-                'embed_data': p.getboolean,
-                'screenlog': p.getboolean,
-                'log_all': p.getboolean,
-                'log_dp': p.getint,
-                'log_every': p.getint,
-                'log_probabilities': p.getboolean,
-                'log_fine_probs': p.getboolean,
-                'log_params': p.getboolean,
-                'log_trees': p.getboolean,
-                'log_pure_tree': p.getboolean,
-                'glottolog_release': p.get,
-            },
-            'MCMC': {
-                'alpha': p.getfloat,
-                'chainlength': p.getint,
-                'do_not_run': p.getboolean,
-                'log_burnin': p.getint,
-                'path_sampling': p.getboolean,
-                'preburnin': p.getint,
-                'sample_from_prior': p.getboolean,
-                'steps': p.getint,
-            },
-            'languages': {
-                'exclusions': p.get,
-                'languages': p.get,
-                'families': p.get,
-                'macroareas': p.get,
-                'overlap': p.get,
-                'starting_tree': p.get,
-                'sample_branch_lengths': p.getboolean,
-                'sample_topology': p.getboolean,
-                'subsample_size': p.getint,
-                'monophyly': p.getboolean,
-                'monophyletic': p.getboolean,
-                'monophyly_start_depth': p.getint,
-                'monophyly_end_depth': p.getint,
-                'monophyly_levels': p.getint,
-                'monophyly_newick': p.get,
-                'monophyly_direction': lambda s, o: p.get(s, o).lower(),
-                'tree_prior': p.get,
-            },
-        }.items():
-            if p.has_section(sec):
-                for opt, val in p.items(sec):
-                    try:
-                        setattr(self, opt, getters[opt](sec, opt))
-                    except KeyError:
-                        raise ValueError("Unrecognised option %s in section %s!" % (opt, sec))
-
-        # Handle some logical implications
-        if self.log_fine_probs:
-            self.log_probabilities = True
-
-        ## MCMC
-        self.sample_from_prior |= self.prior
-        if self.prior and self.path_sampling:
-            raise ValueError(
-                "Cannot sample from the prior during a path sampling analysis."
-            )
-        if self.prior and not self.basename.endswith("_prior"):
-            self.basename += "_prior"
+        p = self.cfg
 
         ## Languages
         sec = "languages"
-        if self.overlap.lower() not in ("union", "intersection"):  # pragma: no cover
-            raise ValueError(
-                "Value for overlap needs to be either 'union', or 'intersection'."
-            )
-        if p.has_option(sec, "monophyletic"):
-            self.monophyly = p.getboolean(sec, "monophyletic")
-        elif p.has_option(sec, "monophyly"):
-            self.monophyly = p.getboolean(sec, "monophyly")
-        if p.has_option(sec, "monophyly_newick"):
-            value = p.get(sec, "monophyly_newick")
-            if os.path.exists(value):
-                with io.open(value, encoding="UTF-8") as fp:
-                    self.monophyly_newick = fp.read()
-            else:
-                self.monophyly_newick = value
-            self.monophyly = True
         if p.has_option(sec,'minimum_data'):
             self.minimum_data = p.getfloat(sec, "minimum_data")
 
@@ -363,10 +212,6 @@ class Configuration(object):
                     if clade not in self.geo_config["sampling_points"]:
                         self.geo_config["sampling_points"].append(clade)
                     self.geo_config["geo_priors"][clade] = klm
-        sampled_points = self.geo_config.get("sampling_points",[])
-        if [p for p in sampled_points if p.lower() != "root"] and self.sample_topology and not self.monophyly:
-            self.messages.append("[WARNING] Geographic sampling and/or prior specified for clades other than root, but tree topology is being sampled without monophyly constraints.  BEAST may crash.")
-
         # Make sure analysis is non-empty
         if not model_sections and not self.geo_config:
             raise ValueError("Config file contains no model sections and no geography section.")
@@ -451,23 +296,10 @@ class Configuration(object):
         """
 
         # Add dependency notices if required
-        if self.monophyly and not self.starting_tree:
-            self.messages.append("[DEPENDENCY] ConstrainedRandomTree is implemented in the BEAST package BEASTLabs.")
-        if self.path_sampling:
-            self.messages.append("[DEPENDENCY] Path sampling is implemented in the BEAST package MODEL_SELECTION.")
-
-        # BEAST can't handle really long chains
-        if self.chainlength > _BEAST_MAX_LENGTH:
-            self.chainlength = _BEAST_MAX_LENGTH
-            self.messages.append("[INFO] Chain length truncated to %d, as BEAST cannot handle longer chains." % self.chainlength)
-        # If log_every was not explicitly set to some non-zero
-        # value, then set it such that we expect 10,000 log
-        # entries
-        if not self.log_every:
-            # If chainlength < 10000, this results in log_every = zero.
-            # This causes BEAST to die.
-            # So in this case, just log everything.
-            self.log_every = self.chainlength // 10000 or 1
+        if self.languages.monophyly and not self.languages.starting_tree:
+            log.dependency("ConstrainedRandomTree", "BEASTLabs")
+        if self.mcmc.path_sampling:
+            log.dependency("Path sampling", "MODEL_SELECTION")
 
         self.load_glottolog_data()
         self.load_user_geo()
@@ -480,7 +312,7 @@ class Configuration(object):
         self.instantiate_calibrations()
         # At this point, we can tell whether or not the tree's length units
         # can be treated as arbitrary
-        self.arbitrary_tree = self.sample_branch_lengths and not self.calibrations
+        self.arbitrary_tree = self.languages.sample_branch_lengths and not self.calibrations
 
         # We also know what kind of tree prior we need to have –
         # instantiate_calibrations may have changed the type if tip
@@ -490,7 +322,7 @@ class Configuration(object):
             "yule": treepriors.YuleTree,
             "birthdeath": treepriors.BirthDeathTree,
             "coalescent": CoalescentTree
-        }[self.tree_prior.lower()]()
+        }[self.languages.tree_prior]()
 
         # Now we can set the value of the ascertained attribute of each model
         # Ideally this would happen during process_models, but this is impossible
@@ -500,19 +332,19 @@ class Configuration(object):
             m.set_ascertained()
         self.instantiate_clocks()
         self.link_clocks_to_models()
-        self.starting_tree = self.handle_user_supplied_tree(self.starting_tree, "starting")
         self.processed = True
 
         # Decide whether or not to log trees
         if (
-            self.starting_tree and
-            not self.sample_topology and
-            not self.sample_branch_lengths and
+            self.languages.starting_tree and
+            not self.languages.sample_topology and
+            not self.languages.sample_branch_lengths and
             all([c.is_strict for c in self.clocks if c.is_used])
         ):
             self.tree_logging_pointless = True
-            self.messages.append(
-                "[INFO] Tree logging disabled because starting tree is known and fixed and all clocks are strict.")
+            log.info(
+                "Tree logging disabled because starting tree is known and fixed and all clocks "
+                "are strict.")
         else:
             self.tree_logging_pointless = False
 
@@ -528,8 +360,8 @@ class Configuration(object):
         such that language groups can be specified using external sources.
 
         """
-        self.language_groups = {language: {language} for language in self.languages}
-        self.language_groups["root"] = set(self.languages)
+        self.language_groups = {language: {language} for language in self.languages.languages}
+        self.language_groups["root"] = set(self.languages.languages)
 
         for name, specification in self.language_group_configs.items():
             taxa = set()
@@ -574,7 +406,7 @@ class Configuration(object):
             return list(reversed(res))
 
         # Walk the tree and build the classifications dictionary
-        glottolog_trees = newick.read(get_glottolog_data('newick', self.glottolog_release))
+        glottolog_trees = newick.read(get_glottolog_data('newick', self.admin.glottolog_release))
         for tree in glottolog_trees:
             for node in tree.walk():
                 name, glottocode, isocode = parse_label(node.name)
@@ -586,7 +418,7 @@ class Configuration(object):
 
         # Load geographic metadata
         for t in reader(
-                get_glottolog_data('geo', self.glottolog_release), namedtuples=True):
+                get_glottolog_data('geo', self.admin.glottolog_release), namedtuples=True):
             if t.macroarea:
                 self.glotto_macroareas[t.glottocode] = t.macroarea
                 for isocode in t.isocodes.split():
@@ -601,7 +433,7 @@ class Configuration(object):
         # Second pass of geographic data to handle dialects, which inherit
         # their parent language's location
         for t in reader(
-                get_glottolog_data('geo', self.glottolog_release), namedtuples=True):
+                get_glottolog_data('geo', self.admin.glottolog_release), namedtuples=True):
             if t.level == "dialect":
                 failed = False
                 if node not in glottocode2node:
@@ -627,11 +459,11 @@ class Configuration(object):
         # We need Glottolog if...
         return (
             # ...we've been given a list of families
-            self.families
+            self.languages.families
             # ...we've been given a list of macroareas
-            or self.macroareas
+            or self.languages.macroareas
             # ...we're using monophyly constraints
-            or self.monophyly
+            or self.languages.monophyly
             # ...we're using calibrations (well, sometimes)
             or self.calibration_configs
             # ...we're using geography
@@ -651,8 +483,8 @@ class Configuration(object):
 
     def build_language_filter(self):
         """
-        Examines the values of various options, including self.languages and
-        self.families, and constructs self.lang_filter.
+        Examines the values of various options, including self.languages.languages and
+        self.languages.families, and constructs self.lang_filter.
 
         self.lang_filter is a Set object containing all ISO and glotto codes
         which are compatible with the provided settings (e.g. belong to the
@@ -661,13 +493,9 @@ class Configuration(object):
         in an analysis.
         """
         # Load requirements
-        self.languages = self.handle_file_or_list(self.languages)
-        if len(self.families) == 1:
-            self.messages.append("""[WARNING] value of 'families' has length 1: have you misspelled a filename?""")
-        self.families = self.handle_file_or_list(self.families)
+        if len(self.languages.families) == 1:
+            log.warning("value of 'families' has length 1: have you misspelled a filename?")
 
-        self.exclusions = set(self.handle_file_or_list(self.exclusions))
-        self.macroareas = self.handle_file_or_list(self.macroareas)
         # Enforce minimum data constraint
         all_langs = set(itertools.chain(*[model.data.keys() for model in self.models]))
         N = sum([max([len(lang.keys()) for lang in model.data.values()]) for model in self.models])
@@ -679,26 +507,30 @@ class Configuration(object):
             datapoint_props[lang] = 1.0*count / N
         self.sparse_languages = [l for l in all_langs if datapoint_props[l] < self.minimum_data]
 
+    @property
+    def files_to_embed(self):
+        res = set(fname for fname in self._files_to_embed)
+        for section in [self.admin, self.mcmc, self.languages]:
+            res = res.union(section.files_to_embed)
+        return res
+
     def handle_file_or_list(self, value):
-        if not (isinstance(value, list) or isinstance(value, set)):
-            if os.path.exists(value):
-                with io.open(value, encoding="UTF-8") as fp:
-                    result = [x.strip() for x in fp.readlines()]
-                self.files_to_embed.append(value)
-            else:
-                result = [x.strip() for x in value.split(",")]
-        else:
-            result = value
-        return result
+        res = sections.handle_file_or_list(value)
+        if isinstance(res, sections.ConfigValue):
+            self._files_to_embed.append(res.fname)
+            res = res.value
+        return res
 
     def filter_language(self, l):
-        if self.languages and l not in self.languages:
+        if self.languages.languages and l not in self.languages.languages:
             return False
-        if self.families and not any([name in self.families or glottocode in self.families for (name, glottocode) in self.classifications.get(l,[])]):
+        if self.languages.families and not any(
+                name in self.languages.families or glottocode in self.languages.families
+                for (name, glottocode) in self.classifications.get(l,[])):
             return False
-        if self.macroareas and self.glotto_macroareas.get(l,None) not in self.macroareas:
+        if self.languages.macroareas and self.glotto_macroareas.get(l,None) not in self.languages.macroareas:
             return False
-        if self.exclusions and l in self.exclusions:
+        if self.languages.exclusions and l in self.languages.exclusions:
             return False
         if l in self.sparse_languages:
             return False
@@ -707,57 +539,58 @@ class Configuration(object):
     def handle_monophyly(self):
         """
         Construct a representation of the Glottolog monophyly constraints
-        for the languages in self.languages.  If the constraints are
+        for the languages in self.languages.languages.  If the constraints are
         meaningful, create and store a Newick tree representation of
         them.  If the constraints are not meaningful, e.g. all
         languages are classified identically by Glottolog, then override
         the monophyly=True setting.
         """
-        if not self.monophyly:
+        if not self.languages.monophyly:
             return
-        if len(self.languages) < 3:
+        if len(self.languages.languages) < 3:
             # Monophyly constraints are meaningless for so few languages
-            self.monophyly = False
-            self.messages.append("""[INFO] Disabling Glottolog monophyly constraints because there are only %d languages in analysis.""" % len(self.languages))
-            return
-        if self.monophyly_newick:
-            # The user has provided a tree, so no need to build our own
-            self.monophyly_newick = self.handle_user_supplied_tree(self.monophyly_newick, "monophyly")
+            self.languages.monophyly = False
+            log.info(
+                "Disabling Glottolog monophyly constraints because there are only %d languages in "
+                "analysis." % len(self.languages.languages))
             return
         # Build a list-based representation of the Glottolog monophyly constraints
         # This can be done in either a "top-down" or "bottom-up" way.
-        langs = [l for l in self.languages if l.lower() in self.classifications]
-        if len(langs) != len(self.languages):
+        langs = [l for l in self.languages.languages if l.lower() in self.classifications]
+        if len(langs) != len(self.languages.languages):
             # Warn the user that some taxa aren't in Glottolog and hence will be
             # forced into an outgroup.
-            missing_langs = [l for l in self.languages if l not in langs]
+            missing_langs = [l for l in self.languages.languages if l not in langs]
             missing_langs.sort()
             missing_str = ",".join(missing_langs[0:3])
             missing_count = len(missing_langs)
             if missing_count > 3:
                 missing_str += ",..."
-            self.messages.append("""[WARNING] %d languages could not be found in Glottolog (%s).  Monophyly constraints will force them into an outgroup.""" %
-                    (missing_count, missing_str))
-        if self.monophyly_end_depth is not None:
+            log.warning(
+                "%d languages could not be found in Glottolog (%s). Monophyly constraints will "
+                "force them into an outgroup." % (missing_count, missing_str))
+        if self.languages.monophyly_end_depth is not None:
             # A power user has explicitly provided start and end depths
-            start = self.monophyly_start_depth
-            end = self.monophyly_end_depth
-        elif self.monophyly_direction == "top_down":
+            start = self.languages.monophyly_start_depth
+            end = self.languages.monophyly_end_depth
+        elif self.languages.monophyly_direction == "top_down":
             # Compute start and end in a top-down fashion
-            start = self.monophyly_start_depth
-            end = start + self.monophyly_levels
-        elif self.monophyly_direction == "bottom_up":
+            start = self.languages.monophyly_start_depth
+            end = start + self.languages.monophyly_levels
+        elif self.languages.monophyly_direction == "bottom_up":
             # Compute start and end in a bottom-up fashion
             classifications = [self.classifications[name.lower()] for name in langs]
-            end = max([len(c) for c in classifications]) - self.monophyly_start_depth
-            start = max(0, end - self.monophyly_levels)
+            end = max([len(c) for c in classifications]) - self.languages.monophyly_start_depth
+            start = max(0, end - self.languages.monophyly_levels)
         struct = self.make_monophyly_structure(langs, depth=start, maxdepth=end)
         # Make sure this struct is not pointlessly flat
         if not self.check_monophyly_structure(struct):
-            self.monophyly = False
-            self.messages.append("""[INFO] Disabling Glottolog monophyly constraints because all languages in the analysis are classified identically.""")
+            self.languages.monophyly = False
+            log.info(
+                "Disabling Glottolog monophyly constraints because all languages in the analysis "
+                "are classified identically.")
         # At this point everything looks good, so keep monophyly on and serialise the "monophyly structure" into a Newick tree.
-        self.monophyly_newick = self.make_monophyly_string(struct)
+        self.languages.monophyly_newick = self.make_monophyly_string(struct)
 
     def make_monophyly_structure(self, langs, depth, maxdepth):
         """
@@ -906,9 +739,7 @@ class Configuration(object):
             # Instantiate model
             if config["model"].lower() == "bsvs":
                 model = bsvs.BSVSModel(config, self)
-                if "bsvs_used" not in self.message_flags:
-                    self.message_flags.append("bsvs_used")
-                    self.messages.append(bsvs.BSVSModel.package_notice)
+                log.dependency(*bsvs.BSVSModel.package_notice)
             elif config["model"].lower() == "covarion":
                 model = covarion.CovarionModel(config, self)
             elif config["model"].lower() == "binaryctmc":
@@ -918,14 +749,9 @@ class Configuration(object):
                     config, self)
             elif config["model"].lower() == "mk":
                 model = mk.MKModel(config, self)
-                if "mk_used" not in self.message_flags:
-                    self.message_flags.append("mk_used")
-                    self.messages.append(mk.MKModel.package_notice)
+                log.dependency(*mk.MKModel.package_notice)
             elif config["model"].lower() == "dollo": # pragma: no cover
                 raise NotImplementedError("The stochastic Dollo model is not implemented yet.")
-                model = dollo.StochasticDolloModel(config, self)
-                if dollo.StochasticDolloModel.package_notice not in self.messages:
-                    self.messages.append(dollo.StochasticDolloModel.package_notice)
             else:
                 try:
                     sys.path.insert(0, os.getcwd())
@@ -940,7 +766,6 @@ class Configuration(object):
             
         if self.geo_config:
             self.geo_model = geo.GeoModel(self.geo_config, self)
-            self.messages.extend(self.geo_model.messages)
             self.all_models = [self.geo_model] + self.models
         else:
             self.all_models = self.models
@@ -948,7 +773,6 @@ class Configuration(object):
     def process_models(self):
         for model in self.models:
             model.process()
-            self.messages.extend(model.messages)
 
     def link_clocks_to_models(self):
         """
@@ -974,12 +798,18 @@ class Configuration(object):
         for model in self.models:
             if model.pruned and isinstance(model.clock, random_clock.RandomLocalClock):
                 model.pruned = False
-                self.messages.append("""[INFO] Disabling pruned trees in model %s because associated clock %s is a RandomLocalClock.  Pruned trees are currently only compatible with StrictClocks and RelaxedClocks.""" % (model.name, model.clock.name))
+                log.info(
+                    "Disabling pruned trees because associated clock %s is a "
+                    "RandomLocalClock. Pruned trees are currently only compatible with "
+                    "StrictClocks and RelaxedClocks." % model.clock.name,
+                    model=model)
 
         # Warn user about unused clock(s) (but not the default clock)
         for clock in self.clocks:
             if clock.name != "default" and not clock.is_used:
-                self.messages.append("""[INFO] Clock %s is not being used.  Change its name to "default", or explicitly associate it with a model.""" % clock.name)
+                log.info(
+                    "Clock %s is not being used. Change its name to \"default\", or explicitly "
+                    "associate it with a model." % clock.name)
 
         # Remove unused clocks from the master clock list
         self.clocks = [c for c in self.clocks if c.is_used]
@@ -998,7 +828,10 @@ class Configuration(object):
             if self.arbitrary_tree and all(
                 [m.clock.estimate_rate for m in self.models]):
                 free_clocks[0].estimate_rate = False
-                self.messages.append("""[INFO] Clock "%s" has had it's mean rate fixed to 1.0.  Tree branch lengths are in units of expected substitutions for features in models using this clock.""" % free_clocks[0].name)
+                log.info(
+                    "Clock \"%s\" has had it's mean rate fixed to 1.0. Tree branch lengths are in "
+                    "units of expected substitutions for features in models using this "
+                    "clock." % free_clocks[0].name)
 
         # Determine whether or not precision-scaling is required
         if self.geo_config:
@@ -1006,7 +839,8 @@ class Configuration(object):
             geo_clock = self.geo_model.clock
             for m in self.models:
                 if m.clock == geo_clock:
-                    self.messages.append("""[WARNING] Geography model is sharing a clock with one or more data models.  This may lead to a bad fit.""")
+                    log.warning(
+                        "Geography model is sharing a clock with one or more data models. This may lead to a bad fit.")
                     self.geo_model.scale_precision = True
                     break
             # If geo has it's own clock, estimate the mean
@@ -1016,60 +850,66 @@ class Configuration(object):
     def build_language_list(self):
         """
         Combines the language sets of each model's data set, according to the
-        value of self.overlap, to construct a final list of all the languages
+        value of self.languages.overlap, to construct a final list of all the languages
         in the analysis.
         """
         if self.models:
-            self.languages = set(self.models[0].data.keys())
+            self.languages.languages = set(self.models[0].data.keys())
         else:
             # There are no models
             # So this must be a geography-only analysis
             # Start with all languages in Glottolog, then apply filters
-            self.languages = [l for l in self.classifications if self.filter_language(l)]
+            self.languages.languages = [l for l in self.classifications if self.filter_language(l)]
         self.overlap_warning = False
         for model in self.models:
             addition = set(model.data.keys())
             # If we're about to do a non-trivial union/intersect, alert the
             # user.
-            if addition != self.languages and not self.overlap_warning:
-                self.messages.append("""[INFO] Not all data files have equal language sets.  BEASTling will use the %s of all language sets.  Set the "overlap" option in [languages] to change this.""" % self.overlap.lower())
+            if addition != self.languages.languages and not self.overlap_warning:
+                log.info(
+                    "Not all data files have equal language sets. BEASTling will use the %s of all "
+                    "language sets. Set the \"overlap\" option in [languages] to change "
+                    "this." % self.languages.overlap)
                 self.overlap_warning = True
-            if self.overlap.lower() == "union":
-                self.languages = set.union(self.languages, addition)
-            elif self.overlap.lower() == "intersection":
-                self.languages = set.intersection(self.languages, addition)
+            self.languages.languages = getattr(set, self.languages.overlap)(
+                self.languages.languages, addition)
 
         ## Make sure there's *something* left
-        if not self.languages:
+        if not self.languages.languages:
             raise ValueError("No languages specified!")
 
         ## Convert back into a sorted list
-        self.languages = sorted(self.languages)
+        self.languages.languages = sorted(self.languages.languages)
 
         ## Perform subsampling, if requested
-        self.languages = sorted(self.subsample_languages(self.languages))
-        self.messages.append("[INFO] %d languages included in analysis." % len(self.languages))
+        self.languages.languages = sorted(self.subsample_languages(self.languages.languages))
+        log.info("%d languages included in analysis." % len(self.languages.languages))
 
         ## SPREAD THE WORD!
         for m in self.models:
-            m.languages = [l for l in m.languages if l in self.languages]
+            m.languages = [l for l in m.languages if l in self.languages.languages]
+
+        self.languages.sanitise_trees()
 
     def subsample_languages(self, languages):
         """
         Return a random subsample of languages with a specified size
         """
-        if not self.subsample_size:
+        if not self.languages.subsample_size:
             return languages
-        if self.subsample_size > len(languages):
-            self.messages.append("[INFO] Requested subsample size is %d, but only %d languages to work with!  Disabling subsampling." % (self.subsample_size, len(languages)))
+        if self.languages.subsample_size > len(languages):
+            log.info(
+                "Requested subsample size is %d, but only %d languages to work with! Disabling "
+                "subsampling." % (self.languages.subsample_size, len(languages)))
             return languages
         # Seed PRNG with sorted language names
         # Python will convert to an integer hash
         # This means we always take the same subsample for a particular
         # initial language set.
-        self.messages.append("[INFO] Subsampling %d languages down to %d." % (len(languages), self.subsample_size))
+        log.info("Subsampling %d languages down to %d." % (
+            len(languages), self.languages.subsample_size))
         random.seed(",".join(sorted(languages)))
-        return random.sample(languages, self.subsample_size)
+        return random.sample(languages, self.languages.subsample_size)
 
     def language_group(self, clade):
         """Look up a language group locally or as a glottolog clade."""
@@ -1118,21 +958,21 @@ class Configuration(object):
                 # because empty calibrations can only be specified by
                 # empty language groups, which should be caught before
                 # this.
-                self.messages.append("[INFO] Calibration on clade '%s' ignored as no matching languages in analysis." % clade)
+                log.info("Calibration on clade '%s' ignored as no matching languages in analysis." % clade)
                 continue
             # At this point we know that len(langs) == 1, so that condition is
             # implicit in the conditions for all the branches below
             elif originate:
                 ## Originate calibrations on single taxa are always valid
                 pass
-            elif "," not in clade and clade in self.languages:
+            elif "," not in clade and clade in self.languages.languages:
                 ## This looks like a tip calibration, i.e. the user has specified
                 ## only one identifier, not a comma-separated list, and that
                 ## identifier matches a language, not a Glottolog family that we
                 ## happen to only have one language for
-                self.messages.append("[INFO] Calibration on '%s' taken as tip age calibration." % clade)
+                log.info("Calibration on '%s' taken as tip age calibration." % clade)
                 is_tip_calibration = True
-                self.tree_prior = "coalescent"
+                self.languages.tree_prior = "coalescent"
             else: # pragma: no cover
                 # At this point we have a non-originate calibration on
                 # a single taxa, which is not the result of
@@ -1145,14 +985,18 @@ class Configuration(object):
                 # specified by empty language groups, which should be
                 # caught before this.
 
-                self.messages.append("[INFO] Calibration on clade '%s' matches only one language.  Ignoring due to ambiguity.  Use 'originate(%s)' if this was supposed to be an originate calibration, or explicitly identify the single language using '%s' if this was supposed to be a tip calibration." % (clade, clade, langs[0]))
+                log.info(
+                    "Calibration on clade '%s' matches only one language. Ignoring due to "
+                    "ambiguity. Use 'originate(%s)' if this was supposed to be an originate "
+                    "calibration, or explicitly identify the single language using '%s' if this "
+                    "was supposed to be a tip calibration." % (clade, clade, langs[0]))
                 continue
 
             # Make sure this calibration point, which will induce a monophyly
             # constraint, does not conflict with the overall monophyly
             # constraints from Glottolog or a user-tree
-            if self.monophyly and len(langs) > 1:
-                mono_tree = newick.loads(self.monophyly_newick)[0]
+            if self.languages.monophyly and len(langs) > 1:
+                mono_tree = newick.loads(self.languages.monophyly_newick)[0]
                 cal_clade = set(langs)
                 for node in mono_tree.walk():
                     mono_clade = set(node.get_leaf_names())
@@ -1208,7 +1052,7 @@ class Configuration(object):
         matched_clades = []
         # First look for clades which are actually language identifiers
         for clade in clades:
-            if clade in self.languages:
+            if clade in self.languages.languages:
                 langs.append(clade)
                 matched_clades.append(clade)
 
@@ -1224,7 +1068,7 @@ class Configuration(object):
 
         # Now search against Glottolog
         clades = [c.lower() for c in clades]
-        for l in self.languages:
+        for l in self.languages.languages:
             # No repeated matching!
             if l in langs:
                 continue
@@ -1234,93 +1078,3 @@ class Configuration(object):
                     break
 
         return langs
-
-    def handle_user_supplied_tree(self, value, tree_type):
-        """Load a tree from file or parse a string, and simplify.
-
-        If the provided value is the name of an existing file, read
-        the contents and treat it as a Newick tree
-        specification. Otherwise, assume the provided value is a
-        Newick tree specification.
-
-        Trees consisting of only one leaf are considered errors,
-        because they are never useful and can easily arise when a
-        non-existing file name is parsed as tree, leading to confusing
-        error messages down the line.
-
-        In either case, inspect the tree and make appropriate minor
-        changes so it is suitable for inclusion in the BEAST XML file.
-
-        """
-        # Make sure we've got a legitimate tree type
-        tree_type = tree_type.lower()
-        if tree_type not in ("starting", "monophyly"):
-            raise ValueError("Valid tree types for sanitising are 'starting' and 'monophyly', not %s." % tree_type)
-        # Read from file if necessary
-        if os.path.exists(value):
-            with io.open(value, encoding="UTF-8") as fp:
-                value = fp.read().strip()
-        # Sanitise
-        if value:
-            if ")" in value:
-                # A tree with only one node (which is the only Newick
-                # string without bracket) is not a useful tree
-                # specification.
-                value = self.sanitise_tree(value, tree_type)
-            else:
-                raise ValueError(
-                    "Starting tree specification {:} is neither an existing"
-                    " file nor does it look like a useful tree.".format(
-                        value))
-        # Done
-        return value
-
-    def sanitise_tree(self, tree, tree_type):
-        """
-        Makes any changes to a user-provided tree required to make
-        it suitable for passing to BEAST.
-
-        In particular, this method checks that the supplied string or the
-        contents of the supplied file:
-            * seems to be a valid Newick tree
-            * contains no duplicate taxa
-            * has taxa which are a superset of the languages in the analysis
-            * has no polytomies or unifurcations.
-        """
-        # Make sure tree can be parsed
-        try:
-            tree = newick.loads(tree)[0]
-        except:
-            raise ValueError("Could not parse %s tree.  Is it valid Newick?" % tree_type)
-        # Make sure starting tree contains no duplicate taxa
-        tree_langs = tree.get_leaf_names()
-        if not len(set(tree_langs)) == len(tree_langs):
-            dupes = set([l for l in tree_langs if tree_langs.count(l) > 1])
-            dupestring = ",".join(["%s (%d)" % (d, tree_langs.count(d)) for d in dupes])
-            raise ValueError("%s tree contains duplicate taxa: %s" % (tree_type.capitalize(), dupestring))
-        tree_langs = set(tree_langs)
-        # Make sure languges in tree is a superset of languages in the analysis
-        if not tree_langs.issuperset(self.languages):
-            missing_langs = set(self.languages).difference(tree_langs)
-            miss_string = ",".join(missing_langs)
-            raise ValueError("Some languages in the data are not in the %s tree: %s" % (tree_type, miss_string))
-        # If the trees' language set is a proper superset, prune the tree to fit the analysis
-        if not tree_langs == set(self.languages):
-            tree.prune_by_names(self.languages, inverse=True)
-            self.messages.append("[INFO] %s tree includes languages not present in any data set and will be pruned." % tree_type.capitalize())
-        # Get the tree looking nice
-        tree.remove_redundant_nodes()
-        tree.remove_internal_names()
-        if tree_type == "starting":
-            tree.resolve_polytomies()
-        # Remove lengths for a monophyly tree
-        if tree_type == "monophyly":
-            for n in tree.walk():
-                n._length = None
-        # Checks
-        if tree_type == "starting":
-            assert all([len(n.descendants) in (0,2) for n in tree.walk()])
-        assert len(tree.get_leaves()) == len(self.languages)
-        assert all([l.name for l in tree.get_leaves()])
-        # Done
-        return newick.dumps(tree)

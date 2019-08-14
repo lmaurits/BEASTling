@@ -1,4 +1,3 @@
-from functools import partial
 import math
 
 from .basemodel import BaseModel
@@ -7,7 +6,7 @@ from beastling.util import xml
 
 class BSVSModel(BaseModel):
 
-    package_notice = """[DEPENDENCY]: The BSVS substitution model is implemented in the BEAST package "BEAST_CLASSIC"."""
+    package_notice = ("The BSVS substitution model", "BEAST_CLASSIC")
     def __init__(self, model_config, global_config):
 
         BaseModel.__init__(self, model_config, global_config)

@@ -1,5 +1,6 @@
 import itertools
 import json
+import pathlib
 
 _COLOURS = ["#CADA45", "#D4A2E1", "#55E0C6", "#F0B13C", "#75E160"]
 _SHAPES = ["circle", "square", "triangle", "star"]
@@ -17,10 +18,10 @@ class BeastlingReport(object):
         """
         Creates a report on a BEASTling analysis.
         """
-        self.n_languages = len(self.config.languages)
+        self.n_languages = len(self.config.languages.languages)
         self.family_tally = {}
         self.macroarea_tally = {}
-        for l in self.config.languages:
+        for l in self.config.languages.languages:
             if l in self.config.classifications:
                 fam = self.config.classifications[l][0][0] if self.config.classifications[l] else "Unclassified"
                 self.family_tally[fam] = self.family_tally.get(fam, 0) + 1
@@ -33,7 +34,7 @@ class BeastlingReport(object):
     def tostring(self):
         lines = []
         lines.append("# BEASTling analysis report\n")
-        lines.append("Analysis: %s" % self.config.basename)
+        lines.append("Analysis: %s" % self.config.admin.basename)
 
         lines.append("## Languages\n")
         lines.append("%d languages total, from %d Glottolog families and %d macroareas." % (self.n_languages, self.n_families, self.n_macroareas))
@@ -72,8 +73,9 @@ class BeastlingReport(object):
         """
         Write the report to a file.
         """
-        with open(filename or self.config.basename + ".md", "w") as fp:
-            fp.write(self.tostring())
+        filename = pathlib.Path(filename) if filename else self.config.admin.path('.md')
+        filename.write_text(self.tostring(), encoding='utf8')
+
 
 class BeastlingGeoJSON(object):
 
@@ -90,13 +92,13 @@ class BeastlingGeoJSON(object):
         classifier_level = 0
         while True:
             all_classifiers = set([self.config.classifications[l][classifier_level][0] for l in
-            self.config.languages if self.config.classifications[l]])
+            self.config.languages.languages if self.config.classifications[l]])
             if len(all_classifiers) > 1:
                 break
             classifier_level += 1
         style_map = dict(zip(all_classifiers, itertools.cycle(itertools.product(_SHAPES,_COLOURS))))
         style_map["Unclassified"] = ("circle", "#D3D3D3")
-        for l in self.config.languages:
+        for l in self.config.languages.languages:
             if l not in self.config.locations:
                 continue
             fam = self.config.classifications[l][0][0] if self.config.classifications[l] else "Unclassified"
@@ -122,6 +124,5 @@ class BeastlingGeoJSON(object):
         """
         Write the report to a file.
         """
-        with open(filename or self.config.basename + ".md", "w") as fp:
-            fp.write(json.dumps(self.geojson, sort_keys=True))
-
+        filename = pathlib.Path(filename) if filename else self.config.admin.path('.geojson')
+        filename.write_text(json.dumps(self.geojson, sort_keys=True), encoding='utf8')

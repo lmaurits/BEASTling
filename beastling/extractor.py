@@ -1,7 +1,6 @@
 import xml.etree.ElementTree as ET
 from pathlib import Path
-
-from clldutils.inifile import INI
+from configparser import ConfigParser
 
 # The standard library XML parser does not give access to comments, which we
 # need.  The following extended parser remedies this.  # Code taken from
@@ -41,7 +40,7 @@ def extract(filename, overwrite=False):
         # Zero or several embedded configs - is this one of our files?!
         raise ValueError("%s doesn't look like a BEASTling-generated XML file" % filename)
     messages.append(write_config(beastling_confs[0].text, overwrite))
-    
+
     data_files = [c for c in comments if c.text.startswith(_data_file_str)]
     for data_file in data_files:
         messages.append(write_data_file(data_file.text, overwrite))
@@ -59,7 +58,7 @@ def write_config(comment_text, overwrite):
     if any(truths):
         lines = lines[0:truths.index(True)]
     config_text = "\n".join(lines[2:])
-    p = INI()
+    p = ConfigParser()
     p.read_string(config_text)
     filename = p.get("admin", "basename") \
         if p.has_option("admin", "basename") else 'beastling'
@@ -69,7 +68,8 @@ def write_config(comment_text, overwrite):
     if not filename.parent.exists():
         filename.parent.mkdir()
 
-    p.write(filename)
+    with filename.open('w') as fp:
+        p.write(fp)
     return "Wrote BEASTling configuration file %s.\n" % filename
 
 

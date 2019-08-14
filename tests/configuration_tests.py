@@ -75,7 +75,7 @@ def test_get_glottolog_data_download(tmppath, mocker):
 def test_families(config_factory):
     cfg1 = _processed_config(config_factory, 'glottolog_families')
     cfg2 = _processed_config(config_factory, 'glottolog_families_from_file')
-    assert cfg1.languages == cfg2.languages
+    assert cfg1.languages.languages == cfg2.languages.languages
 
 
 def test_config(config_factory):
@@ -85,7 +85,7 @@ def test_config(config_factory):
         },
         'languages': {
             'monophyly': True,
-            'starting_tree': 'T',
+            'starting_tree': '(T)',
             'sample_topology': False,
             'sample_branch_lengths': False,
         },
@@ -103,33 +103,33 @@ def test_config(config_factory):
     assert cfg.calibration_configs['abcd1234, efgh5678'] == "10-20"
     assert cfg.model_configs[1]['binarised']
 
-    with pytest.raises(ValueError, match='Value for overlap'):
-        Configuration(configfile={'languages': {'overlap': 'invalid'}, 'models': {}})
+    with pytest.raises(ValueError, match="'overlap' must be"):
+        Configuration(configfile={'languages': {'overlap': 'invalid'}, 'models T': {'model': 'mk'}})
 
     with pytest.raises(ValueError, match='Config file'):
         Configuration(configfile={'languages': {}})
 
 
 @pytest.mark.parametrize(
-    'cfg,err',
+    'cfg',
     [
-        ("no_data", ValueError),
-        ("no_langs", ValueError),
-        ("no_model_sec", ValueError),
-        ("no_model", ValueError),
-        ("unknown_model", ValueError),
-        ("bad_overlap", ValueError),
-        ("cal_originate_root", ValueError),
-        ("bad_wrong_tree_filename", ValueError),
-        ("bad_share_params", ValueError),
-        ("bad_treeprior", KeyError),
-        (["basic", "bad_cal_endpoints"], ValueError),
-        (["basic", "monophyletic", "bad_cal_monophyly"], ValueError),
-        ("misspelled_clock", ValueError),
+        "no_data",
+        "no_langs",
+        "no_model_sec",
+        "no_model",
+        "unknown_model",
+        "bad_overlap",
+        "cal_originate_root",
+        "bad_wrong_tree_filename",
+        "bad_share_params",
+        "bad_treeprior",
+        ["basic", "bad_cal_endpoints"],
+        ["basic", "monophyletic", "bad_cal_monophyly"],
+        "misspelled_clock",
     ]
 )
-def test_invalid_config(cfg, err, config_factory):
-    with pytest.raises(err):
+def test_invalid_config(cfg, config_factory):
+    with pytest.raises(ValueError):
         cfg_ = config_factory(*cfg) if isinstance(cfg, list) else config_factory(cfg)
         cfg_.process()
 
@@ -162,13 +162,6 @@ def test_calibration_string_formats(config_factory, cfg, dist, assertion):
         assert assertion(list(config.calibrations.values())[0])
 
 
-def test_overlong_chain(config_factory):
-    config = config_factory('basic')
-    config.chainlength = 9e999
-    config.process()
-    assert config.chainlength == _BEAST_MAX_LENGTH
-
-
 def test_minimum_data(config_factory):
     # f8 has 60% missing data.  By default it should be included...
     config = _processed_config(config_factory, 'basic')
@@ -187,10 +180,10 @@ def test_pruned_rlc(config_factory):
     assert not config.models[0].pruned
 
 
-def test_no_monophyly_geo(config_factory):
+def test_no_monophyly_geo(config_factory, caplog):
     # Make sure that geographic sampling without monophyly constraints emits a warning
-    config = _processed_config(config_factory, 'basic', 'geo', 'geo_sampled')
-    assert any("[WARNING] Geographic sampling" in m for m in config.messages)
+    _processed_config(config_factory, 'basic', 'geo', 'geo_sampled')
+    assert any("Geographic sampling" in r.message for r in caplog.records)
 
 
 def test_ascertainment_auto_setting(config_factory):
@@ -244,7 +237,7 @@ def test_monophyly_levels(config_factory):
     # English and Russian.  When used with standard monophly, we should see
     # a four-way polytomy with eng+rus grouped (IE) and the rest isolated.
     config = _processed_config(config_factory, 'admin', 'mk', 'isolates', 'monophyletic')
-    tree = newick.loads(config.monophyly_newick)[0]
+    tree = newick.loads(config.languages.monophyly_newick)[0]
     assert len(tree.descendants) == 4
     for node in tree.descendants:
         if len(node.descendants) == 2:
@@ -254,25 +247,25 @@ def test_monophyly_levels(config_factory):
     # polytomy, since IE no longer matters and eng and rus are in separate
     # subfamilies (Germanic vs Balto-Slavic).
     config = _processed_config(config_factory, 'admin', 'mk', 'isolates', 'monophyletic-start-depth')
-    tree = newick.loads(config.monophyly_newick)[0]
+    tree = newick.loads(config.languages.monophyly_newick)[0]
     assert len(tree.descendants) == 5
 
 
 def test_subsampling(config_factory):
     # First check how many languages there usually are
     config = _processed_config(config_factory, 'admin', 'mk')
-    full_lang_count = len(config.languages)
+    full_lang_count = len(config.languages.languages)
     # Try various subsamples and make sure they work
     for subsample_size in range(2, full_lang_count):
         config = config_factory('admin', 'mk')
-        config.subsample_size = subsample_size
+        config.languages.subsample_size = subsample_size
         config.process()
-        assert len(config.languages) == subsample_size
+        assert len(config.languages.languages) == subsample_size
     # Make sure if we ask for more languages than we have nothing happens
     config = config_factory('admin', 'mk')
-    config.subsample_size = full_lang_count + 42
+    config.languages.subsample_size = full_lang_count + 42
     config.process()
-    assert len(config.languages) == full_lang_count
+    assert len(config.languages.languages) == full_lang_count
 
 
 def test_language_groups(config_factory):
