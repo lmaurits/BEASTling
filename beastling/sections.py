@@ -493,3 +493,18 @@ class LanguageGroups(Section):
     def __attrs_post_init__(self):
         self.options = collections.OrderedDict(
             [(k, [vv.strip() for vv in v.split(',')]) for k, v in self.options.items()])
+
+
+@attr.s
+class Calibration(Section):
+    __allow_arbitrary_options__ = True
+
+
+@attr.s
+class GeoPriors(Section):
+    __allow_arbitrary_options__ = True
+
+    def iterpriors(self):
+        for clades, kml in self.options.items():
+            for clade in clades.split(','):
+                yield clade.strip(), pathlib.Path(kml)

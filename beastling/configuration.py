@@ -103,6 +103,7 @@ class Configuration(object):
         self.processed = False
         self._files_to_embed = []
 
+        # Now read the config ...
         self.cfg = ConfigParser(interpolation=None)
         self.cfg.optionxform = str
         if configfile:
@@ -113,17 +114,46 @@ class Configuration(object):
                     configfile = (configfile,)
                 self.cfg.read([str(c) for c in configfile])
 
+        # ... and process the sections:
+        # [geography]
         if 'geography' in self.cfg.sections():
             self.geography = sections.Geography.from_config(cli_params, 'geography', self.cfg)
         else:
             self.geography = None
 
-        self.read_cfg()
+        # [calibration]
+        for clade, calibration in sections.Calibration.from_config(
+                {}, "calibration", self.cfg).options.items():
+            self.calibration_configs[clade] = calibration
 
+        # [model ...]
+        for prefix, cfg_cls in [('clock', sections.Clock), ('model', sections.Model)]:
+            for section in [s for s in self.cfg.sections() if s.lower().startswith(prefix)]:
+                getattr(self, prefix + 's').append(
+                    cfg_cls.from_config({}, section, self.cfg))
+
+        # Make sure analysis is non-empty
+        if not (self.models or self.geography):
+            raise ValueError("Config file contains no model sections and no geography section.")
+
+        # [geo_priors]
+        if self.cfg.has_section("geo_priors"):
+            if not self.geography:
+                raise ValueError("Config file contains geo_priors section but no geography section.")
+            for clade, klm in sections.GeoPriors.from_config(
+                    {}, 'geo_priors', self.cfg).iterpriors():
+                if clade not in self.geography.sampling_points:
+                    self.geography.sampling_points.append(clade)
+                self.geography.priors[clade] = klm
+
+        # [admin]
         self.admin = sections.Admin.from_config(cli_params, 'admin', self.cfg)
+        # [mcmc]
         self.mcmc = sections.MCMC.from_config(
             cli_params, 'mcmc' if self.cfg.has_section('mcmc') else 'MCMC', self.cfg)
+        # [languages]
         self.languages = sections.Languages.from_config(cli_params, 'languages', self.cfg)
+        # [language_groups]
         self.language_group_configs = sections.LanguageGroups.from_config(
             {}, 'language_groups', self.cfg).options
 
@@ -142,38 +172,6 @@ class Configuration(object):
             log.warning(
                 "Geographic sampling and/or prior specified for clades other than root, but tree "
                 "topology is being sampled without monophyly constraints. BEAST may crash.")
-
-    def read_cfg(self):
-        """
-        Read one or several INI-style configuration files and overwrite
-        default option settings accordingly.
-        """
-        p = self.cfg
-
-        ## Calibration
-        if p.has_section("calibration"):
-            for clade, calibration in p.items("calibration"):
-                self.calibration_configs[clade] = calibration
-
-        for prefix, cfg_cls in [('clock', sections.Clock), ('model', sections.Model)]:
-            for section in [s for s in p.sections() if s.lower().startswith(prefix)]:
-                getattr(self, prefix + 's').append(
-                    cfg_cls.from_config({}, section, self.cfg))
-
-        # Geographic priors
-        if p.has_section("geo_priors"):
-            if not self.geography:
-                raise ValueError("Config file contains geo_priors section but no geography section.")
-            for clades, klm in p.items("geo_priors"):
-                for clade in clades.split(','):
-                    clade = clade.strip()
-                    if clade not in self.geography.sampling_points:
-                        self.geography.sampling_points.append(clade)
-                    self.geography.priors[clade] = klm
-
-        # Make sure analysis is non-empty
-        if not (self.models or self.geography):
-            raise ValueError("Config file contains no model sections and no geography section.")
 
     def process(self):
         """
