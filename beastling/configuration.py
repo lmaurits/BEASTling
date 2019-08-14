@@ -93,7 +93,6 @@ class Configuration(object):
         self.clocks = []
         self.clocks_by_name = {}
 
-        self.language_group_configs = collections.OrderedDict()
         """An ordered dictionary whose keys are language group names and whose values are language group definitions."""
         self.language_groups = {}
         """A dictionary giving names to arbitrary collections of tip languages."""
@@ -137,6 +136,8 @@ class Configuration(object):
         self.mcmc = sections.MCMC.from_config(
             cli_params, 'mcmc' if self.cfg.has_section('mcmc') else 'MCMC', self.cfg)
         self.languages = sections.Languages.from_config(cli_params, 'languages', self.cfg)
+        self.language_group_configs = sections.LanguageGroups.from_config(
+            {}, 'language_groups', self.cfg).options
 
         # If log_every was not explicitly set to some non-zero
         # value, then set it such that we expect 10,000 log
@@ -160,11 +161,6 @@ class Configuration(object):
         default option settings accordingly.
         """
         p = self.cfg
-
-        ## Language groups
-        if p.has_section("language_groups"):
-            for name, components_string in p.items("language_groups"):
-                self.language_group_configs[name] = components_string
 
         ## Calibration
         if p.has_section("calibration"):
@@ -308,7 +304,7 @@ class Configuration(object):
 
         for name, specification in self.language_group_configs.items():
             taxa = set()
-            for already_defined in specification.split(","):
+            for already_defined in specification:
                 taxa |= set(self.language_group(already_defined.strip()))
             self.language_groups[name] = taxa
 
@@ -843,17 +839,14 @@ class Configuration(object):
 
     def language_group(self, clade):
         """Look up a language group locally or as a glottolog clade."""
-        try:
+        if clade in self.language_groups:
             return self.language_groups[clade]
-        except KeyError:
-            langs = self.get_languages_by_glottolog_clade(clade)
-            self.language_groups[clade] = langs
-            if not langs:
-                raise ValueError(
-                    "Language group or Glottolog clade {:} not found "
-                    "or was empty for the languages given.".format(
-                        clade))
-            return langs
+        self.language_groups[clade] = self.get_languages_by_glottolog_clade(clade)
+        if not self.language_groups[clade]:
+            raise ValueError(
+                "Language group or Glottolog clade {:} not found "
+                "or was empty for the languages given.".format(clade))
+        return self.language_groups[clade]
 
     def instantiate_calibrations(self):
         self.calibrations = {}

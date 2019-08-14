@@ -420,3 +420,12 @@ class Clock(Section):
             if clock.__distribution__ == self.distribution:
                 return clock(self, global_config)
         raise ValueError('no matching clock')
+
+
+@attr.s
+class LanguageGroups(Section):
+    __allow_arbitrary_options__ = True
+
+    def __attrs_post_init__(self):
+        self.options = collections.OrderedDict(
+            [(k, [vv.strip() for vv in v.split(',')]) for k, v in self.options.items()])
