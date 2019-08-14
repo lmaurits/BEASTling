@@ -3,6 +3,7 @@ from beastling.util import xml
 
 
 class StrictClock(BaseClock):
+    __type__ = 'strict'
 
     def __init__(self, clock_config, global_config):
 

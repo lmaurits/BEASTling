@@ -6,8 +6,10 @@ import functools
 
 import attr
 
-from beastling.util.misc import sanitise_tree
+from beastling.util.misc import sanitise_tree, all_subclasses
 from beastling.util import log
+from beastling.clocks import *  # Make sure all clocks are imported.
+from beastling.clocks.baseclock import BaseClock
 
 __all__ = ['Admin', 'MCMC', 'Languages']
 
@@ -24,10 +26,13 @@ def _to_cfg(v):
 
 @attr.s
 class Section(object):
+    __allow_arbitrary_options__ = False
+
     name = attr.ib()  # We keep the section name ...
     cli_params = attr.ib(default=attr.Factory(dict))  # ... and the parameters passed on the cli.
     # We also need to keep track of all the data loaded from extra files:
     files_to_embed = attr.ib(default=attr.Factory(set))
+    options = attr.ib(default=attr.Factory(collections.OrderedDict))
 
     @classmethod
     def from_config(cls, cli_params, section, cfg):
@@ -39,7 +44,7 @@ class Section(object):
         :param cfg: The `ConfigParser` instance.
         :return: Initialized `cls` instance.
         """
-        kw, files_to_embed = {}, set()
+        kw, files_to_embed = {'options': collections.OrderedDict()}, set()
         fields = attr.fields(cls)
         for field in fields:
             if field.name not in ['name', 'cli_params', 'files_to_embed']:
@@ -61,7 +66,10 @@ class Section(object):
             opts = [f.name[:-1] if f.name.endswith('_') else f.name for f in fields]
             for opt in cfg[section]:
                 if opt not in opts:
-                    raise ValueError("Unrecognised option %s in section %s!" % (opt, section))
+                    if cls.__allow_arbitrary_options__:
+                        kw['options'][opt] = cfg.get(section, opt)
+                    else:
+                        raise ValueError("Unrecognised option %s in section %s!" % (opt, section))
         return cls(name=section, cli_params=cli_params, files_to_embed=files_to_embed, **kw)
 
 
@@ -301,6 +309,11 @@ class Languages(Section):
         'Number of languages to subsample from the set defined by the dataset(s) and other '
         'filtering options like "families" or "macroareas".',
         getter=ConfigParser.getint)
+    minimum_data = opt(
+        0.0,
+        "A floating point value, indicated the percentage of datapoints, across ALL models, which "
+        "a language must have in order to be included in the analysis.",
+        getter=ConfigParser.getfloat)
     monophyly = opt(
         False,
         "A boolean parameter, controlling whether or not to enforce monophyly constraints derived "
@@ -372,3 +385,38 @@ class Geography(Section):
     data = opt(attr.Factory(list), getter=get_list_of_files)
     priors = opt(attr.Factory(dict))
     clock = opt(None)
+
+
+def maybe_get_float(cfg, section, option, default=None):
+    try:
+        return cfg.getfloat(section, option)
+    except ValueError:
+        return default
+
+
+@attr.s
+class Clock(Section):
+    __allow_arbitrary_options__ = True
+
+    name = opt(None, converter=lambda s: s[5:].strip())
+    type = opt(
+        'strict',
+        validator=attr.validators.in_(set(cls.__type__ for cls in all_subclasses(BaseClock))))
+    distribution = opt('lognormal', converter=lambda s: s.lower())
+    mean = opt(None, getter=ConfigParser.getfloat)
+    variance = opt(None, getter=ConfigParser.getfloat)
+    rate = opt(None, getter=maybe_get_float)  # hope it's a prior clock if this fails.
+    estimate_mean = opt(None, getter=ConfigParser.getboolean)
+    estimate_rate = opt(None, getter=ConfigParser.getboolean)
+    estimate_variance = opt(None, getter=ConfigParser.getboolean)
+    correlated = opt(False, getter=ConfigParser.getboolean)
+
+    def get_clock(self, global_config):
+        clocks = [c for c in all_subclasses(BaseClock) if c.__type__ == self.type]
+        if len(clocks) == 1:
+            return clocks[0](self, global_config)
+        # Multiple clocks with matching type. Let's discriminate by distribution:
+        for clock in clocks:
+            if clock.__distribution__ == self.distribution:
+                return clock(self, global_config)
+        raise ValueError('no matching clock')

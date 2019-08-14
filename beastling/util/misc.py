@@ -5,6 +5,15 @@ import newick
 from beastling.util import log
 
 
+def all_subclasses(cls):
+    """
+    We use subclassing as a cheap registration mechanism, thus we want to be able to enumerate
+    all subclasses of a given class easily.
+    """
+    return set(cls.__subclasses__()).union(
+        [s for c in cls.__subclasses__() for s in all_subclasses(c)])
+
+
 class URLopener(FancyURLopener):
     def http_error_default(self, url, fp, errcode, errmsg, headers):
         raise ValueError()  # pragma: no cover

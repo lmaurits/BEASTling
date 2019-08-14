@@ -4,7 +4,7 @@ from beastling.fileio import datareaders
 
 
 def test_location_data(data_dir):
-    assert len(datareaders.load_location_data(data_dir / 'location_data.csv')) == 11
+    assert len(list(datareaders.iterlocations(data_dir / 'location_data.csv'))) == 11
 
 
 @pytest.mark.parametrize(

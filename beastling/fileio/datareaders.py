@@ -8,7 +8,7 @@ import pycldf.dataset
 from csvw.dsv import UnicodeDictReader
 
 
-def sniff(filename):
+def sniff(filename, default_dialect=csv.excel):
     """Read the beginning of the file and guess its csv dialect.
 
     Parameters
@@ -35,7 +35,9 @@ def sniff(filename):
                     # without figuring out the dialect.  Something is probably
                     # quite wrong with the file, but let's default to Excel and
                     # hope for the best...
-                    return csv.excel
+                    if default_dialect is not None:
+                        return default_dialect
+                    raise
 
 
 def sanitise_name(name):
@@ -137,56 +139,33 @@ def load_cldf_data(reader, value_column, filename, expect_multiple=False):
     return data
 
 
-def load_location_data(filename):
-    # Use CSV dialect sniffer in all other cases
-    with open(str(filename), "r") as fp: # Cast PosixPath to str
-        # On large files, csv.Sniffer seems to need a lot of data to make a successful inference...
-        sample = fp.read(1024)
-        while True:
-            try:
-                dialect = csv.Sniffer().sniff(sample, [",","\t"])
-                break
-            except csv.Error: # pragma: no cover
-                blob = fp.read(1024)
-                sample += blob
-                if not blob:
-                    raise
-
-    # Read
-    with UnicodeDictReader(filename, dialect=dialect) as reader:
+def iterlocations(filename):
+    with UnicodeDictReader(filename, dialect=sniff(filename, default_dialect=None)) as reader:
         # Identify fieldnames
-        for fieldname in reader.fieldnames:
-            if fieldname.lower() in _language_column_names:
-                break
-        else:
-            raise ValueError("Could not find a language identifier column in location data file %s" % filename)
-        lang_field = fieldname
+        fieldnames = [(n.lower(), n) for n in reader.fieldnames]
+        fieldmap = {}
 
-        for fieldname in reader.fieldnames:
-            if fieldname.lower() in ("latitude", "lat"):
-                break
-        else:
-            raise ValueError("Could not find a latitude column in location data file %s" % filename)
-        latitude_field = fieldname
+        for field, aliases in [
+            ('language identifier', _language_column_names),
+            ('latitude', ("latitude", "lat")),
+            ('longitude', ("longitude", "lon", "long")),
+        ]:
+            for lname, fieldname in fieldnames:
+                if lname in aliases:
+                    fieldmap[field] = fieldname
+                    break
+            else:
+                raise ValueError(
+                    "Could not find a {0} column in location data file {1}".format(field, filename))
 
-        for fieldname in reader.fieldnames:
-            if fieldname.lower() in ("longitude", "lon", "long"):
-                break
-        else:
-            raise ValueError("Could not find a longitude column in location data file %s" % filename)
-        longitude_field = fieldname
-
-        locations = {}
         for row in reader:
-            (lat, lon) = row[latitude_field], row[longitude_field]
+            (lat, lon) = row[fieldmap['latitude']], row[fieldmap['longitude']]
             try:
                 lat = float(lat) if lat != "?" else lat
                 lon = float(lon) if lon != "?" else lon
             except ValueError:
                 lat, lon = "?", "?"
-            locations[row[lang_field].strip()] = (lat, lon)
-
-        return locations
+            yield (row[fieldmap['language identifier']].strip(), (lat, lon))
 
 
 def get_dataset(fname):

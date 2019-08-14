@@ -12,7 +12,7 @@ import newick
 from appdirs import user_data_dir
 from csvw.dsv import reader
 
-from beastling.fileio.datareaders import load_location_data
+from beastling.fileio.datareaders import iterlocations
 import beastling.clocks.strict as strict
 import beastling.clocks.relaxed as relaxed
 import beastling.clocks.random as random_clock
@@ -86,17 +86,17 @@ class Configuration(object):
         cli_params = {k: v for k, v in locals().items()}
 
         # Options set by the user, with default values
-        self.calibration_configs = {}
         """A dictionary whose keys are glottocodes or lowercase Glottolog clade names, and whose values are length-2 tuples of flatoing point dates (lower and upper bounds of 95% credible interval)."""
+        self.calibration_configs = {}
+        """A list of `sections.Clock`s, each of which specifies the configuration for a single clock model."""
         self.clock_configs = []
-        """A list of dictionaries, each of which specifies the configuration for a single clock model."""
+        self.clocks = []
+        self.clocks_by_name = {}
 
         self.language_group_configs = collections.OrderedDict()
         """An ordered dictionary whose keys are language group names and whose values are language group definitions."""
         self.language_groups = {}
         """A dictionary giving names to arbitrary collections of tip languages."""
-        """A floating point value, indicated the percentage of datapoints, across ALL models, which a language must have in order to be included in the analysis."""
-        self.minimum_data = 0.0
         self.model_configs = []
         """A list of dictionaries, each of which specifies the configuration for a single evolutionary model."""
         self.stdin_data = stdin_data
@@ -161,11 +161,6 @@ class Configuration(object):
         """
         p = self.cfg
 
-        ## Languages
-        sec = "languages"
-        if p.has_option(sec,'minimum_data'):
-            self.minimum_data = p.getfloat(sec, "minimum_data")
-
         ## Language groups
         if p.has_section("language_groups"):
             for name, components_string in p.items("language_groups"):
@@ -179,7 +174,7 @@ class Configuration(object):
         ## Clocks
         clock_sections = [s for s in p.sections() if s.lower().startswith("clock")]
         for section in clock_sections:
-            self.clock_configs.append(self.get_clock_config(p, section))
+            self.clock_configs.append(sections.Clock.from_config({}, section, self.cfg))
 
         ## Models
         model_sections = [s for s in p.sections() if s.lower().startswith("model")]
@@ -199,23 +194,6 @@ class Configuration(object):
         # Make sure analysis is non-empty
         if not model_sections and not self.geography:
             raise ValueError("Config file contains no model sections and no geography section.")
-
-    def get_clock_config(self, p, section):
-        cfg = {
-            'name': section[5:].strip(),
-        }
-        for key, value in p[section].items():
-            if key in ('estimate_mean', 'estimate_rate','estimate_variance', 'correlated'):
-                value = p.getboolean(section, key)
-            elif key in ('mean','variance'):
-                value = p.getfloat(section, key)
-            elif key in ('rate',):
-                try:
-                    value = p.getfloat(section, key)
-                except ValueError:
-                    pass # and hope it's a prior clock
-            cfg[key] = value
-        return cfg
 
     def get_model_config(self, p, section):
         section_parts = section.split(None, 1)
@@ -442,8 +420,7 @@ class Configuration(object):
         if self.geography:
             # Read location data from file, patching (rather than replacing) Glottolog
             for loc_file in self.geography.data:
-                for language, location in load_location_data(loc_file).items():
-                    self.locations[language] = location
+                self.locations.update(dict(iterlocations(loc_file)))
 
     def build_language_filter(self):
         """
@@ -469,7 +446,8 @@ class Configuration(object):
             for model in self.models:
                 count += len([x for x in model.data[lang].values() if x])
             datapoint_props[lang] = 1.0*count / N
-        self.sparse_languages = [l for l in all_langs if datapoint_props[l] < self.minimum_data]
+        self.sparse_languages = [
+            l for l in all_langs if datapoint_props[l] < self.languages.minimum_data]
 
     @property
     def files_to_embed(self):
@@ -657,25 +635,13 @@ class Configuration(object):
         Populates self.clocks with a list of BaseClock subclasses, one for each
         dictionary of settings in self.clock_configs.
         """
-        self.clocks = []
-        self.clocks_by_name = {}
         for config in self.clock_configs:
-            if config["type"].lower() == "strict":
-                clock = strict.StrictClock(config, self)
-            elif config["type"].lower() == "strict_with_prior":
-                clock = prior_clock.StrictClockWithPrior(config, self)
-            elif config["type"].lower() == "relaxed":
-                clock = relaxed.relaxed_clock_factory(config, self)
-            elif config["type"].lower() == "random":
-                clock = random_clock.RandomLocalClock(config, self)
+            clock = config.get_clock(self)
             self.clocks.append(clock)
             self.clocks_by_name[clock.name] = clock
         # Create default clock if necessary
         if "default" not in self.clocks_by_name:
-            config = {}
-            config["name"] = "default"
-            config["type"] = "strict"
-            clock = strict.StrictClock(config, self)
+            clock = sections.Clock(cli_params={}, name='clock default').get_clock(self)
             self.clocks.append(clock)
             self.clocks_by_name[clock.name] = clock
 

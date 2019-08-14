@@ -3,13 +3,15 @@ from beastling.util import xml
 
 
 class RandomLocalClock(BaseClock):
+    __type__ = 'random'
 
     def __init__(self, clock_config, global_config):
 
         BaseClock.__init__(self, clock_config, global_config)
         self.is_strict = False
-        self.correlated = str(clock_config.get("correlated","false")).lower()
-        self.estimate_variance = clock_config.get("estimate_variance",True)
+        self.correlated = clock_config.correlated
+        self.estimate_variance = True if clock_config.estimate_variance is None \
+            else clock_config.estimate_variance
 
     def add_state(self, state):
         BaseClock.add_state(self, state)
