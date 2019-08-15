@@ -312,43 +312,43 @@ class Configuration(object):
                 glottocode2node[glottocode] = node
 
         # Load geographic metadata
+        dialects = []
         for t in reader(
-                get_glottolog_data('geo', self.admin.glottolog_release), namedtuples=True):
-            if t.macroarea:
-                self.glotto_macroareas[t.glottocode] = t.macroarea
-                for isocode in t.isocodes.split():
-                    self.glotto_macroareas[isocode] = t.macroarea
+                get_glottolog_data('geo', self.admin.glottolog_release), dicts=True):
+            identifiers = [t['glottocode']] +t['isocodes'].split()
+            if t['level'] == "dialect":
+                dialects.append((t, identifiers))
+            if t['macroarea']:
+                for id_ in identifiers:
+                    self.glotto_macroareas[id_] = t['macroarea']
 
-            if t.latitude and t.longitude:
-                latlon = (float(t.latitude), float(t.longitude))
-                self.locations[t.glottocode] = latlon
-                for isocode in t.isocodes.split():
-                    self.locations[isocode] = latlon
+            if t['latitude'] and t['longitude']:
+                latlon = (float(t['latitude']), float(t['longitude']))
+                for id_ in identifiers:
+                    self.locations[id_] = latlon
 
         # Second pass of geographic data to handle dialects, which inherit
         # their parent language's location
-        for t in reader(
-                get_glottolog_data('geo', self.admin.glottolog_release), namedtuples=True):
-            if t.level == "dialect":
-                failed = False
-                if node not in glottocode2node:
-                    continue
-                node = glottocode2node[t.glottocode]
-                ancestor = node.ancestor
-                while label2name[ancestor.name][1] not in self.locations:
-                    if not ancestor.ancestor:
-                        # We've hit the root without finding an ancestral node
-                        # with location data!
-                        failed = True
-                        break
-                    else:
-                        ancestor = ancestor.ancestor
-                if failed:
-                    continue
-                latlon = self.locations[label2name[ancestor.name][1]]
-                self.locations[t.glottocode] = latlon
-                for isocode in t.isocodes.split():
-                    self.locations[isocode] = latlon
+        node = None
+        for t, identifiers in dialects:
+            failed = False
+            if node not in glottocode2node:
+                continue
+            node = glottocode2node[t['glottocode']]
+            ancestor = node.ancestor
+            while label2name[ancestor.name][1] not in self.locations:
+                if not ancestor.ancestor:
+                    # We've hit the root without finding an ancestral node
+                    # with location data!
+                    failed = True
+                    break
+                else:
+                    ancestor = ancestor.ancestor
+            if failed:
+                continue
+            latlon = self.locations[label2name[ancestor.name][1]]
+            for id_ in identifiers:
+                self.locations[id_] = latlon
 
     def check_glottolog_required(self):
         # We need Glottolog if...
