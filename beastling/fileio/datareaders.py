@@ -4,8 +4,9 @@ import collections
 from pathlib import Path
 
 import pycldf.dataset
-
 from csvw.dsv import UnicodeDictReader
+
+from beastling.util import log
 
 
 def sniff(filename, default_dialect=csv.excel):
@@ -229,71 +230,56 @@ def read_cldf_dataset(filename, code_column=None, expect_multiple=False):
             dataset.module))
 
     # Build dictionaries of nice IDs for languages and features
-    # TODO: find a smarter/neater way of testing for the presence of a
-    # LanguageTable or ParameterTable
-    lang_ids, language_code_map = build_lang_ids(dataset)
+    col_map = dataset.column_names
+    lang_ids, language_code_map = build_lang_ids(dataset, col_map)
     feature_ids = {}
-    try:
+    if col_map.parameters:
         for row in dataset["ParameterTable"]:
-            feature_ids[row["ID"]] = sanitise_name(row[dataset["ParameterTable", "Name"].name])
-    except KeyError:
-        pass
+            feature_ids[row[col_map.parameters.id]] = sanitise_name(row[col_map.parameters.name])
 
     # Build actual data dictionary, based on dataset type
     if dataset.module == "Wordlist":
-        if code_column:
-            cognate_column_in_form_table = True
-        else:
-            try:
-                code_column = dataset["FormTable", "cognatesetReference"].name
-                cognate_column_in_form_table = True
-                # The form table contains cognate sets!
-            except KeyError:
-                cognatesets = collections.defaultdict(lambda: "?")
-                try:
-                    form_reference = dataset["CognateTable", "formReference"].name
-                    code_column = dataset["CognateTable", "cognatesetReference"].name
-                except KeyError:
+        # We search for cognatesetReferences in the FormTable or a separate CognateTable.
+        # If we find them in CognateTable, we store them keyed with formReference:
+        cognatesets = collections.defaultdict(lambda: "?")
+        if not code_column:  # If code_column is given explicitly, we don't have to search!
+            code_column = col_map.forms.cognatesetReference
+            if not code_column:
+                if col_map.cognates:
+                    code_column = col_map.cognates.cognatesetReference
+                    for row in dataset["CognateTable"]:
+                        #
+                        # Note: We assume that each form belongs to at most one cognate set!
+                        # If this is not the case, the last cognate set wins.
+                        #
+                        cognatesets[row[col_map.cognates.formReference]] = row[code_column]
+                else:
                     raise ValueError(
                         "Dataset {:} has no cognatesetReference column in its "
                         "primary table or in a separate cognate table. "
                         "Is this a metadata-free wordlist and you forgot to "
                         "specify code_column explicitly?".format(filename))
-                for row in dataset["CognateTable"].iterdicts():
-                    cognatesets[row[form_reference]] = row[code_column]
-                form_column = dataset["FormTable", "id"].name
-                cognate_column_in_form_table = False
 
-        language_column = dataset["FormTable", "languageReference"].name
-        parameter_column = dataset["FormTable", "parameterReference"].name
+        for row in dataset["FormTable"]:
+            lang_id = lang_ids.get(
+                row[col_map.forms.languageReference], row[col_map.forms.languageReference])
+            feature_id = feature_ids.get(
+                row[col_map.forms.parameterReference], row[col_map.forms.parameterReference])
 
-        for row in dataset["FormTable"].iterdicts():
-            lang_id = lang_ids.get(row[language_column], row[language_column])
-            feature_id = feature_ids.get(row[parameter_column], row[parameter_column])
-            if cognate_column_in_form_table:
-                if expect_multiple:
-                    data[lang_id][feature_id].append(row[code_column])
-                else:
-                    data[lang_id][feature_id] = (row[code_column])
+            cogset = cognatesets[row[col_map.forms.id]] if cognatesets else row[code_column]
+            if expect_multiple:
+                data[lang_id][feature_id].append(cogset)
             else:
-                if expect_multiple:
-                    data[lang_id][feature_id].append(
-                        cognatesets[row[form_column]])
-                else:
-                    data[lang_id][feature_id] = (
-                        cognatesets[row[form_column]])
+                data[lang_id][feature_id] = cogset
         return data, language_code_map
 
-    elif dataset.module == "StructureDataset":
-        language_column = dataset["ValueTable", "languageReference"].name
-        parameter_column = dataset["ValueTable", "parameterReference"].name
-        try:
-            code_column = code_column or dataset["ValueTable", "codeReference"].name
-        except KeyError:
-            code_column = dataset["ValueTable", "value"].name
-        for row in dataset["ValueTable"].iterdicts():
-            lang_id = lang_ids.get(row[language_column], row[language_column])
-            feature_id = feature_ids.get(row[parameter_column], row[parameter_column])
+    if dataset.module == "StructureDataset":
+        code_column = col_map.values.codeReference or col_map.values.value
+        for row in dataset["ValueTable"]:
+            lang_id = lang_ids.get(
+                row[col_map.values.languageReference], row[col_map.values.languageReference])
+            feature_id = feature_ids.get(
+                row[col_map.values.parameterReference], row[col_map.values.parameterReference])
             if expect_multiple:
                 data[lang_id][feature_id].append(row[code_column] or '')
             else:
@@ -301,39 +287,41 @@ def read_cldf_dataset(filename, code_column=None, expect_multiple=False):
         return data, language_code_map
 
 
-def build_lang_ids(dataset):
+def build_lang_ids(dataset, col_map):
+    if col_map.languages is None:
+        # No language table so we can't do anything
+        return {}, {}
+
+    col_map = col_map.languages
     lang_ids = {}
     language_code_map = {}
-    try:
-        dataset["LanguageTable"]
-    except KeyError:
-        # No language table so we can't do anything
-        return language_code_map, lang_ids
 
     # First check for unique names and Glottocodes
     names = []
-    gc_column = dataset["LanguageTable", "Glottocode"].name
     gcs = []
-    n_langs = 0
+    langs = []
     for row in dataset["LanguageTable"]:
-        names.append(row[dataset["LanguageTable", "Name"].name])
-        if row[gc_column]:
-            gcs.append(row[gc_column])
-        n_langs += 1
-    unique_names = len(set(names)) == len(names) == n_langs
-    unique_gcs = len(set(gcs)) == len(gcs) == n_langs
-    for row in dataset["LanguageTable"]:
+        langs.append(row)
+        names.append(row[col_map.name])
+        if row[col_map.glottocode]:
+            gcs.append(row[col_map.glottocode])
+
+    unique_names = len(set(names)) == len(names)
+    unique_gcs = len(set(gcs)) == len(gcs) == len(names)
+
+    log.info('{0} are used as language identifiers'.format(
+        'Names' if unique_names else ('Glottocodes' if unique_gcs else 'dataset-local IDs')))
+
+    for row in langs:
         if unique_names:
             # Use names if they're unique, for human-friendliness
-            lang_ids[row["ID"]] = sanitise_name(row[dataset["LanguageTable", "Name"].name])
+            lang_ids[row[col_map.id]] = sanitise_name(row[col_map.name])
         elif unique_gcs:
             # Otherwise, use glottocodes as at least they are meaningful
-            # TODO: We should emit a --verbose message here.  But we currently
-            # don't have any access to the messages list from here.
-            lang_ids[row["ID"]] = row[gc_column]
+            lang_ids[row[col_map.id]] = row[col_map.glottocode]
         else:
             # As a last resort, use the IDs which are guaranteed to be unique
-            lang_ids[row["ID"]] = row["ID"]
-        if row[gc_column]:
-            language_code_map[lang_ids[row["ID"]]] = row[gc_column]
+            lang_ids[row[col_map.id]] = row[col_map.id]
+        if row[col_map.glottocode]:
+            language_code_map[lang_ids[row[col_map.id]]] = row[col_map.glottocode]
     return lang_ids, language_code_map

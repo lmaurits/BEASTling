@@ -1,6 +1,66 @@
-import pytest
+import logging
 
-from beastling.fileio.datareaders import load_data, sniff
+import pytest
+from pycldf import Wordlist
+
+import beastling
+from beastling.fileio.datareaders import load_data, sniff, build_lang_ids, read_cldf_dataset
+
+
+@pytest.fixture
+def cldf_factory(tmppath):
+    def factory(with_languages=True, **data):
+        ds = Wordlist.in_dir(tmppath)
+        if with_languages:
+            ds.add_component('LanguageTable')
+        ds.add_component('ParameterTable')
+        data_ = dict(
+            FormTable=[dict(ID='1', Form='form', Language_ID='l', Parameter_ID='p')],
+            ParameterTable=[dict(ID='p', Name='pname')],
+        )
+        if with_languages:
+            data_['LanguageTable'] = [dict(ID='l', Name='l name', Glottocode='abcd1234')]
+        data_.update(data)
+        ds.write(tmppath / 'metadata.json', **data_)
+        return ds
+    return factory
+
+
+def test_read_cldf_dataset(cldf_factory, tmppath):
+    _ = cldf_factory()
+    with pytest.raises(ValueError):
+        read_cldf_dataset(tmppath / 'metadata.json')
+
+    data, _ = read_cldf_dataset(tmppath / 'metadata.json', code_column='Parameter_ID')
+    assert data['l_name']['pname'] == 'p'
+
+
+def test_build_lang_ids(cldf_factory, caplog):
+    ds = cldf_factory(with_languages=False)
+    assert build_lang_ids(ds, ds.column_names) == ({}, {})
+
+    ds = cldf_factory()
+    lmap, lcmap = build_lang_ids(ds, ds.column_names)
+    assert lmap['l'] == 'l_name'
+    assert lcmap['l_name'] == 'abcd1234'
+
+    ds = cldf_factory(LanguageTable=[
+        dict(ID='l', Name='l name', Glottocode='abcd1234'),
+        dict(ID='l2', Name='l name', Glottocode='dcba1234'),
+    ])
+    with caplog.at_level(logging.INFO, logger=beastling.__name__):
+        lmap, lcmap = build_lang_ids(ds, ds.column_names)
+        assert 'Glottocodes' in caplog.records[-1].message
+        assert lmap['l'] == 'abcd1234'
+
+    ds = cldf_factory(LanguageTable=[
+        dict(ID='l', Name='l name'),
+        dict(ID='l2', Name='l name'),
+    ])
+    with caplog.at_level(logging.INFO, logger=beastling.__name__):
+        lmap, lcmap = build_lang_ids(ds, ds.column_names)
+        assert 'local' in caplog.records[-1].message
+        assert lmap['l'] == 'l'
 
 
 def test_load_data(data_dir):

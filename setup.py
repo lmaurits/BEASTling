@@ -23,7 +23,7 @@ setup(
         'appdirs',
         'csvw',
         'attrs>=19.1',
-        'pycldf',
+        'pycldf>=1.7',
     ],
     extras_require={
         'dev': ['flake8', 'wheel', 'twine', 'tox'],
