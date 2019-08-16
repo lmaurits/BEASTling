@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import shutil
 
@@ -17,7 +18,10 @@ def tests_dir(tmppath):
     # To prevent tests from littering cwd, we copy the tests/ directory to a temporary
     # location.
     shutil.copytree(str(Path(__file__).parent), str(tmppath / 'tests'))
-    return tmppath / 'tests'
+    orig = os.getcwd()
+    os.chdir(str(tmppath))
+    yield tmppath / 'tests'
+    os.chdir(orig)
 
 
 @pytest.fixture

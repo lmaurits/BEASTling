@@ -751,13 +751,12 @@ class Configuration(object):
 
     def language_group(self, clade):
         """Look up a language group locally or as a glottolog clade."""
-        if clade in self.language_groups:
-            return self.language_groups[clade]
-        self.language_groups[clade] = self.get_languages_by_glottolog_clade(clade)
-        if not self.language_groups[clade]:
-            raise ValueError(
-                "Language group or Glottolog clade {:} not found "
-                "or was empty for the languages given.".format(clade))
+        if clade not in self.language_groups:
+            self.language_groups[clade] = self.get_languages_by_glottolog_clade(clade)
+            if not self.language_groups[clade]:
+                raise ValueError(
+                    "Language group or Glottolog clade {:} not found "
+                    "or was empty for the languages given.".format(clade))
         return self.language_groups[clade]
 
     def instantiate_calibrations(self):
@@ -882,34 +881,24 @@ class Configuration(object):
         Given a comma-separated list of Glottolog ids, return a list of all
         languages descended from the corresponding Glottolog nodes.
         """
-        langs = []
-        clades = [c.strip() for c in clade.split(",")]
-        matched_clades = []
+        clades = set(c.strip() for c in clade.split(","))
+
         # First look for clades which are actually language identifiers
-        for clade in clades:
-            if clade in self.languages.languages:
-                langs.append(clade)
-                matched_clades.append(clade)
+        langs = matched_clades = clades.intersection(self.languages.languages)
 
         # Once a clade has matched against a language name, don't let it
         # subsequently match against anything in Glottolog!
-        for clade in matched_clades:
-            clades.remove(clade)
+        clades = clades - matched_clades
 
-        # If all clades matched against language names, don't bother
-        # searching Glottolog.
-        if not clades:
-            return langs
+        if clades:
+            # Now search against Glottolog
+            clades = [c.lower() for c in clades]
+            for l in self.languages.languages:
+                # No repeated matching!
+                if l not in langs:
+                    for name, glottocode in self.classifications.get(l.lower(), ""):
+                        if name.lower() in clades or glottocode in clades:
+                            langs.add(l)
+                            break
 
-        # Now search against Glottolog
-        clades = [c.lower() for c in clades]
-        for l in self.languages.languages:
-            # No repeated matching!
-            if l in langs:
-                continue
-            for name, glottocode in self.classifications.get(l.lower(),""):
-                if name.lower() in clades or glottocode in clades:
-                    langs.append(l)
-                    break
-
-        return langs
+        return list(langs)

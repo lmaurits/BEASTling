@@ -114,6 +114,16 @@ def test_config(config_dir):
     assert cfg.mcmc.chainlength == 10
 
 
+def test_monophyly_with_unknown_language(config_factory, data_dir, caplog):
+    datafile = data_dir / 'basic.csv'
+    data = datafile.read_text(encoding='utf8').strip()
+    data += '\nxyzz,1,1,1,1,1,1,1,1,1,1\n'
+    datafile.write_text(data, encoding='utf8')
+    cfg = config_factory('basic', 'monophyletic')
+    cfg.process()
+    assert any('Monophyly constraints' in rec.message for rec in caplog.records)
+
+
 def test_multiple_processing(config_factory, config_dir, caplog):
     cfg = config_factory('basic', 'geo')
     cfg.process()
