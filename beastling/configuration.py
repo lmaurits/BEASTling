@@ -576,7 +576,6 @@ class Configuration(object):
         """
         Converts a structure of nested lists into Newick string.
         """
-        print(struct)
         if not type([]) in [type(x) for x in struct]:
             return "(%s)" % ",".join(struct) if len(struct) > 1 else struct[0]
         else:
