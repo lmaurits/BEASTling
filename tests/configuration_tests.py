@@ -1,10 +1,12 @@
 import io
 import sys
 from pathlib import Path
+import logging
 
 import pytest
 import newick
 
+import beastling
 from beastling.configuration import Configuration, get_glottolog_data
 from beastling.beastxml import BeastXml
 
@@ -122,6 +124,16 @@ def test_monophyly_with_unknown_language(config_factory, data_dir, caplog):
     cfg = config_factory('basic', 'monophyletic')
     cfg.process()
     assert any('Monophyly constraints' in rec.message for rec in caplog.records)
+
+
+def test_disabling_monophyly(config_factory, data_dir, caplog):
+    datafile = data_dir / 'basic.csv'
+    data = datafile.read_text(encoding='utf8').split('\n')
+    datafile.write_text('\n'.join(data[:3]), encoding='utf8')
+    cfg = config_factory('basic', 'monophyletic')
+    with caplog.at_level(logging.INFO, logger=beastling.__name__):
+        cfg.process()
+        assert any('Disabling Glottolog' in rec.message for rec in caplog.records)
 
 
 def test_multiple_processing(config_factory, config_dir, caplog):
