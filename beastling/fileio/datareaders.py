@@ -117,8 +117,7 @@ def load_beastling_data(reader, lang_column, filename, expect_multiple=False):
 
 
 def load_cldf_data(reader, value_column, filename, expect_multiple=False):
-    if not value_column:
-        value_column = "Value"
+    value_column = value_column or "Value"
     if "Feature_ID" in reader.fieldnames:
         feature_column = "Feature_ID"
     elif "Parameter_ID" in reader.fieldnames:
@@ -191,8 +190,7 @@ def get_dataset(fname):
     """
     fname = Path(fname)
     if not fname.exists():
-        raise FileNotFoundError(
-            '{:} does not exist'.format(fname))
+        raise FileNotFoundError('{:} does not exist'.format(fname))
     if fname.suffix == '.json':
         return pycldf.dataset.Dataset.from_metadata(fname)
     return pycldf.dataset.Dataset.from_data(fname)

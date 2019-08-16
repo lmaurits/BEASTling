@@ -48,7 +48,7 @@ def collect_ids_and_refs(root):
 
 class BeastXml(object):
 
-    def __init__(self, config, validate=True):
+    def __init__(self, config):
         self.beast = None
         self.beastling_comment = None
         self.config = config
@@ -63,8 +63,7 @@ class BeastXml(object):
             clock.beastxml = self
         self._taxon_sets = {}
         self.build_xml()
-        if validate:
-            self.validate_ids()
+        self.validate_ids()
 
     def build_xml(self):
         """
@@ -96,7 +95,6 @@ class BeastXml(object):
         for clock in self.config.clocks:
             clock.add_branchrate_model(self.beast)
         self.add_run()
-        self.validate_ids()
 
     def add_beastling_comment(self):
         """
@@ -318,7 +316,7 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
 
         # If we've been asked to build an emtpy TaxonSet, something is very wrong,
         # so better to die loud and early
-        assert(langs)
+        assert langs
         # Refer to any previous TaxonSet with the same languages
         for idref, taxa in self._taxon_sets.items():
             if langs == taxa:
