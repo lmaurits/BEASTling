@@ -1,10 +1,9 @@
 from pathlib import Path
+import shutil
 
 import pytest
 
 from beastling.configuration import Configuration
-
-CACHE = dict(classifications=None, locations=None, glotto_macroareas=None)
 
 
 @pytest.fixture
@@ -13,8 +12,12 @@ def tmppath(tmpdir):
 
 
 @pytest.fixture
-def tests_dir():
-    return Path(__file__).parent
+def tests_dir(tmppath):
+    # Data files etc. are all referenced by paths in tests/ relative to the repos root.
+    # To prevent tests from littering cwd, we copy the tests/ directory to a temporary
+    # location.
+    shutil.copytree(str(Path(__file__).parent), str(tmppath / 'tests'))
+    return tmppath / 'tests'
 
 
 @pytest.fixture
@@ -54,17 +57,5 @@ def config_factory(config_dir, bad_config_dir):
         else:
             configfiles = [str(path(n)) for n in configfiles]
 
-        config = Configuration(configfile=configfiles)
-        if kw.get('from_cache', True):
-            if not CACHE['classifications']:
-                try:
-                    config.process()
-                    for k in CACHE:
-                        CACHE[k] = getattr(config, k)
-                except:
-                    pass
-            if CACHE['classifications']:
-                for k, v in CACHE.items():
-                    setattr(config, k, v)
-        return config
+        return Configuration(configfile=configfiles)
     return make_cfg

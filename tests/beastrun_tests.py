@@ -23,6 +23,7 @@ skip = [
 
 
 @pytest.mark.beast
+@pytest.mark.slow
 @pytest.mark.parametrize(
     'configs,assertion',
     [
@@ -171,7 +172,7 @@ def test_beastrun(configs, assertion, config_factory, tmppath):
         warnings.simplefilter("always")
 
         temp_filename = tmppath / 'test'
-        xml = beastling.beastxml.BeastXml(config_factory(*configs), validate=False)
+        xml = beastling.beastxml.BeastXml(config_factory(*configs))
         xml.write_file(str(temp_filename))
         debug_copy = pathlib.Path('_test.xml')
         shutil.copy(str(temp_filename), str(debug_copy))
@@ -180,8 +181,8 @@ def test_beastrun(configs, assertion, config_factory, tmppath):
         if os.environ.get('TRAVIS'):
             et.parse(str(temp_filename))
         else:
-            # Data files etc. are all referenced by paths relative to the repos root.
-            shutil.copytree(str(pathlib.Path(__file__).parent), str(tmppath / 'tests'))
+            ## Data files etc. are all referenced by paths relative to the repos root.
+            #shutil.copytree(str(pathlib.Path(__file__).parent), str(tmppath / 'tests'))
             try:
                 subprocess.check_call(
                     ['beast', '-java', '-overwrite', str(temp_filename)],

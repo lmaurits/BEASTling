@@ -1,16 +1,22 @@
 import logging
+from io import StringIO
 
 import pytest
-from pycldf import Wordlist
+from pycldf import Wordlist, Generic
 
 import beastling
-from beastling.fileio.datareaders import load_data, sniff, build_lang_ids, read_cldf_dataset
-
+from beastling.fileio.datareaders import (
+    load_data, sniff, build_lang_ids, read_cldf_dataset, iterlocations,
+)
 
 @pytest.fixture
 def cldf_factory(tmppath):
-    def factory(with_languages=True, **data):
-        ds = Wordlist.in_dir(tmppath)
+    def factory(with_languages=True, module=Wordlist, **data):
+        ds = module.in_dir(tmppath)
+        try:
+            ds['FormTable']
+        except KeyError:
+            ds.add_component('FormTable')
         if with_languages:
             ds.add_component('LanguageTable')
         ds.add_component('ParameterTable')
@@ -33,6 +39,13 @@ def test_read_cldf_dataset(cldf_factory, tmppath):
 
     data, _ = read_cldf_dataset(tmppath / 'metadata.json', code_column='Parameter_ID')
     assert data['l_name']['pname'] == 'p'
+
+    with pytest.raises(FileNotFoundError):
+        read_cldf_dataset(tmppath / 'abc')
+
+    _ = cldf_factory(module=Generic)
+    with pytest.raises(ValueError):
+        read_cldf_dataset(tmppath / 'metadata.json')
 
 
 def test_build_lang_ids(cldf_factory, caplog):
@@ -78,6 +91,23 @@ def test_load_data(data_dir):
                 else:
                     data, x = load_data(p)
                 assert len(data) != 0
+
+
+def test_load_data_from_stdin(mocker, data_dir):
+    filename = data_dir / 'basic.csv'
+    mocker.patch(
+        'beastling.fileio.datareaders.sys.stdin', StringIO(filename.read_text(encoding='utf8')))
+    assert load_data('stdin') == load_data(filename)
+
+
+def test_load_cldf_data_from_stdin(mocker, data_dir):
+    filename = data_dir / 'cldf.csv'
+    mocker.patch(
+        'beastling.fileio.datareaders.sys.stdin',
+        StringIO(filename.read_text(encoding='utf8').replace('Feature_ID', 'x')))
+
+    with pytest.raises(ValueError):
+        load_data('stdin')
 
 
 @pytest.mark.parametrize(
@@ -129,3 +159,15 @@ def test_load_data_2(data_dir, fname, kw):
 def test_sniffer(data_dir, fname):
     dialect = sniff(data_dir / fname)
     assert dialect.delimiter == "," if fname.endswith('.csv') else '\t'
+
+
+def test_iterlocations_missing_column(tmppath):
+    tmppath.joinpath('locs').write_text('iso,lat\nabc,2.2', encoding='utf8')
+
+    with pytest.raises(ValueError, match='longitude'):
+        list(iterlocations(tmppath.joinpath('locs')))
+
+
+def test_iterlocations_invalid_coords(tmppath):
+    tmppath.joinpath('locs').write_text('iso,lat,lon\nabc,2.2,xy', encoding='utf8')
+    assert list(iterlocations(tmppath.joinpath('locs')))[0][1][1] == '?'

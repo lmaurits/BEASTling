@@ -8,6 +8,8 @@ import newick
 from beastling.configuration import Configuration, get_glottolog_data
 from beastling.beastxml import BeastXml
 
+pytestmark = pytest.mark.slow
+
 
 def _processed_config(config_factory, *cfgs):
     config = config_factory(*cfgs)
