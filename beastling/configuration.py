@@ -438,7 +438,7 @@ class Configuration(object):
         languages are classified identically by Glottolog, then override
         the monophyly=True setting.
         """
-        if not self.languages.monophyly:
+        if (not self.languages.monophyly) or self.languages.monophyly_newick:
             return
         if len(self.languages.languages) < 3:
             # Monophyly constraints are meaningless for so few languages
@@ -576,6 +576,7 @@ class Configuration(object):
         """
         Converts a structure of nested lists into Newick string.
         """
+        print(struct)
         if not type([]) in [type(x) for x in struct]:
             return "(%s)" % ",".join(struct) if len(struct) > 1 else struct[0]
         else:
