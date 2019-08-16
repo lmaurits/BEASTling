@@ -73,7 +73,12 @@ def test_families(config_factory):
     assert cfg1.languages.languages == cfg2.languages.languages
 
 
-def test_config(config_factory):
+def test_loading_of_dialect_data(config_factory):
+    cfg = _processed_config(config_factory, 'basic', 'geo')
+    assert '3adt1234' in cfg.locations
+
+
+def test_config(config_dir):
     cfg = Configuration(configfile={
         'admin': {
 
@@ -104,6 +109,21 @@ def test_config(config_factory):
     with pytest.raises(ValueError, match='Config file'):
         Configuration(configfile={'languages': {}})
 
+    # Test filename as string:
+    cfg = Configuration(configfile=str(config_dir / 'basic.conf'))
+    assert cfg.mcmc.chainlength == 10
+
+
+def test_multiple_processing(config_factory, config_dir, caplog):
+    cfg = config_factory('basic', 'geo')
+    cfg.process()
+    # processing again doesn't do anything!
+    cfg.process()
+    assert 'already' in caplog.records[-1].message
+    cfg.load_glottolog_data()
+    message = caplog.records[-1].message
+    assert ('already' in message) and ('Glottolog' in message)
+
 
 @pytest.mark.parametrize(
     'cfg',
@@ -121,6 +141,7 @@ def test_config(config_factory):
         ["basic", "bad_cal_endpoints"],
         ["basic", "monophyletic", "bad_cal_monophyly"],
         "misspelled_clock",
+        ["basic", "geo_prior"],  # geo priors, but no geography!
     ]
 )
 def test_invalid_config(cfg, config_factory):

@@ -187,6 +187,7 @@ class Configuration(object):
         problems.
         """
         if self.processed:
+            log.warning('Configuration has already been processed')
             return
 
         # Add dependency notices if required
@@ -274,6 +275,7 @@ class Configuration(object):
             return
         # Don't load if we already have - can this really happen?
         if self.glottolog_loaded:
+            log.warning('Glottolog data has already been loaded')
             return
         self.glottolog_loaded = True
 
@@ -329,10 +331,11 @@ class Configuration(object):
 
         # Second pass of geographic data to handle dialects, which inherit
         # their parent language's location
-        node = None
         for t, identifiers in dialects:
             failed = False
-            if node not in glottocode2node:
+            if t['glottocode'] not in glottocode2node:  # pragma: no cover
+                # This may only happen for newick downloads of older Glottolog releases, where
+                # possibly isolates may not be included.
                 continue
             node = glottocode2node[t['glottocode']]
             ancestor = node.ancestor
@@ -405,13 +408,6 @@ class Configuration(object):
         res = set(fname for fname in self._files_to_embed)
         for section in [self.admin, self.mcmc, self.languages]:
             res = res.union(section.files_to_embed)
-        return res
-
-    def handle_file_or_list(self, value):
-        res = sections.handle_file_or_list(value)
-        if isinstance(res, sections.ConfigValue):
-            self._files_to_embed.append(res.fname)
-            res = res.value
         return res
 
     def filter_language(self, l):
