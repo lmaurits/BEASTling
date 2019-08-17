@@ -1,6 +1,5 @@
 import itertools
 import random
-import re
 from pathlib import Path
 from configparser import ConfigParser
 
@@ -15,6 +14,7 @@ import beastling.models.geo as geo
 
 from beastling import sections
 from beastling.util import log
+from beastling.util import monophyly
 from beastling.util.misc import retrieve_url
 
 import beastling.treepriors.base as treepriors
@@ -22,8 +22,6 @@ from beastling.treepriors.coalescent import CoalescentTree
 from beastling.distributions import Calibration
 
 _BEAST_MAX_LENGTH = 2147483647
-GLOTTOLOG_NODE_LABEL = re.compile(
-    "'(?P<name>[^\[]+)\[(?P<glottocode>[a-z0-9]{8})\](\[(?P<isocode>[a-z]{3})\])?(?P<appendix>-l-)?'")
 
 
 def get_glottolog_data(datatype, release):
@@ -279,39 +277,8 @@ class Configuration(object):
             return
         self.glottolog_loaded = True
 
-        label2name = {}
-        glottocode2node = {}
-
-        def parse_label(label):
-            match = GLOTTOLOG_NODE_LABEL.match(label)
-            label2name[label] = (match.group('name').strip().replace("\\'","'"), match.group('glottocode'))
-            return (
-                match.group('name').strip(),
-                match.group('glottocode'),
-                match.group('isocode'))
-
-        def get_classification(node):
-            ancestor = node.ancestor
-            if not ancestor:
-                # Node is root of some family
-                return [label2name[node.name]]
-            res = []
-            while ancestor:
-                res.append(label2name[ancestor.name])
-                ancestor = ancestor.ancestor
-            return list(reversed(res))
-
-        # Walk the tree and build the classifications dictionary
-        glottolog_trees = newick.read(
-            str(get_glottolog_data('newick', self.admin.glottolog_release)))
-        for tree in glottolog_trees:
-            for node in tree.walk():
-                name, glottocode, isocode = parse_label(node.name)
-                classification = get_classification(node)
-                self.classifications[glottocode] = classification
-                if isocode:
-                    self.classifications[isocode] = classification
-                glottocode2node[glottocode] = node
+        self.classifications, glottocode2node, label2name = monophyly.classifications_from_newick(
+           str(get_glottolog_data('newick', self.admin.glottolog_release)))
 
         # Load geographic metadata
         dialects = []
@@ -471,111 +438,15 @@ class Configuration(object):
             classifications = [self.classifications[name.lower()] for name in langs]
             end = max([len(c) for c in classifications]) - self.languages.monophyly_start_depth
             start = max(0, end - self.languages.monophyly_levels)
-        struct = self.make_monophyly_structure(langs, depth=start, maxdepth=end)
+        struct = monophyly.make_structure(self.classifications, langs, depth=start, maxdepth=end)
         # Make sure this struct is not pointlessly flat
-        if not self.check_monophyly_structure(struct):
+        if not monophyly.check_structure(struct):
             self.languages.monophyly = False
             log.info(
                 "Disabling Glottolog monophyly constraints because all languages in the analysis "
                 "are classified identically.")
         # At this point everything looks good, so keep monophyly on and serialise the "monophyly structure" into a Newick tree.
-        self.languages.monophyly_newick = self.make_monophyly_string(struct)
-
-    def make_monophyly_structure(self, langs, depth, maxdepth):
-        """
-        Recursively partition a list of languages (ISO or Glottocodes) into
-        lists corresponding to their Glottolog classification.  The process
-        may be halted part-way down the Glottolog tree.
-        """
-        if depth > maxdepth:
-            # We're done, so terminate recursion
-            return langs
-
-        def subgroup(name, depth):
-            ancestors = self.classifications[name.lower()]
-            return ancestors[depth][0] if depth < len(ancestors) else ''
-
-        def sortkey(i):
-            """
-            Callable to pass into `sorted` to port sorting behaviour from py2 to py3.
-
-            :param i: Either a string or a list (of lists, ...) of strings.
-            :return: Pair (nesting level, first string)
-            """
-            d = 0
-            while isinstance(i, list):
-                d -= 1
-                i = i[0] if i else ''
-            return d, i
-
-        N = len(langs)
-        # Find the ancestor of all the given languages at at particular depth
-        # (i.e. look `depth` nodes below the root of the Glottolog tree)
-        groupings = list(set([subgroup(l, depth) for l in langs]))
-        if len(groupings) == 1:
-            # If all languages belong to the same classificatio at this depth,
-            # there are two possibilities
-            if groupings[0] == "":
-                # If the common classification is an empty string, then we know
-                # that there is no further refinement possible, so stop
-                # the recursion here.
-                langs.sort()
-                return langs
-            else:
-                # If the common classification is non-empty, we need to
-                # descend further, since some languages might get
-                # separated later
-                return self.make_monophyly_structure(langs, depth+1, maxdepth)
-        else:
-            # If the languages belong to multiple classifications, split them
-            # up accordingly and then break down each classification
-            # individually.
-
-            # Group up those languages which share a non-blank Glottolog classification
-            partition = [[l for l in langs if subgroup(l, depth) == group] for group in groupings if group != ""]
-            # Add those languages with blank classifications in their own isolate groups
-            for l in langs:
-                if subgroup(l, depth) == "":
-                    partition.append([l,])
-            # Get rid of any empty sets we may have accidentally created
-            partition = [part for part in partition if part]
-            # Make sure we haven't lost any langs
-            assert sum((len(p) for p in partition)) == N
-            return sorted(
-                [self.make_monophyly_structure(group, depth+1, maxdepth)
-                 for group in partition],
-                key=sortkey)
-
-    def check_monophyly_structure(self, struct):
-        """
-        Return True if the monophyly structure represented by struct is
-        considered "meaningful", i.e. encodes something other than an
-        unstructured polytomy.
-        """
-
-        # First, transform e.g. [['foo'], [['bar']], [[[['baz']]]]], into simply
-        # ['foo','bar','baz'].
-        def denester(l):
-            if type(l) != list:
-                return l
-            if len(l) == 1:
-                return denester(l[0])
-            return [denester(x) for x in l]
-        struct = denester(struct)
-        # Now check for internal structure
-        if not any([type(x) == list for x in struct]):
-            # Struct is just a list of language names, with no internal structure
-            return False
-        return True
-
-    def make_monophyly_string(self, struct, depth=0):
-        """
-        Converts a structure of nested lists into Newick string.
-        """
-        if not type([]) in [type(x) for x in struct]:
-            return "(%s)" % ",".join(struct) if len(struct) > 1 else struct[0]
-        else:
-            return "(%s)" % ",".join([self.make_monophyly_string(substruct) for substruct in struct])
+        self.languages.monophyly_newick = monophyly.make_newick(struct)
 
     def instantiate_clocks(self):
         """
