@@ -7,6 +7,8 @@ import chardet
 import warnings
 
 import pycldf.dataset
+from pathlib import Path
+
 from csvw.dsv import UnicodeDictReader
 
 from beastling.util import log
