@@ -203,6 +203,7 @@ def get_dataset(fname):
     return pycldf.dataset.Dataset.from_data(fname)
 
 
+# TODO: Change the behaviour to always expect multiple.
 def read_cldf_dataset(filename, code_column=None, expect_multiple=False):
     """Load a CLDF dataset.
 
@@ -245,37 +246,52 @@ def read_cldf_dataset(filename, code_column=None, expect_multiple=False):
     # Build actual data dictionary, based on dataset type
     if dataset.module == "Wordlist":
         # We search for cognatesetReferences in the FormTable or a separate CognateTable.
+        cognate_column_in_form_table = True
         # If we find them in CognateTable, we store them keyed with formReference:
-        cognatesets = collections.defaultdict(lambda: "?")
         if not code_column:  # If code_column is given explicitly, we don't have to search!
             code_column = col_map.forms.cognatesetReference
             if not code_column:
-                if col_map.cognates:
+                if (col_map.cognates and
+                    col_map.cognates.cognatesetReference and
+                    col_map.cognates.formReference):
                     code_column = col_map.cognates.cognatesetReference
-                    for row in dataset["CognateTable"]:
-                        #
-                        # Note: We assume that each form belongs to at most one cognate set!
-                        # If this is not the case, the last cognate set wins.
-                        #
-                        cognatesets[row[col_map.cognates.formReference]] = row[code_column]
+                    form_reference = col_map.cognates.formReference
+                    if expect_multiple:
+                        cognatesets = collections.defaultdict(list)
+                        for row in dataset["CognateTable"]:
+                            cognatesets[row[form_reference]].append(row[code_column])
+                    else:
+                        cognatesets = collections.defaultdict(lambda: "?")
+                        for row in dataset["CognateTable"]:
+                            cognatesets[row[form_reference]] = row[code_column]
                 else:
                     raise ValueError(
                         "Dataset {:} has no cognatesetReference column in its "
                         "primary table or in a separate cognate table. "
                         "Is this a metadata-free wordlist and you forgot to "
                         "specify code_column explicitly?".format(filename))
+                form_column = dataset["FormTable", "id"].name
+                cognate_column_in_form_table = False
 
-        for row in dataset["FormTable"]:
-            lang_id = lang_ids.get(
-                row[col_map.forms.languageReference], row[col_map.forms.languageReference])
-            feature_id = feature_ids.get(
-                row[col_map.forms.parameterReference], row[col_map.forms.parameterReference])
+        language_column = col_map.forms.languageReference
+        parameter_column = col_map.forms.parameterReference
 
-            cogset = cognatesets[row[col_map.forms.id]] if cognatesets else row[code_column]
-            if expect_multiple:
-                data[lang_id][feature_id].append(cogset)
+        warnings.filterwarnings(
+            "ignore", '.*Unspecified column "Cognate_Set"', UserWarning, "csvw\.metadata", 0)
+        warnings.filterwarnings(
+            "ignore", '.*Unspecified column "{:}"'.format(code_column), UserWarning, "csvw\.metadata", 0)
+        # We know how to deal with a 'Cognate_Set' column, even in a metadata-free CSV file
+
+        for row in dataset["FormTable"].iterdicts():
+            lang_id = lang_ids.get(row[language_column], row[language_column])
+            feature_id = feature_ids.get(row[parameter_column], row[parameter_column])
+            if cognate_column_in_form_table:
+                if expect_multiple:
+                    data[lang_id][feature_id].append(row[code_column])
+                else:
+                    data[lang_id][feature_id] = row[code_column]
             else:
-                data[lang_id][feature_id] = cogset
+                data[lang_id][feature_id] = cognatesets[row[col_map.forms.id]]
         return data, language_code_map
 
     if dataset.module == "StructureDataset":
