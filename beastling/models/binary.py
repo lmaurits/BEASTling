@@ -356,3 +356,9 @@ class BinaryModelWithShareParams(BinaryModel):
             else:
                 data.set("excludeto", "1")
         data.append(self.get_userdatatype(None, None))
+
+    def add_likelihood_loggers(self, logger):
+        if self.single_sitemodel:
+            None
+        else:
+            BaseModel.add_likelihood_loggers(self, logger)

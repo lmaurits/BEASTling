@@ -726,6 +726,16 @@ class BaseModel(FromOptions):
             # We prefer the scale because it is positively correlated with extent of variation
             xml.log(logger, idref="featureClockRateGammaShape:%s" % self.name)
 
+    def add_likelihood_loggers(self, logger):
+        plate = ET.SubElement(logger, "plate", {
+            "var":"feature",
+            "range":",".join(self.features)})
+        ET.SubElement(plate, "log", {
+            "idref":"featureLikelihood:%s:$(feature)" % self.name})
+        if self.rate_variation:
+            ET.SubElement(logger,"log",{"idref":"featureClockRatePrior.s:%s" % self.name})
+            ET.SubElement(logger,"log",{"idref":"featureClockRateGammaScalePrior.s:%s" % self.name})
+
     def add_frequency_logs(self, logger):
         for f in self.features:
             fname = "%s:%s" % (self.name, f)
