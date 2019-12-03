@@ -302,7 +302,7 @@ class BirthDeathTree (TreePrior):
         attribs["birthDiffRate"] = "@birthRate.t:beastlingTree"
         attribs["relativeDeathRate"] = "@deathRate.t:beastlingTree"
         attribs["sampleProbability"] = "@sampling.t:beastlingTree"
-        attribs["type"] = "unscaled" # Is this right?
+        attribs["type"] = "restricted"
         xml.distribution(beastxml.prior, attrib=attribs)
 
         # Birth rate prior
