@@ -4,8 +4,8 @@ from pathlib import Path
 from configparser import ConfigParser
 
 import newick
-from appdirs import user_data_dir
 from csvw.dsv import reader
+from appdirs import user_data_dir
 
 from beastling.fileio.datareaders import iterlocations
 import beastling.clocks.random as random_clock

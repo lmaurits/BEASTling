@@ -4,6 +4,7 @@ import typing
 import collections
 from pathlib import Path
 import chardet
+import warnings
 
 import pycldf.dataset
 from csvw.dsv import UnicodeDictReader
