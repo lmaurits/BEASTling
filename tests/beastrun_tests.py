@@ -158,9 +158,10 @@ skip = [
         (
                 ("admin", "mk", "ancestral_state_reconstruction", "taxa", "reconstruct_one"),
                 lambda dir: dir.joinpath("beastling_test.log").exists()),
-
     ]
 )
+
+
 def test_beastrun(configs, assertion, config_factory, tmppath):
     """Turn each BEASTling config file in tests/configs into a
     BEAST.xml, and feed it to BEAST, testing for a zero return
