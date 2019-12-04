@@ -126,9 +126,11 @@ skip = [
         (("admin", "covarion_multistate", "pseudodollocovarion"), None),
         (("admin", "covarion_multistate", "log_fine_probs", "pseudodollocovarion"), None),
         (("admin", "covarion_multistate", "covarion_per_feature_params", "pseudodollocovarion"), None),
-        # Currently, Beast's pseudodollocovarion model does not support the
-        # robust eigensystem implementation.
-        # (("admin", "covarion_multistate", "robust_eigen", "pseudodollocovarion"), None),
+        pytest.param(
+            ("admin", "covarion_multistate", "robust_eigen", "pseudodollocovarion"), None,
+            # Currently, Beast's pseudodollocovarion model does not support the
+            # robust eigensystem implementation.
+            marks=pytest.mark.xfail),
         (("admin", "covarion_multistate", "pseudodollocovarion_fix_freq"), None),
         # Test that for 'log_fine_probs=True', probabilites are logged:
         (
