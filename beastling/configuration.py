@@ -592,7 +592,8 @@ class Configuration(object):
 
         ## Perform subsampling, if requested
         self.languages.languages = sorted(self.subsample_languages(self.languages.languages))
-        log.info("%d languages included in analysis." % len(self.languages.languages))
+        log.info("{:d} languages included in analysis: {:}".format(
+            len(self.languages.languages), self.languages.languages))
 
         ## SPREAD THE WORD!
         for m in self.models:
