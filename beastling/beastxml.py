@@ -426,8 +426,8 @@ java -cp $(java.class.path) beast.app.beastapp.BeastMain $(resume/overwrite) -ja
             xml.log(tracer_logger, idref="prior")
             xml.log(tracer_logger, idref="likelihood")
             xml.log(tracer_logger, idref="posterior")
-        # Log Yule birth rate
         if self.config.admin.log_params:
+            # Log tree metadata
             self.config.treeprior.add_logging(self, tracer_logger)
             for clock in self.config.clocks:
                 clock.add_param_logs(tracer_logger)
