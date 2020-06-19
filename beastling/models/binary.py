@@ -283,7 +283,10 @@ class BinaryModelWithShareParams(BinaryModel):
     def __init__(self, model_config, global_config):
         BinaryModel.__init__(self, model_config, global_config)
         self.share_params = model_config.share_params
-        self.single_sitemodel = self.share_params and not (self.rate_variation or self.feature_rates)
+        partial_reconstruct = self.reconstruct and (set(self.features) - set(self.reconstruct))
+        self.single_sitemodel = self.share_params and not (
+            self.rate_variation or self.feature_rates or
+            partial_reconstruct)
 
     def build_freq_str(self, feature=None):
         assert feature or self.share_params
@@ -341,6 +344,30 @@ class BinaryModelWithShareParams(BinaryModel):
            "tree": "@Tree.t:beastlingTree",
         }
         distribution = xml.distribution(likelihood, attrib=attribs)
+
+        if not self.reconstruct:
+            pass
+        elif set(self.reconstruct) >= set(self.features):
+            # Use a different likelihood spec (also depending on whether
+            # the whole tree is reconstructed, or only some nodes)
+            if self.treewide_reconstruction:
+                distribution.attrib["spec"] = "ancestralstatetreelikelihood"
+                self.treedata.append(attribs["id"])
+                distribution.attrib["tag"] = f
+            else:
+                distribution.attrib["spec"] = "lucl.beast.statereconstruction.ancestralstateslogger"
+                distribution.attrib["value"] = " ".join(self.pattern_names(f))
+                for label in self.reconstruct_at:
+                    langs = self.config.language_group(label)
+                    self.beastxml.add_taxon_set(distribution, label, langs)
+                self.metadata.append(attribs["id"])
+            distribution.attrib["useAmbiguities"] = "false"
+        else:
+            raise NotImplementedError(
+                "The model {:} is a binarised model with a single site "
+                "model, so it uses a global likelihood. Reconstructing "
+                "only a subset of features is not supported.".format(self.name))
+
         self.add_sitemodel(distribution, None, None)
         data = xml.data(
             distribution,
