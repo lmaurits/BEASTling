@@ -195,7 +195,7 @@ class TreePrior (object):
                            "parameter": "@deathRate.t:beastlingTree",
                            "scaleFactor": "0.5",
                            "weight": "3.0"})
- 
+
         # Add a Tip Date scaling operator if required
         if beastxml.config.tip_calibrations and beastxml.config.languages.sample_branch_lengths:
             # Get a list of taxa with non-point tip cals
@@ -230,7 +230,6 @@ class TreePrior (object):
                 id="treeStats",
                 spec="beast.evolution.tree.TreeStatLogger",
                 tree="@Tree.t:beastlingTree")
-
 
 class YuleTree (TreePrior):
     def __init__(self):
@@ -302,7 +301,7 @@ class BirthDeathTree (TreePrior):
         attribs["birthDiffRate"] = "@birthRate.t:beastlingTree"
         attribs["relativeDeathRate"] = "@deathRate.t:beastlingTree"
         attribs["sampleProbability"] = "@sampling.t:beastlingTree"
-        attribs["type"] = "restricted"
+        attribs["type"] = "unscaled" #TODO: Someone dropped the "restricted" type here, which does not exist.
         xml.distribution(beastxml.prior, attrib=attribs)
 
         # Birth rate prior
