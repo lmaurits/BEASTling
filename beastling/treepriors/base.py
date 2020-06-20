@@ -179,9 +179,6 @@ class TreePrior (ABC):
 
 
 class YuleTree (TreePrior):
-    def __init__(self):
-        super(YuleTree, self).__init__()
-
     def add_prior(self, beastxml):
         """
         Add Yule birth-process tree prior.
