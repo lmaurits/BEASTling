@@ -272,9 +272,6 @@ class YuleTree (TreePrior):
 
 
 class BirthDeathTree (TreePrior):
-    def __init__(self):
-        super(BirthDeathTree, self).__init__()
-
     def add_prior(self, beastxml):
         """Add a (calibrated) birth-death tree prior."""
         # Tree prior
