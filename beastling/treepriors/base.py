@@ -7,12 +7,12 @@ from beastling.util import xml
 
 
 class TreePrior (ABC):
-    tree_id: str = "Tree.t:beastlingTree"
+    tree_id = "Tree.t:beastlingTree"
 
     def __init__(self):
         # Define loggable states, together with a log level
         # TODO: This is not yet used at all.
-        self.loggables: t.Dict[str, int] = set()
+        self.loggables = set()
 
     def add_state_nodes(self, beastxml):
         """
