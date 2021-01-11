@@ -1,10 +1,8 @@
-# -*- encoding: utf-8 -*-
 import collections
 
-import xml.etree.ElementTree as ET
-
 from .basemodel import BaseModel
-from clldutils.inifile import INI
+from beastling.util import xml
+from beastling.util import log
 
 
 class BinaryModel(BaseModel):
@@ -12,17 +10,16 @@ class BinaryModel(BaseModel):
     def __init__(self, model_config, global_config):
 
         BaseModel.__init__(self, model_config, global_config)
-        self.remove_constant_features = model_config.get("remove_constant_features", True)
-        self.gamma_categories = int(model_config.get("gamma_categories", 0))
+        self.remove_constant_features = model_config.remove_constant_features
+        self.gamma_categories = int(model_config.options.get("gamma_categories", 0))
         # Compute feature properties early to facilitate auto-detection of binarisation
         self.compute_feature_properties()
         # Don't need a separating comma because each datapoint is a string
         # of length 1
         self.data_separator = ""
-        self.binarised = model_config.get("binarised", None)
-        assert type(self.binarised) in (bool, type(None))
+        self.binarised = model_config.binarised
         # Do we need to recode multistate data?
-        self.recoded = any([self.valuecounts[f]>2 for f in self.features])
+        self.recoded = any(self.valuecounts[f] > 2 for f in self.features)
         # Check for inconsistent configuration
         if self.recoded and self.binarised:
             raise ValueError("Data for model '%s' contains features with more than two states, but binarised=True was given.  Have you specified the correct data file or feature list?" % self.name)
@@ -30,8 +27,7 @@ class BinaryModel(BaseModel):
     def add_state(self, state):
         BaseModel.add_state(self, state)
         if self.gamma_categories > 0:
-            shape = ET.SubElement(state,"parameter",  {"id":"gammaShape.s:%s" % self.name, "name":"stateNode"})
-            shape.text="1.0"
+            xml.parameter(state, text="1.0", id="gammaShape.s:%s" % self.name, name="stateNode")
 
     def add_frequency_state(self, state):
         attribs = {
@@ -42,14 +38,12 @@ class BinaryModel(BaseModel):
             "upper":"1.0",
         }
         if self.share_params:
-            param = ET.SubElement(state,"stateNode",attribs)
-            param.text = "0.5 0.5"
+            xml.stateNode(state, text="0.5 0.5", attrib=attribs)
         else:
             for f in self.features:
                 fname = "%s:%s" % (self.name, f)
                 attribs["id"] = "freqs_param.s:%s" % fname
-                param = ET.SubElement(state,"stateNode",attribs)
-                param.text = "0.5 0.5"
+                xml.stateNode(state, text="0.5 0.5", attrib=attribs)
 
     def add_sitemodel(self, distribution, feature, fname):
         if feature == None and fname == None:
@@ -66,8 +60,8 @@ class BinaryModel(BaseModel):
         if self.gamma_categories > 0:
             attribs["gammaCategoryCount"] = str(self.gamma_categories)
             attribs["shape"] = "@gammaShape.s:%s" % self.name
-        sitemodel = ET.SubElement(distribution, "siteModel", attribs)
-        substmodel = self.add_substmodel(sitemodel, feature, fname)
+        sitemodel = xml.siteModel(distribution, attrib=attribs)
+        self.add_substmodel(sitemodel, feature, fname)
 
     def compute_weights(self):
         if not self.recoded:
@@ -113,7 +107,9 @@ class BinaryModel(BaseModel):
                 # necessity, so it makes sense to separate these cases
                 self.ascertained = not self.global_config.arbitrary_tree
         elif self.ascertained and not self.remove_constant_features:
-            raise ValueError("Incompatible settings for model '%s': ascertained=True and remove_constant_features=False together constitute a model misspecification.")
+            raise ValueError("Incompatible settings for model '%s': ascertained=True and "
+                             "remove_constant_features=False together constitute a model "
+                             "misspecification.")
         # If the data has only two values, we need to decide what kind to treat
         # it as
         if not self.recoded:
@@ -126,7 +122,14 @@ class BinaryModel(BaseModel):
                 # because this could cause problems.
                 self.recoded = False
                 if not self.ascertained:
-                    self.messages.append("""[INFO] Model "%s": Assuming that data source %s contains binary structural data (e.g. absence/presence).  If this is cognate set data which has been pre-binarised, please set "binarised=True" in your config to enable appropriate ascertainment correction for the recoding.  If you don't do this, estimates of branch lengths and clade ages may be biased.""" % (self.name, self.data_filename))
+                    log.info(
+                        "Assuming that data source %s contains binary structural data "
+                        "(e.g. absence/presence).  If this is cognate set data which has been "
+                        "pre-binarised, please set \"binarised=True\" in your config to enable "
+                        "appropriate ascertainment correction for the recoding. If you don't do "
+                        "this, estimates of branch lengths and clade ages may be "
+                        "biased." % self.data_filename,
+                        model=self)
 
     def compute_feature_properties(self):
         """Compute various items of metadata for all remaining features.
@@ -143,11 +146,10 @@ class BinaryModel(BaseModel):
         self.missing_ratios = {}
         self.counts = {}
         self.codemaps = {}
-        self.feature_has_unknown_values = {}
+        self.feature_value_partially_unknown = {}
         for f in self.features:
             # Compute various things
             all_values = []
-            self.feature_has_unknown_values[f] = False
             # Track whether any “unknown” values were encountered. The
             # difference between “unknown” and “absent” values matters: Assume
             # we have a feature with 3 possible values, A, B and C. Then "A"
@@ -158,9 +160,8 @@ class BinaryModel(BaseModel):
                     raw = values[f]
                     while "-" in raw:
                         raw.remove("-")
-                    while "?" in raw:
-                        raw.remove("?")
-                        self.feature_has_unknown_values[f] = True
+                    if "?" in raw:
+                        raw = [x for x in raw if x!='?']
                     all_values.append(raw)
             missing_data_ratio = 1 - len(all_values) / len(self.data)
             non_q_values = [v for vs in all_values for v in vs]
@@ -216,14 +217,17 @@ class BinaryModel(BaseModel):
                 # need to add one "all zeros" column to account for the recoding
                 extra_columns = ["0"]
             self.extracolumns[feature] = extra_columns
+
             # Start with all zeros/question marks
-            if self.feature_has_unknown_values[feature]:
+            if "?" in point:
+                point.remove("?")
                 absent = "?"
             else:
                 absent = "0"
 
-                valuestring = extra_columns + [
-                    absent for i in range(0, self.valuecounts[feature])]
+            valuestring = extra_columns + [
+                absent for i in range(0, self.valuecounts[feature])]
+
             # Set the appropriate data column to 1
             for subpoint in point:
                 if subpoint == "?":
@@ -247,30 +251,42 @@ class BinaryModel(BaseModel):
     def add_operators(self, run):
         BaseModel.add_operators(self, run)
         if self.gamma_categories > 0:
-            gamma_scaler = ET.SubElement(run,"operator",  {"id":"gammaShapeScaler.s:%s" % self.name, "spec":"ScaleOperator", "parameter":"@gammaShape.s:%s" % self.name, "scaleFactor":"0.5","weight":"0.1"})
+            xml.operator(
+                run,
+                id="gammaShapeScaler.s:%s" % self.name,
+                spec="ScaleOperator",
+                parameter="@gammaShape.s:%s" % self.name,
+                scaleFactor="0.5",
+                weight="0.1")
 
     def add_frequency_operators(self, run):
         for name in self.parameter_identifiers():
-            ET.SubElement(run, "operator", {"id":"frequency_sampler.s:%s" % name, "spec":"DeltaExchangeOperator","parameter":"@freqs_param.s:%s" % name,"delta":"0.01","weight":"1.0"})
+            xml.operator(
+                run,
+                id="frequency_sampler.s:%s" % name,
+                spec="DeltaExchangeOperator",
+                parameter="@freqs_param.s:%s" % name,
+                delta="0.01",
+                weight="1.0")
 
     def add_param_logs(self, logger):
         BaseModel.add_param_logs(self, logger)
         if self.gamma_categories > 0:
-            ET.SubElement(logger, "log", {"idref":"gammaShape.s:%s" % self.name})
+            xml.log(logger, idref="gammaShape.s:%s" % self.name)
 
     def add_frequency_logs(self, logger):
         for name in self.parameter_identifiers():
-            ET.SubElement(logger,"log",{"idref":"freqs_param.s:%s" % name})
+            xml.log(logger, idref="freqs_param.s:%s" % name)
+
 
 class BinaryModelWithShareParams(BinaryModel):
     def __init__(self, model_config, global_config):
         BinaryModel.__init__(self, model_config, global_config)
-        try:
-            share_params = model_config.get("share_params", "True")
-            self.share_params = INI.BOOLEAN_STATES[share_params.lower().strip()]
-        except KeyError:
-            raise ValueError("Invalid setting of 'share_params' (%s) for model %s, not a boolean" % (share_params, self.name))
-        self.single_sitemodel = self.share_params and not (self.rate_variation or self.feature_rates)
+        self.share_params = model_config.share_params
+        partial_reconstruct = self.reconstruct and (set(self.features) - set(self.reconstruct))
+        self.single_sitemodel = self.share_params and not (
+            self.rate_variation or self.feature_rates or
+            partial_reconstruct)
 
     def build_freq_str(self, feature=None):
         assert feature or self.share_params
@@ -327,13 +343,38 @@ class BinaryModelWithShareParams(BinaryModel):
            "branchRateModel": "@%s" % self.clock.branchrate_model_id,
            "tree": "@Tree.t:beastlingTree",
         }
-        distribution = ET.SubElement(likelihood, "distribution",attribs)
+        distribution = xml.distribution(likelihood, attrib=attribs)
+
+        if not self.reconstruct:
+            pass
+        elif set(self.reconstruct) >= set(self.features):
+            # Use a different likelihood spec (also depending on whether
+            # the whole tree is reconstructed, or only some nodes)
+            if self.treewide_reconstruction:
+                distribution.attrib["spec"] = "ancestralstatetreelikelihood"
+                self.treedata.append(attribs["id"])
+                distribution.attrib["tag"] = f
+            else:
+                distribution.attrib["spec"] = "lucl.beast.statereconstruction.ancestralstateslogger"
+                distribution.attrib["value"] = " ".join(self.pattern_names(f))
+                for label in self.reconstruct_at:
+                    langs = self.config.language_group(label)
+                    self.beastxml.add_taxon_set(distribution, label, langs)
+                self.metadata.append(attribs["id"])
+            distribution.attrib["useAmbiguities"] = "false"
+        else:
+            raise NotImplementedError(
+                "The model {:} is a binarised model with a single site "
+                "model, so it uses a global likelihood. Reconstructing "
+                "only a subset of features is not supported.".format(self.name))
+
         self.add_sitemodel(distribution, None, None)
-        data = ET.SubElement(distribution, "data", {
-            "id":"filtered_data_%s" % self.name,
-            "spec":"FilteredAlignment",
-            "data":"@data_%s" % self.name,
-            "filter":"-"})
+        data = xml.data(
+            distribution,
+            id="filtered_data_%s" % self.name,
+            spec="FilteredAlignment",
+            data="@data_%s" % self.name,
+            filter="-")
         if self.recoded:
             data.set("ascertained", "true")
             data.set("excludefrom", "0")
@@ -342,3 +383,9 @@ class BinaryModelWithShareParams(BinaryModel):
             else:
                 data.set("excludeto", "1")
         data.append(self.get_userdatatype(None, None))
+
+    def add_likelihood_loggers(self, logger):
+        if self.single_sitemodel:
+            None
+        else:
+            BaseModel.add_likelihood_loggers(self, logger)

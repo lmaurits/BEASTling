@@ -1,20 +1,7 @@
-#!/usr/bin/env python
-
-try:
-    from setuptools import setup
-except ImportError:
-    from distutils.core import setup
+from setuptools import setup, find_packages
 
 from beastling import __version__ as version
 
-
-requires = [
-    'six',
-    'newick>=0.6.0',
-    'appdirs',
-    'clldutils~=2.0',
-    'pycldf',
-]
 
 setup(
     name='beastling',
@@ -25,16 +12,31 @@ setup(
     license="BSD (3 clause)",
     classifiers=[
         'Programming Language :: Python',
-        "Programming Language :: Python :: 2",
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'License :: OSI Approved :: BSD License',
     ],
-    packages=['beastling','beastling.clocks','beastling.fileio','beastling.models','beastling.treepriors'],
-    install_requires=requires,
-    tests_require=['mock==1.0.0', 'nose'],
+    packages=find_packages(),
+    install_requires=[
+        'newick>=0.6.0',
+        'appdirs',
+        'csvw',
+        'attrs>=19.1',
+        'pycldf>=1.7',
+        'chardet',
+    ],
+    extras_require={
+        'dev': ['flake8', 'wheel', 'twine', 'tox'],
+        'test': [
+            'mock>=1.0.0',
+            'pytest>=3.6',
+            'pytest-mock',
+            'pytest-cov',
+            'coverage>=4.2',
+        ],
+    },
     entry_points={
         'console_scripts': ['beastling=beastling.cli:main'],
     },

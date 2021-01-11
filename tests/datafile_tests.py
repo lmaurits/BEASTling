@@ -1,31 +1,41 @@
-from .util import WithConfigAndTempDir, config_path, data_path
+import pytest
+
+from beastling.fileio import datareaders
 
 
-class Tests(WithConfigAndTempDir):
-    def test_duplicate_iso(self):
-        config = self.make_cfg(config_path("basic").as_posix())
-        config.model_configs[0]["data"] = data_path("duplicated_iso.csv")
-        self.assertRaises(ValueError, config.process)
+def test_location_data(data_dir):
+    assert len(list(datareaders.iterlocations(data_dir / 'location_data.csv'))) == 11
 
-    def test_no_iso_field(self):
-        config = self.make_cfg(config_path("basic").as_posix())
-        config.model_configs[0]["data"] = data_path("no_iso.csv")
-        self.assertRaises(ValueError, config.process)
 
-    def test_cldf_misspecified_as_beastling(self):
-        config = self.make_cfg(config_path("basic").as_posix())
-        config.model_configs[0]["data"] = data_path("cldf.csv")
-        config.model_configs[0]["file_format"] = 'beastling'
-        self.assertRaises(ValueError, config.process)
+@pytest.mark.parametrize(
+    'data,file_format',
+    [
+        ('duplicated_iso.csv', None),
+        ('no_iso.csv', None),
+        ('cldf.csv', 'beastling'),
+        (None, 'cldf'),
+        (None, 'does_not_exist'),
+        ('cognatesets.csv', 'cldf-legacy'),
+        ('families.txt', 'cldf-legacy'),
+    ]
+)
+def test_datafile_error(config_factory, data_dir, data, file_format):
+    config = config_factory("basic")
+    if data:
+        config.models[0].data = data_dir / data
+    if file_format:
+        config.models[0].options['file_format'] = file_format
+    with pytest.raises(ValueError):
+        config.process()
 
-    def test_beastling_misspecified_as_cldf(self):
-        config = self.make_cfg(config_path("basic").as_posix())
-        config.model_configs[0]["file_format"] = 'cldf'
-        self.assertRaises(ValueError, config.process)
 
-    def test_unknown_file_format(self):
-        config = self.make_cfg(config_path("basic").as_posix())
-        config.model_configs[0]["file_format"] = 'does_not_exist'
-        self.assertRaises(ValueError, config.process)
-
-    
+@pytest.mark.parametrize(
+    'data',
+    [
+        'cldf.csv-metadata.json',
+    ]
+)
+def test_datafile(config_factory, data_dir, data):
+    config = config_factory("basic")
+    config.models[0].data = data_dir / data
+    config.process()

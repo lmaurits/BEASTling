@@ -1,11 +1,9 @@
-import xml.etree.ElementTree as ET
-
 from .basemodel import BaseModel
+from beastling.util import xml
 
 
 class MKModel(BaseModel):
-
-    package_notice = """[DEPENDENCY]: The Lewis Mk substitution model is implemented in the BEAST package "morph-models"."""
+    package_notice = ("The Lewis Mk substitution model", "morph-models")
 
     def __init__(self, model_config, global_config):
 
@@ -15,19 +13,35 @@ class MKModel(BaseModel):
     def add_substmodel(self, sitemodel, feature, fname):
         key = self._get_substmodel_key(feature)
         if key and key in self.subst_models:
-            substmodel = ET.SubElement(sitemodel, "substModel", {"idref":self.subst_models[key]})
+            substmodel = xml.substModel(sitemodel, idref=self.subst_models[key])
         else:
             sm_id = "mk.s:%s"%fname
-            substmodel = ET.SubElement(sitemodel, "substModel",{"id":sm_id,"spec":"LewisMK","datatype":"@featureDataType.%s" % fname})
+            substmodel = xml.substModel(
+                sitemodel,
+                id=sm_id,
+                spec="LewisMK",
+                datatype="@featureDataType.%s" % fname)
             # Do empirical frequencies
             # We don't need to do anything for uniform freqs
             # as the implementation of LewisMK handles it
             if self.frequencies == "empirical":
-                freq = ET.SubElement(substmodel,"frequencies",{"id":"feature_freqs.s:%s"%fname,"spec":"Frequencies", "data":"@data_%s"%fname})
+                xml.frequencies(
+                    substmodel,
+                    id="feature_freqs.s:%s" % fname,
+                    spec="Frequencies",
+                    data="@feature_data_%s" % fname)
             elif self.frequencies == "approx":
-                freq = ET.SubElement(substmodel,"frequencies",{"id":"feature_freqs.s:%s"%fname,"spec":"Frequencies", "frequencies":self._get_approx_freq_string(feature)})
+                xml.frequencies(
+                    substmodel,
+                    id="feature_freqs.s:%s" % fname,
+                    spec="Frequencies",
+                    frequencies=self._get_approx_freq_string(feature))
             elif self.frequencies == "estimate":
-                freq = ET.SubElement(substmodel,"frequencies",{"id":"feature_freqs.s:%s"%fname,"spec":"Frequencies", "frequencies":"@feature_freqs_param.s:%s"%fname})
+                xml.frequencies(
+                    substmodel,
+                    id="feature_freqs.s:%s" % fname,
+                    spec="Frequencies",
+                    frequencies="@feature_freqs_param.s:%s" % fname)
             self.subst_models[key] = sm_id
         return substmodel
 
@@ -58,4 +72,3 @@ class MKModel(BaseModel):
             # If we're using fully empirical or estimated frequencies, we
             # can't share
             return None
-

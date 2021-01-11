@@ -1,38 +1,26 @@
-# -*- encoding: utf-8 -*-
-import xml.etree.ElementTree as ET
-from math import log, exp
+import typing as t
+from abc import ABC, abstractmethod
 
-class TreePrior (object):
-    tree_id = "Tree.t:beastlingTree"
-    type = None
+from math import log
+
+from beastling.util import xml
+
+
+class TreePrior (ABC):
+    tree_id: str = "Tree.t:beastlingTree"
 
     def __init__(self):
-        pass
+        # Define loggable states, together with a log level
+        # TODO: This is not yet used at all.
+        self.loggables: t.Dict[str, int] = set()
 
     def add_state_nodes(self, beastxml):
         """
         Add tree-related <state> sub-elements.
         """
         state = beastxml.state
-        self.tree = ET.SubElement(state, "tree", {"id": self.tree_id, "name": "stateNode"})
-        ET.SubElement(self.tree, "taxonset", {"idref": "taxa"})
-        if self.type in ["yule", "birthdeath"]:
-            param = ET.SubElement(state, "parameter", {"id":"birthRate.t:beastlingTree","name":"stateNode"})
-            if self.birthrate_estimate is not None:
-                param.text=str(self.birthrate_estimate)
-            else:
-                param.text="1.0"
-            if self.type in ["birthdeath"]:
-                ET.SubElement(beastxml.state, "parameter",
-                              {"id": "deathRate.t:beastlingTree",
-                               "name": "stateNode"}).text = "0.5"
-                ET.SubElement(beastxml.state, "parameter",
-                              {"id": "sampling.t:beastlingTree",
-                               "name": "stateNode"}).text = "0.2"
-
-        elif self.type == "coalescent":
-            param = ET.SubElement(beastxml.state, "parameter", {"id":"popSize.t:beastlingTree","name":"stateNode"})
-            param.text="1.0"
+        self.tree = xml.tree(state, id=self.tree_id, name="stateNode")
+        xml.taxonset(self.tree, idref="taxa")
         if beastxml.config.tip_calibrations:
             self.add_tip_heights(beastxml.config.tip_calibrations)
 
@@ -61,7 +49,7 @@ class TreePrior (object):
         self.birthrate_estimate = round(sum(birthrate_estimates) / len(birthrate_estimates), 4)
         # Find the expected height of a tree with this birthrate
         self.treeheight_estimate = round((1.0 / self.birthrate_estimate)
-                                         * (log(len(config.config.languages))
+                                         * (log(len(config.config.languages.languages))
                                             + 0.5772156649 - 1), 4)
 
     def add_tip_heights(self, tip_calibrations):
@@ -72,32 +60,37 @@ class TreePrior (object):
         units befor a reference date, eg. BP.
 
         """
-        if not tip_calibrations:
-            return
-        string_bits = []
-        for cal in tip_calibrations.values():
-            initial_height = cal.mean()
-            string_bits.append("{:s} = {:}".format(next(cal.langs.__iter__()), initial_height))
-        trait_string = ",\n".join(string_bits)
-
-        datetrait = ET.SubElement(self.tree, "trait",
-                      {"id": "datetrait",
-                       "spec": "beast.evolution.tree.TraitSet",
-                       "taxa": "@taxa",
-                       "traitname": "date-backward"})
-        datetrait.text = trait_string
+        if tip_calibrations:
+            string_bits = []
+            for cal in tip_calibrations.values():
+                initial_height = cal.mean()
+                string_bits.append("{:s} = {:}".format(next(cal.langs.__iter__()), initial_height))
+            xml.trait(
+                self.tree,
+                text=",\n".join(string_bits),
+                id="datetrait",
+                spec="beast.evolution.tree.TraitSet",
+                taxa="@taxa",
+                traitname="date-backward")
 
     def add_init(self, beastxml):
         """
         Add the <init> element for the tree.
         """
         # If a starting tree is specified, use it...
-        if beastxml.config.starting_tree:
-            beastxml.init = ET.SubElement(beastxml.run, "init", {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "spec":"beast.util.TreeParser","IsLabelledNewick":"true", "newick":beastxml.config.starting_tree})
+        if beastxml.config.languages.starting_tree:
+            beastxml.init = xml.init(
+                beastxml.run,
+                estimate="false",
+                id="startingTree",
+                initial="@Tree.t:beastlingTree",
+                spec="beast.util.TreeParser",
+                IsLabelledNewick="true",
+                newick=beastxml.config.languages.starting_tree)
         # ...if not, use the simplest random tree initialiser possible
         else:
             # If we have non-trivial monophyly constraints, use ConstrainedRandomTree
-            if beastxml.config.monophyly and len(beastxml.config.languages) > 2:
+            if beastxml.config.languages.monophyly and len(beastxml.config.languages.languages) > 2:
                 self.add_constrainedrandomtree_init(beastxml)
             # If we have hard-bound calibrations, use SimpleRandomTree
             elif any([c.dist == "uniform" for c in beastxml.config.calibrations.values()]):
@@ -110,88 +103,56 @@ class TreePrior (object):
         attribs = {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "taxonset":"@taxa", "spec":"beast.evolution.tree.RandomTree"}
         if self.birthrate_estimate is not None:
             attribs["rootHeight"] = str(self.treeheight_estimate)
-        beastxml.init = ET.SubElement(beastxml.run, "init", attribs)
-        popmod = ET.SubElement(beastxml.init, "populationModel", {"spec":"ConstantPopulation"})
-        ET.SubElement(popmod, "popSize", {"spec":"parameter.RealParameter","value":"1"})
+        beastxml.init = xml.init(beastxml.run, attrib=attribs)
+        popmod = xml.populationModel(beastxml.init, spec="ConstantPopulation")
+        xml.popSize(popmod, spec="parameter.RealParameter", value="1")
 
     def add_simplerandomtree_init(self, beastxml):
         attribs = {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "taxonset":"@taxa", "spec":"beast.evolution.tree.SimpleRandomTree"}
         if self.birthrate_estimate is not None:
             attribs["rootHeight"] = str(self.treeheight_estimate)
-        beastxml.init = ET.SubElement(beastxml.run, "init", attribs)
+        beastxml.init = xml.init(beastxml.run, attrib=attribs)
 
     def add_constrainedrandomtree_init(self, beastxml):
         attribs = {"estimate":"false", "id":"startingTree", "initial":"@Tree.t:beastlingTree", "taxonset":"@taxa", "spec":"beast.evolution.tree.ConstrainedRandomTree", "constraints":"@constraints"}
         if self.birthrate_estimate is not None:
             attribs["rootHeight"] = str(self.treeheight_estimate)
-        beastxml.init = ET.SubElement(beastxml.run, "init", attribs)
-        popmod = ET.SubElement(beastxml.init, "populationModel", {"spec":"ConstantPopulation"})
-        ET.SubElement(popmod, "popSize", {"spec":"parameter.RealParameter","value":"1"})
+        beastxml.init = xml.init(beastxml.run, attrib=attribs)
+        popmod = xml.populationModel(beastxml.init, spec="ConstantPopulation")
+        xml.popSize(popmod, spec="parameter.RealParameter", value="1")
 
+    @abstractmethod
     def add_prior(self, beastxml):
-        raise ValueError("Tree prior {:} is unknown.".format(
-            self.type))
+        ...
 
     def add_operators(self, beastxml):
-        """
-        Add all <operator>s which act on the tree topology and branch lengths.
-        """
         """
         Add all <operator>s which act on the tree topology and branch lengths.
         """
         # Tree operators
         # Operators which affect the tree must respect the sample_topology and
         # sample_branch_length options.
-        if beastxml.config.sample_topology:
+        if beastxml.config.languages.sample_topology:
             ## Tree topology operators
-            ET.SubElement(beastxml.run, "operator", {"id":"SubtreeSlide.t:beastlingTree","spec":"SubtreeSlide","tree":"@Tree.t:beastlingTree","markclades":"true", "weight":"15.0"})
-            ET.SubElement(beastxml.run, "operator", {"id":"narrow.t:beastlingTree","spec":"Exchange","tree":"@Tree.t:beastlingTree","markclades":"true", "weight":"15.0"})
-            ET.SubElement(beastxml.run, "operator", {"id":"wide.t:beastlingTree","isNarrow":"false","spec":"Exchange","tree":"@Tree.t:beastlingTree","markclades":"true", "weight":"3.0"})
-            ET.SubElement(beastxml.run, "operator", {"id":"WilsonBalding.t:beastlingTree","spec":"WilsonBalding","tree":"@Tree.t:beastlingTree","markclades":"true","weight":"3.0"})
-        if beastxml.config.sample_branch_lengths:
+            xml.operator(beastxml.run, attrib={"id":"SubtreeSlide.t:beastlingTree","spec":"SubtreeSlide","tree":"@Tree.t:beastlingTree","markclades":"true", "weight":"15.0"})
+            xml.operator(beastxml.run, attrib={"id":"narrow.t:beastlingTree","spec":"Exchange","tree":"@Tree.t:beastlingTree","markclades":"true", "weight":"15.0"})
+            xml.operator(beastxml.run, attrib={"id":"wide.t:beastlingTree","isNarrow":"false","spec":"Exchange","tree":"@Tree.t:beastlingTree","markclades":"true", "weight":"3.0"})
+            xml.operator(beastxml.run, attrib={"id":"WilsonBalding.t:beastlingTree","spec":"WilsonBalding","tree":"@Tree.t:beastlingTree","markclades":"true","weight":"3.0"})
+        if beastxml.config.languages.sample_branch_lengths:
             ## Branch length operators
-            ET.SubElement(beastxml.run, "operator", {"id":"UniformOperator.t:beastlingTree","spec":"Uniform","tree":"@Tree.t:beastlingTree","weight":"30.0"})
-            ET.SubElement(beastxml.run, "operator", {"id":"treeScaler.t:beastlingTree","scaleFactor":"0.5","spec":"ScaleOperator","tree":"@Tree.t:beastlingTree","weight":"3.0"})
-            ET.SubElement(beastxml.run, "operator", {"id":"treeRootScaler.t:beastlingTree","scaleFactor":"0.5","spec":"ScaleOperator","tree":"@Tree.t:beastlingTree","rootOnly":"true","weight":"3.0"})
+            xml.operator(beastxml.run, attrib={"id":"UniformOperator.t:beastlingTree","spec":"Uniform","tree":"@Tree.t:beastlingTree","weight":"30.0"})
+            xml.operator(beastxml.run, attrib={"id":"treeScaler.t:beastlingTree","scaleFactor":"0.5","spec":"ScaleOperator","tree":"@Tree.t:beastlingTree","weight":"3.0"})
+            xml.operator(beastxml.run, attrib={"id":"treeRootScaler.t:beastlingTree","scaleFactor":"0.5","spec":"ScaleOperator","tree":"@Tree.t:beastlingTree","rootOnly":"true","weight":"3.0"})
             ## Up/down operator which scales tree height
-            if self.type in ["yule", "birthdeath"]:
-                updown = ET.SubElement(beastxml.run, "operator", {"id":"UpDown","spec":"UpDownOperator","scaleFactor":"0.5", "weight":"3.0"})
-                ET.SubElement(updown, "tree", {"idref":"Tree.t:beastlingTree", "name":"up"})
-                ET.SubElement(updown, "parameter", {"idref":"birthRate.t:beastlingTree", "name":"down"})
-                ### Include clock rates in up/down only if calibrations are given
-                if beastxml.config.calibrations:
-                    for clock in beastxml.config.clocks:
-                        if clock.estimate_rate:
-                            ET.SubElement(updown, "parameter", {"idref":clock.mean_rate_id, "name":"down"})
 
-        if self.type in ["yule", "birthdeath"]:
-            # Birth rate scaler
-            # Birth rate is *always* scaled.
-            ET.SubElement(beastxml.run, "operator", {"id":"YuleBirthRateScaler.t:beastlingTree","spec":"ScaleOperator","parameter":"@birthRate.t:beastlingTree", "scaleFactor":"0.5", "weight":"3.0"})
-        elif self.type == "coalescent":
-            ET.SubElement(beastxml.run, "operator", {"id":"PopulationSizeScaler.t:beastlingTree","spec":"ScaleOperator","parameter":"@popSize.t:beastlingTree", "scaleFactor":"0.5", "weight":"3.0"})
-
-        if self.type in ["birthdeath"]:
-            ET.SubElement(beastxml.run, "operator",
-                          {"id": "SamplingScaler.t:beastlingTree",
-                           "spec": "ScaleOperator",
-                           "parameter": "@sampling.t:beastlingTree",
-                           "scaleFactor": "0.8",
-                           "weight": "1.0"})
-            ET.SubElement(beastxml.run, "operator",
-                          {"id": "DeathRateScaler.t:beastlingTree",
-                           "spec": "ScaleOperator",
-                           "parameter": "@deathRate.t:beastlingTree",
-                           "scaleFactor": "0.5",
-                           "weight": "3.0"})
- 
         # Add a Tip Date scaling operator if required
-        if beastxml.config.tip_calibrations and beastxml.config.sample_branch_lengths:
+        if beastxml.config.tip_calibrations and beastxml.config.languages.sample_branch_lengths:
             # Get a list of taxa with non-point tip cals
             tip_taxa = [next(cal.langs.__iter__()) for cal in beastxml.config.tip_calibrations.values() if cal.dist != "point"]
             for taxon in tip_taxa:
-                tiprandomwalker = ET.SubElement(beastxml.run, "operator",
-                    {"id": "TipDatesandomWalker:%s" % taxon,
+                tiprandomwalker = xml.operator(
+                    beastxml.run,
+                    attrib={"id": "TipDatesandomWalker:%s" % taxon,
                      "spec": "TipDatesRandomWalker",
                      "windowSize": "1",
                      "tree": "@Tree.t:beastlingTree",
@@ -200,39 +161,24 @@ class TreePrior (object):
                 beastxml.add_taxon_set(tiprandomwalker, taxon, (taxon,))
 
     def add_logging(self, beastxml, tracer_logger):
-        if self.type in ["yule", "birthdeath"]:
-            ET.SubElement(tracer_logger,"log",{"idref":"birthRate.t:beastlingTree"})
-            if self.type in ["birthdeath"]:
-                ET.SubElement(tracer_logger, "log",
-                                {"idref": "deathRate.t:beastlingTree"})
-                ET.SubElement(tracer_logger, "log",
-                                {"idref": "sampling.t:beastlingTree"})
-        elif self.type == "coalescent":
-            ET.SubElement(tracer_logger,"log",{"idref":"popSize.t:beastlingTree"})
-
-        if self.type == "yule":
-            ET.SubElement(tracer_logger,"log",{"idref":"birthRate.t:beastlingTree"})
-        elif self.type == "coalescent":
-            ET.SubElement(tracer_logger,"log",{"idref":"popSize.t:beastlingTree"})
-
         # Log tree height
         if not beastxml.config.tree_logging_pointless:
-            ET.SubElement(tracer_logger,"log",{
-                "id":"treeStats",
-                "spec":"beast.evolution.tree.TreeStatLogger",
-                "tree":"@Tree.t:beastlingTree"})
+            xml.log(
+                tracer_logger,
+                id="treeStats",
+                spec="beast.evolution.tree.TreeStatLogger",
+                tree="@Tree.t:beastlingTree")
 
         # Fine-grained logging
-        if beastxml.config.log_fine_probs:
-            ET.SubElement(tracer_logger,"log",{"idref":"YuleModel.t:beastlingTree"})
-            ET.SubElement(tracer_logger,"log",{"idref":"YuleBirthRatePrior.t:beastlingTree"})
+        if beastxml.config.admin.log_params:
+            self.add_fine_logging(tracer_logger)
+
+    @abstractmethod
+    def add_fine_logging(self, tracer_logger):
+        pass
 
 
 class YuleTree (TreePrior):
-    def __init__(self):
-        super(YuleTree, self).__init__()
-        self.type = "yule"
-
     def add_prior(self, beastxml):
         """
         Add Yule birth-process tree prior.
@@ -263,22 +209,69 @@ class YuleTree (TreePrior):
         elif yule == "calibrated":
             attribs["spec"] = "beast.evolution.speciation.CalibratedYuleModel"
             attribs["birthRate"] = "@birthRate.t:beastlingTree"
-        ET.SubElement(beastxml.prior, "distribution", attribs)
+        xml.distribution(beastxml.prior, attrib=attribs)
 
         # Birth rate prior
-        attribs = {}
-        attribs["id"] = "YuleBirthRatePrior.t:beastlingTree"
-        attribs["name"] = "distribution"
-        attribs["x"] = "@birthRate.t:beastlingTree"
-        sub_prior = ET.SubElement(beastxml.prior, "prior", attribs)
-        uniform = ET.SubElement(sub_prior, "Uniform", {"id":"Uniform.0","name":"distr","upper":"Infinity"})
+        sub_prior = xml.prior(
+            beastxml.prior,
+            id="YuleBirthRatePrior.t:beastlingTree",
+            name="distribution",
+            x="@birthRate.t:beastlingTree")
+        xml.Uniform(sub_prior, id="Uniform.0", name="distr", upper="Infinity")
+
+    def add_fine_logging(self, tracer_logger):
+        # Log tree model parameters
+        xml.log(tracer_logger, idref="birthRate.t:beastlingTree")
+        xml.log(tracer_logger, idref="YuleModel.t:beastlingTree")
+        xml.log(tracer_logger, idref="YuleBirthRatePrior.t:beastlingTree")
+
+    def add_state_nodes(self, beastxml):
+        """
+        Add tree-related <state> sub-elements.
+        """
+        super().add_state_nodes(beastxml)
+        state = beastxml.state
+        param = xml.parameter(state, id="birthRate.t:beastlingTree", name="stateNode")
+        if self.birthrate_estimate is not None:
+            param.text=str(self.birthrate_estimate)
+        else:
+            param.text="1.0"
+
+    def add_operators(self, beastxml):
+        if beastxml.config.languages.sample_branch_lengths:
+            updown = xml.operator(
+                beastxml.run,
+                attrib={
+                    "id": "UpDown",
+                    "spec": "UpDownOperator",
+                    "scaleFactor": "0.5",
+                    "weight": "3.0"})
+            xml.tree(updown, idref="Tree.t:beastlingTree", name="up")
+            xml.parameter(updown, idref="birthRate.t:beastlingTree", name="down")
+            ### Include clock rates in up/down only if calibrations are given
+            if beastxml.config.calibrations:
+                for clock in beastxml.config.clocks:
+                    if clock.estimate_rate:
+                        xml.parameter(updown, idref=clock.mean_rate_id, name="down")
+
+        # Birth rate scaler
+        # Birth rate is *always* scaled.
+        xml.operator(
+            beastxml.run,
+            attrib={"id": "YuleBirthRateScaler.t:beastlingTree",
+                    "spec": "ScaleOperator",
+                    "parameter": "@birthRate.t:beastlingTree",
+                    "scaleFactor": "0.5",
+                    "weight": "3.0"})
+
+    def add_logging(self, beastxml, tracer_logger):
+        super().add_logging(beastxml, tracer_logger)
+        xml.log(
+            tracer_logger,
+            idref="birthRate.t:beastlingTree")
 
 
 class BirthDeathTree (TreePrior):
-    def __init__(self):
-        super(BirthDeathTree, self).__init__()
-        self.type = "birthdeath"
-
     def add_prior(self, beastxml):
         """Add a (calibrated) birth-death tree prior."""
         # Tree prior
@@ -290,49 +283,107 @@ class BirthDeathTree (TreePrior):
         attribs["birthDiffRate"] = "@birthRate.t:beastlingTree"
         attribs["relativeDeathRate"] = "@deathRate.t:beastlingTree"
         attribs["sampleProbability"] = "@sampling.t:beastlingTree"
-        attribs["type"] = "unscaled" # Is this right?
-        ET.SubElement(beastxml.prior, "distribution", attribs)
+        attribs["type"] = "unscaled" #TODO: Someone dropped the "restricted" type here, which does not exist.
+        xml.distribution(beastxml.prior, attrib=attribs)
 
         # Birth rate prior
         attribs = {}
         attribs["id"] = "BirthRatePrior.t:beastlingTree"
         attribs["name"] = "distribution"
         attribs["x"] = "@birthRate.t:beastlingTree"
-        sub_prior = ET.SubElement(beastxml.prior, "prior", attribs)
-        uniform = ET.SubElement(sub_prior, "Uniform",
-                                {"id": "Uniform.0",
-                                 "name": "distr",
-                                 "upper": "Infinity"})
+        sub_prior = xml.prior(beastxml.prior, attrib=attribs)
+        xml.Uniform(sub_prior, id="Uniform.0", name="distr", upper="Infinity")
 
         # Relative death rate prior
         attribs = {}
         attribs["id"] = "relativeDeathRatePrior.t:beastlingTree"
         attribs["name"] = "distribution"
         attribs["x"] = "@deathRate.t:beastlingTree"
-        sub_prior = ET.SubElement(beastxml.prior, "prior", attribs)
-        uniform = ET.SubElement(sub_prior, "Uniform",
-                                {"id": "Uniform.1",
-                                 "name": "distr",
-                                 "upper": "Infinity"})
+        sub_prior = xml.prior(beastxml.prior, attrib=attribs)
+        xml.Uniform(sub_prior, id="Uniform.1", name="distr", upper="Infinity")
 
         # Sample probability prior
         attribs = {}
         attribs["id"] = "samplingPrior.t:beastlingTree"
         attribs["name"] = "distribution"
         attribs["x"] = "@sampling.t:beastlingTree"
-        sub_prior = ET.SubElement(beastxml.prior, "prior", attribs)
-        uniform = ET.SubElement(sub_prior, "Uniform",
-                                {"id": "Uniform.3",
-                                 "name": "distr",
-                                 "lower": "0",
-                                 "upper": "1"})
+        sub_prior = xml.prior(beastxml.prior, attrib=attribs)
+        xml.Uniform(sub_prior, id="Uniform.3", name="distr", lower="0", upper="1")
+
+    def add_state_nodes(self, beastxml):
+        """
+        Add tree-related <state> sub-elements.
+        """
+        super().add_state_nodes(beastxml)
+        state = beastxml.state
+        param = xml.parameter(state, id="birthRate.t:beastlingTree", name="stateNode")
+        if self.birthrate_estimate is not None:
+            param.text = str(self.birthrate_estimate)
+        else:
+            param.text = "1.0"
+        xml.parameter(
+            beastxml.state,
+            text="0.5",
+            id="deathRate.t:beastlingTree",
+            name="stateNode")
+        xml.parameter(
+            beastxml.state,
+            text="0.2",
+            id="sampling.t:beastlingTree",
+            name="stateNode")
+
+    def add_operators(self, beastxml):
+        if beastxml.config.languages.sample_branch_lengths:
+            updown = xml.operator(
+                beastxml.run,
+                attrib={
+                    "id": "UpDown",
+                    "spec": "UpDownOperator",
+                    "scaleFactor": "0.5",
+                    "weight": "3.0"})
+            xml.tree(updown, idref="Tree.t:beastlingTree", name="up")
+            xml.parameter(updown, idref="birthRate.t:beastlingTree", name="down")
+            ### Include clock rates in up/down only if calibrations are given
+            if beastxml.config.calibrations:
+                for clock in beastxml.config.clocks:
+                    if clock.estimate_rate:
+                        xml.parameter(updown, idref=clock.mean_rate_id, name="down")
+
+        # Birth rate scaler
+        # Birth rate is *always* scaled.
+        xml.operator(
+            beastxml.run,
+            attrib={
+                "id": "YuleBirthRateScaler.t:beastlingTree",
+                "spec": "ScaleOperator",
+                "parameter": "@birthRate.t:beastlingTree",
+                "scaleFactor": "0.5",
+                "weight": "3.0"})
+        xml.operator(
+            beastxml.run,
+            attrib={
+                "id": "SamplingScaler.t:beastlingTree",
+                "spec": "ScaleOperator",
+                "parameter": "@sampling.t:beastlingTree",
+                "scaleFactor": "0.8",
+                "weight": "1.0"})
+        xml.operator(
+            beastxml.run,
+            attrib={
+                "id": "DeathRateScaler.t:beastlingTree",
+                "spec": "ScaleOperator",
+                "parameter": "@deathRate.t:beastlingTree",
+                "scaleFactor": "0.5",
+                "weight": "3.0"})
+
+    def add_fine_logging(self, tracer_logger):
+        # Log tree model parameters
+        xml.log(tracer_logger, idref="birthRate.t:beastlingTree")
+        xml.log(tracer_logger, idref="deathRate.t:beastlingTree")
+        xml.log(tracer_logger, idref="sampling.t:beastlingTree")
 
 
 class UniformTree (TreePrior):
-    def __init__(self):
-        super(UniformTree, self).__init__()
-        self.type = "uniform"
-
     def add_prior(self, beastxml):
         """Add nothing.
 
@@ -341,3 +392,10 @@ class UniformTree (TreePrior):
 
         """
         pass
+
+    def add_fine_logging(self, tracer_logger):
+        """Add nothing.
+
+        For a uniform tree prior, there are no parameters to log.
+
+        """

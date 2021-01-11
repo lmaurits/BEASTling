@@ -1,9 +1,11 @@
 import sys
 import math
-import collections
 
-import xml.etree.ElementTree as ET
+import attr
 
+from beastling.util import xml
+
+__all__ = ['Distribution', 'Calibration']
 
 registered_distributions = (
     ("Beta", "beast.math.distributions.Beta"),
@@ -18,9 +20,12 @@ registered_distributions = (
 )
 
 
-DISTRIBUTIONS = {"normal": ("Normal", ("mean", "sigma")),
-                 "lognormal": ("LogNormal", ("M", "S")),
-                 "uniform": ("Uniform", ("lower", "upper"))}
+DISTRIBUTIONS = {
+    "normal": ("Normal", ("mean", "sigma")),
+    "lognormal": ("LogNormal", ("M", "S")),
+    "uniform": ("Uniform", ("lower", "upper")),
+}
+ALL_DISTRIBUTIONS = set(DISTRIBUTIONS.keys()).union(['rlognormal', 'point'])
 
 
 def add_prior_density_description(compound_distribution, distribution):
@@ -49,13 +54,15 @@ def add_prior_density_description(compound_distribution, distribution):
 
     """
     dist_type, ps = DISTRIBUTIONS[distribution.dist]
-    attribs = {"id": "DistributionFor{:}".format(
-        compound_distribution.attrib["id"]), "name": "distr", "offset": "0.0"}
+    attribs = {
+        "id": "DistributionFor{:}".format(compound_distribution.attrib["id"]),
+        "name": "distr",
+        "offset": "0.0"}
     if distribution.offset:
         attribs["offset"] = str(distribution.offset)
     for parameter, value in zip(ps, distribution.param):
         attribs[parameter] = str(value)
-    ET.SubElement(compound_distribution, dist_type, attribs)
+    getattr(xml, dist_type)(compound_distribution, attrib=attribs)
 
 
 def parse_prior_string(cs, prior_name="?", is_point=False):
@@ -66,7 +73,11 @@ def parse_prior_string(cs, prior_name="?", is_point=False):
     density function of normal, lognormal (including rlognormal, a
     reparametrization where the mean is given in real space, not
     in log space) or uniform type in one of the following
-    ways. Pseudo-densities with infinite interval are permitted.
+    ways. Pseudo-densities with infinite integral are permitted.
+    
+    Parameters separated using `,` are directly the parameters of the
+    distribution. A range separated by a `-` gives the 95% interval of
+    that distribution. (This behaviour may change in the future.)
 
     >>> parse = parse_prior_string
     >>> # Parameters of a normal distribution
@@ -151,15 +162,15 @@ def parse_prior_string(cs, prior_name="?", is_point=False):
     else:
         offset = 0.0
 
+    def fmt_err(msg, *args):
+        return ("Prior specification '{:}' for {:} " + msg).format(orig_cs, prior_name, *args)
+
     # Parse distribution
     if cs.count("(") == 1 and cs.count(")") == 1:
         dist_type, cs = cs.split("(", 1)
         dist_type = dist_type.strip().lower()
-        if dist_type not in ("uniform", "normal", "lognormal", "rlognormal"):
-            raise ValueError(
-                "Prior specification '{:}' for {:}"
-                " uses an unknown distribution {:}!".format(
-                    orig_cs, prior_name, dist_type))
+        if dist_type not in ALL_DISTRIBUTIONS:
+            raise ValueError(fmt_err("uses an unknown distribution {:}!", dist_type))
         cs = cs[0:-1]
     else:
         # Default to normal
@@ -173,11 +184,9 @@ def parse_prior_string(cs, prior_name="?", is_point=False):
         # We've got a 95% HPD range
         lower, upper = map(float, cs.split("-"))
         if upper <= lower:
-            raise ValueError(
-                "Prior specification '{:}' for {:}"
-                " has an upper bound {:}"
-                " which is not higher than its lower bound {:}!".format(
-                    orig_cs, prior_name, upper, lower))
+            raise ValueError(fmt_err(
+                "has an upper bound {:} which is not higher than its lower bound {:}!",
+                upper, lower))
         mid = (lower + upper) / 2.0
         if dist_type == "normal":
             p1 = (upper + lower) / 2.0
@@ -202,10 +211,7 @@ def parse_prior_string(cs, prior_name="?", is_point=False):
             p1 = float(bound.strip())
             p2 = sys.maxsize
         else:
-            raise ValueError(
-                "Prior specification '{:}' for {:}"
-                " cannot be parsed!".format(
-                    orig_cs, prior_name))
+            raise ValueError(fmt_err("cannot be parsed!"))
     elif is_point:
         # Last chance: It's a single language pinned to a
         # single date, so make sure to pin it to that date
@@ -216,15 +222,9 @@ def parse_prior_string(cs, prior_name="?", is_point=False):
             p1 = float(cs)
             p2 = p1
         except ValueError:
-            raise ValueError(
-                "Prior specification '{:}' for {:}"
-                " cannot be parsed!".format(
-                    orig_cs, prior_name))
+            raise ValueError(fmt_err("cannot be parsed!"))
     else:
-        raise ValueError(
-            "Prior specification '{:}' for {:}"
-            " cannot be parsed!".format(
-                orig_cs, prior_name))
+        raise ValueError(fmt_err("cannot be parsed!"))
 
     # If this is a lognormal prior specification with the mean in
     # realspace, adjust
@@ -236,27 +236,54 @@ def parse_prior_string(cs, prior_name="?", is_point=False):
     return offset, dist_type, (p1, p2)
 
 
-class Distribution(collections.namedtuple(
-        "Distribution", ["offset", "dist", "param"])):
+def valid_params(instance, attribute, value):
+    if not isinstance(value, tuple) \
+            and len(value) == 2 \
+            and all(isinstance(v, float) for v in value):
+        raise ValueError('invalid params {0}'.format(value))
+
+
+@attr.s
+class Distribution(object):
+    param = attr.ib(validator=valid_params)
+    dist = attr.ib(
+        validator=attr.validators.in_(ALL_DISTRIBUTIONS),
+        default='normal')
+    offset = attr.ib(
+        validator=attr.validators.instance_of(float),
+        default=0.0)
+
+    @staticmethod
+    def parse_prior_string(cs, **kw):
+        offset, dist, param = parse_prior_string(cs, **kw)
+        return dict(offset=offset, dist=dist, param=param)
+
     @classmethod
-    def from_string(cls, string, context=None, is_point=False, **kwargs):
+    def from_string(cls, string, context=None, is_point=False):
         """Create a Distribution object from a prior description string.
 
         """
-        offset, dist, param = parse_prior_string(
-            cs=string, prior_name=context, is_point=is_point)
-        return cls(offset=offset, dist=dist, param=param, **kwargs)
+        return cls(**cls.parse_prior_string(string, prior_name=context, is_point=is_point))
 
     def generate_xml_element(self, parent):
-        add_prior_density_description(compound_distribution=parent,
-                                      distribution=self)
+        add_prior_density_description(compound_distribution=parent, distribution=self)
 
     def mean(self):
         if self.dist in ("normal", "point"):
             return self.offset + self.param[0]
-        elif self.dist == "lognormal":
+        if self.dist == "lognormal":
             return self.offset + math.exp(self.param[0])
-        elif self.dist == "uniform":
+        if self.dist == "uniform":
             return self.offset + sum(self.param) / 2.0
-        else:
-            raise NotImplementedError
+        raise NotImplementedError
+
+
+@attr.s
+class Calibration(Distribution):
+    langs = attr.ib(default=attr.Factory(list), validator=attr.validators.instance_of((list, set)))
+    originate = attr.ib(default=False, validator=attr.validators.instance_of(bool))
+
+    @classmethod
+    def from_string(cls, string, context=None, is_point=False, **kw):
+        kw.update(cls.parse_prior_string(string, prior_name=context, is_point=is_point))
+        return cls(**kw)
