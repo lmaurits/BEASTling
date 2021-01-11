@@ -4,13 +4,13 @@ A linguistics-focussed command line tool for generating
 [BEAST](http://beast2.org) XML files.  Only BEAST 2.x is supported.
 
 [![Documentation Status](https://readthedocs.org/projects/beastling/badge/?version=latest)](http://beastling.readthedocs.org/en/latest/?badge=latest)
-[![Build Status](https://travis-ci.org/lmaurits/BEASTling.svg?branch=develop)](https://travis-ci.org/lmaurits/BEASTling)
-[![codecov.io](http://codecov.io/github/lmaurits/BEASTling/coverage.svg?branch=develop)](http://codecov.io/github/lmaurits/BEASTling?branch=develop)
+[![Build Status](https://github.com/lmaurits/BEASTling/workflows/tests/badge.svg)](https://github.com/lmaurits/BEASTling/actions?query=workflow%3Atests)
+[![codecov.io](http://codecov.io/github/lmaurits/BEASTling/coverage.svg?branch=main)](http://codecov.io/github/lmaurits/BEASTling?branch=main)
 [![PyPI](https://img.shields.io/pypi/v/beastling.svg)](https://pypi.python.org/pypi/beastling)
 [![PyPI](https://img.shields.io/pypi/pyversions/beastling.svg)](https://pypi.python.org/pypi/beastling)
 
 BEASTling is written in [Python](http://python.org).  Python versions 2.7 and
-3.4+ are supported.  It is available from the Python Package Index, aka "the
+3.5+ are supported.  It is available from the Python Package Index, aka "the
 Cheeseshop".  This means you can install it easily using `easy_install` or
 `pip`.  Otherwise, you can clone this repo and use the `setup.py` file
 included to install.
@@ -45,7 +45,7 @@ of its functionality:
 
 In summary:
 
-1. Install/upgrade Python.  You need 2.7 or 3.4+
+1. Install/upgrade Python.  You need 2.7 or 3.5+
 2. Install BEASTling (plus dependencies if not using `pip` etc.).
 3. Install/upgrade Java.  You need Java 8.
 4. Install/upgrade BEAST.  You need BEAST 2.
