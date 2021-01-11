@@ -2,22 +2,12 @@ from .baseclock import BaseClock
 from beastling.util import xml
 
 
-def relaxed_clock_factory(clock_config, global_config):
-    distribution = clock_config.get("distribution","lognormal").lower()
-    if distribution == "lognormal":
-        return LogNormalRelaxedClock(clock_config, global_config)
-    elif distribution == "exponential":
-        return ExponentialRelaxedClock(clock_config, global_config)
-    elif distribution == "gamma":
-        return GammaRelaxedClock(clock_config, global_config)
-
-
 class RelaxedClock(BaseClock):
+    __type__ = 'relaxed'
 
     def __init__(self, clock_config, global_config):
-
         BaseClock.__init__(self, clock_config, global_config)
-        self.number_of_rates = int(clock_config.get("rates","-1"))
+        self.number_of_rates = int(clock_config.options.get("rates","-1"))
         self.is_strict = False
 
     def add_state(self, state):
@@ -86,16 +76,18 @@ class RelaxedClock(BaseClock):
 
 
 class LogNormalRelaxedClock(RelaxedClock):
+    __distribution__ = 'lognormal'
 
     def __init__(self, clock_config, global_config):
         RelaxedClock.__init__(self, clock_config, global_config)
         default_estimate_variance = True
-        if "variance" in clock_config:
-            self.initial_variance = clock_config["variance"]
+        if clock_config.variance is not None:
+            self.initial_variance = clock_config.variance
             default_estimate_variance = False
         else:
             self.initial_variance = 0.1
-        self.estimate_variance = clock_config.get("estimate_variance",default_estimate_variance)
+        self.estimate_variance = default_estimate_variance \
+            if clock_config.estimate_variance is None else clock_config.estimate_variance
 
     def add_state(self, state):
         RelaxedClock.add_state(self, state)
@@ -158,7 +150,9 @@ class LogNormalRelaxedClock(RelaxedClock):
         # Log lognormal stddev
         xml.log(logger, idref="ucldSdev.c:%s" % self.name)
 
+
 class ExponentialRelaxedClock(RelaxedClock):
+    __distribution__ = 'exponential'
 
     def add_branchrate_model(self, beast):
         RelaxedClock.add_branchrate_model(self, beast)
@@ -170,6 +164,7 @@ class ExponentialRelaxedClock(RelaxedClock):
 
 
 class GammaRelaxedClock(RelaxedClock):
+    __distribution__ = 'gamma'
 
     def add_state(self, state):
         RelaxedClock.add_state(self, state)

@@ -5,19 +5,13 @@ from beastling.util import xml
 
 
 class BSVSModel(BaseModel):
-
     package_notice = ("The BSVS substitution model", "BEAST_CLASSIC")
+
     def __init__(self, model_config, global_config):
 
         BaseModel.__init__(self, model_config, global_config)
-        symm = model_config.get("symmetric", "True")
-        if symm.lower().strip() == "true":
-            self.symmetric = True
-        elif symm.lower().strip() == "false":
-            self.symmetric = False
-        else:
-            raise ValueError("Invalid setting of 'symmetric' (%s) for model %s: use for BSVS model must be set to True or False, " % (symm, self.name))
-        self.svsprior = model_config.get("svsprior", "poisson")
+        self.symmetric = model_config.symmetric
+        self.svsprior = model_config.options.get("svsprior", "poisson")
 
     def add_state(self, state):
 

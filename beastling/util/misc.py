@@ -1,6 +1,36 @@
+from urllib.request import FancyURLopener
+
 import newick
 
 from beastling.util import log
+
+
+class FromOptions(object):
+    def __init__(self, options, config):
+        self.config = config
+        self.options = options
+
+    @property
+    def name(self):
+        return self.options.name
+
+
+def all_subclasses(cls):
+    """
+    We use subclassing as a cheap registration mechanism, thus we want to be able to enumerate
+    all subclasses of a given class easily.
+    """
+    return set(cls.__subclasses__()).union(
+        [s for c in cls.__subclasses__() for s in all_subclasses(c)])
+
+
+class URLopener(FancyURLopener):
+    def http_error_default(self, url, fp, errcode, errmsg, headers):
+        raise ValueError()  # pragma: no cover
+
+
+def retrieve_url(url, fname):
+    return URLopener().retrieve(url, str(fname))
 
 
 def sanitise_tree(tree, tree_type, languages):

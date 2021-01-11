@@ -11,11 +11,11 @@ class RatePriorClock (BaseClock):
     def __init__(self, clock_config, global_config):
         super().__init__(clock_config, global_config)
         self.distribution = Distribution.from_string(
-            clock_config.get("rate", "lognormal(-6.9077552789821368, 2.3025850929940459)"),
+            clock_config.rate or "lognormal(-6.9077552789821368, 2.3025850929940459)",
             context="clock {:s}".format(self.name),
             is_point=True)
         self.initial_mean = self.distribution.mean()
-        if clock_config.get("estimate_rate", True) and self.distribution.dist == "point":
+        if clock_config.estimate_rate is True and self.distribution.dist == "point":
             self.distribution = Distribution(0, "uniform", (0, sys.maxsize))
 
     def add_prior(self, prior):
@@ -32,4 +32,4 @@ class RatePriorClock (BaseClock):
 
 
 class StrictClockWithPrior (RatePriorClock, StrictClock):
-    pass
+    __type__ = 'strict_with_prior'

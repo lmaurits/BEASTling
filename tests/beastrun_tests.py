@@ -23,6 +23,7 @@ skip = [
 
 
 @pytest.mark.beast
+@pytest.mark.slow
 @pytest.mark.parametrize(
     'configs,assertion',
     [
@@ -125,9 +126,11 @@ skip = [
         (("admin", "covarion_multistate", "pseudodollocovarion"), None),
         (("admin", "covarion_multistate", "log_fine_probs", "pseudodollocovarion"), None),
         (("admin", "covarion_multistate", "covarion_per_feature_params", "pseudodollocovarion"), None),
-        # Currently, Beast's pseudodollocovarion model does not support the
-        # robust eigensystem implementation.
-        # (("admin", "covarion_multistate", "robust_eigen", "pseudodollocovarion"), None),
+        pytest.param(
+            ("admin", "covarion_multistate", "robust_eigen", "pseudodollocovarion"), None,
+            # Currently, Beast's pseudodollocovarion model does not support the
+            # robust eigensystem implementation.
+            marks=pytest.mark.xfail),
         (("admin", "covarion_multistate", "pseudodollocovarion_fix_freq"), None),
         # Test that for 'log_fine_probs=True', probabilites are logged:
         (
@@ -157,9 +160,10 @@ skip = [
         (
                 ("admin", "mk", "ancestral_state_reconstruction", "taxa", "reconstruct_one"),
                 lambda dir: dir.joinpath("beastling_test.log").exists()),
-
     ]
 )
+
+
 def test_beastrun(configs, assertion, config_factory, tmppath):
     """Turn each BEASTling config file in tests/configs into a
     BEAST.xml, and feed it to BEAST, testing for a zero return
@@ -171,7 +175,7 @@ def test_beastrun(configs, assertion, config_factory, tmppath):
         warnings.simplefilter("always")
 
         temp_filename = tmppath / 'test'
-        xml = beastling.beastxml.BeastXml(config_factory(*configs), validate=False)
+        xml = beastling.beastxml.BeastXml(config_factory(*configs))
         xml.write_file(str(temp_filename))
         debug_copy = pathlib.Path('_test.xml')
         shutil.copy(str(temp_filename), str(debug_copy))
@@ -180,8 +184,8 @@ def test_beastrun(configs, assertion, config_factory, tmppath):
         if os.environ.get('CI'):
             et.parse(str(temp_filename))
         else:
-            # Data files etc. are all referenced by paths relative to the repos root.
-            shutil.copytree(str(pathlib.Path(__file__).parent), str(tmppath / 'tests'))
+            ## Data files etc. are all referenced by paths relative to the repos root.
+            #shutil.copytree(str(pathlib.Path(__file__).parent), str(tmppath / 'tests'))
             try:
                 subprocess.check_call(
                     ['beast', '-java', '-overwrite', str(temp_filename)],

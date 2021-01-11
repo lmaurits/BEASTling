@@ -4,56 +4,71 @@ from ..fileio.datareaders import load_data
 from beastling.util.fileio import iterlines
 from beastling.util import xml
 from beastling.util import log
+from beastling.util.misc import FromOptions
 
 
-class BaseModel(object):
+class BaseModel(FromOptions):
     """
     Base class from which all substitution model classes are descended.
     Implements generic functionality which is common to all substitution
     models, such as rate variation.
     """
+    package_notice = None
 
     treewide_reconstruction = False
     """Should ASR be performed on the entire tree (if at all)?"""
+
+    @classmethod
+    def __model_name__(cls):
+        return cls.__name__.lower().replace('model', '')
 
     def __init__(self, model_config, global_config):
         """
         Parse configuration options, load data from file and pre-process data.
         """
-        self.config = global_config
+        FromOptions.__init__(self, model_config, global_config)
 
-        self.name = model_config["name"]
-        self.data_filename = model_config["data"]
-        self.clock = model_config.get("clock", "")
-        self.features = model_config.get("features",["*"])
-        self.reconstruct = model_config.get("reconstruct", None)
-        self.reconstruct_at = model_config.get("reconstruct_at", [])
-        self.exclusions = model_config.get("exclusions",None)
+        if model_config.data is None:
+            raise ValueError('no data')
+
+        self.data_filename = model_config.data
+
+        self.clock = model_config.options.get("clock", "")
+        self.features = model_config.features
+        self.reconstruct = model_config.reconstruct
+        self.reconstruct_at = model_config.reconstruct_at
+        self.exclusions = model_config.exclusions
+
         self.constant_feature = False
         self.constant_feature_removed = False
-        self.frequencies = model_config.get("frequencies", "empirical")
-        self.pruned = model_config.get("pruned", False)
-        self.rate_variation = model_config.get("rate_variation", False)
-        self.feature_rates = model_config.get("feature_rates", {})
-        self.rate_partition = model_config.get("rate_partition", {})
-        self.ascertained = model_config.get("ascertained", None)
+
+        self.frequencies = model_config.options.get("frequencies", "empirical")
+        self.pruned = model_config.pruned
+        self.rate_variation = model_config.rate_variation
+
+        self.feature_rates = model_config.options.get("feature_rates", {})
+        self.rate_partition = model_config.options.get("rate_partition", {})
+        self.ascertained = model_config.ascertained
+
         # Force removal of constant features here
         # This can be set by the user in BinaryModel only
         self.remove_constant_features = True
-        self.minimum_data = float(model_config.get("minimum_data", 0))
+
+        self.minimum_data = model_config.minimum_data
+
         self.single_sitemodel = False
         self.substitution_name = self.__class__.__name__
         self.data_separator = ","
-        self.use_robust_eigensystem = model_config.get("use_robust_eigensystem", False)
+        self.use_robust_eigensystem = model_config.use_robust_eigensystem
         self.metadata = []
         self.treedata = []
 
         # Load the entire dataset from the file
         self.data, language_code_map = load_data(
             self.data_filename,
-            file_format=model_config.get("file_format", None),
-            lang_column=model_config.get("language_column", None),
-            value_column=model_config.get("value_column", None),
+            file_format=model_config.options.get("file_format", None),
+            lang_column=model_config.options.get("language_column", None),
+            value_column=model_config.options.get("value_column", None),
             expect_multiple=True)
 
         # Augment the Glottolog classifications with human-friendly language
@@ -88,7 +103,6 @@ class BaseModel(object):
         attribute.
         """
         if self.features == ["*"]:
-            random_iso = list(self.data.keys())[0]
             self.features = set()
             for lang_features in self.data.values():
                 self.features |= set(lang_features.keys())
@@ -116,8 +130,6 @@ class BaseModel(object):
             self.reconstruct_at = None
             self.treewide_reconstruction = True
         elif self.reconstruct_at:
-            if len(self.reconstruct_at) > 1:
-                raise ValueError("Cannot currently reconstruct at more than one location.")
             for f in self.reconstruct_at:
                 if f not in self.config.language_group_configs:
                     raise KeyError("Language group {:} is undefined. Valid groups are: {:}".format(
@@ -535,7 +547,7 @@ class BaseModel(object):
                     self.treedata.append(attribs["id"])
                     distribution.attrib["tag"] = f
                 else:
-                    distribution.attrib["spec"] = "AncestralStateLogger"
+                    distribution.attrib["spec"] = "lucl.beast.statereconstruction.AncestralStatesLogger"
                     distribution.attrib["value"] = " ".join(self.pattern_names(f))
                     for label in self.reconstruct_at:
                         langs = self.config.language_group(label)
@@ -713,6 +725,16 @@ class BaseModel(object):
             # Log the scale, but not the shape, as it is always 1 / scale
             # We prefer the scale because it is positively correlated with extent of variation
             xml.log(logger, idref="featureClockRateGammaShape:%s" % self.name)
+
+    def add_likelihood_loggers(self, logger):
+        plate = ET.SubElement(logger, "plate", {
+            "var":"feature",
+            "range":",".join(self.features)})
+        ET.SubElement(plate, "log", {
+            "idref":"featureLikelihood:%s:$(feature)" % self.name})
+        if self.rate_variation:
+            ET.SubElement(logger,"log",{"idref":"featureClockRatePrior.s:%s" % self.name})
+            ET.SubElement(logger,"log",{"idref":"featureClockRateGammaScalePrior.s:%s" % self.name})
 
     def add_frequency_logs(self, logger):
         for f in self.features:

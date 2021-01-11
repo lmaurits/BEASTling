@@ -1,54 +1,27 @@
-import collections
-import importlib
-import io
 import itertools
-import os
 import random
-import re
-import sys
-from urllib.request import FancyURLopener
 from pathlib import Path
 from configparser import ConfigParser
 
 import newick
-from appdirs import user_data_dir
 from csvw.dsv import reader
+from appdirs import user_data_dir
 
-from beastling.fileio.datareaders import load_location_data
-from .distributions import Distribution
-import beastling.clocks.strict as strict
-import beastling.clocks.relaxed as relaxed
+from beastling.fileio.datareaders import iterlocations
 import beastling.clocks.random as random_clock
-import beastling.clocks.prior as prior_clock
 
 import beastling.models.geo as geo
-import beastling.models.binaryctmc as binaryctmc
-import beastling.models.bsvs as bsvs
-import beastling.models.covarion as covarion
-import beastling.models.pseudodollocovarion as pseudodollocovarion
-import beastling.models.mk as mk
 
 from beastling import sections
 from beastling.util import log
+from beastling.util import monophyly
+from beastling.util.misc import retrieve_url
 
 import beastling.treepriors.base as treepriors
 from beastling.treepriors.coalescent import CoalescentTree
+from beastling.distributions import Calibration
 
 _BEAST_MAX_LENGTH = 2147483647
-GLOTTOLOG_NODE_LABEL = re.compile(
-    "'(?P<name>[^\[]+)\[(?P<glottocode>[a-z0-9]{8})\](\[(?P<isocode>[a-z]{3})\])?(?P<appendix>-l-)?'")
-
-
-class Calibration(
-        collections.namedtuple(
-            "Calibration", ["langs", "originate", "offset", "dist", "param"]),
-        Distribution):
-    pass
-
-
-class URLopener(FancyURLopener):
-    def http_error_default(self, url, fp, errcode, errmsg, headers):
-        raise ValueError()  # pragma: no cover
 
 
 def get_glottolog_data(datatype, release):
@@ -65,17 +38,17 @@ def get_glottolog_data(datatype, release):
     }
     fname_pattern, fname_source = path_spec[datatype]
     fname = fname_pattern.format(release)
-    path = os.path.join(os.path.dirname(__file__), 'data', fname)
-    if not os.path.exists(path):
-        data_dir = user_data_dir('beastling')
-        if not os.path.exists(data_dir):
-            os.makedirs(data_dir)
-        path = os.path.join(data_dir, fname)
-        if not os.path.exists(path):
+
+    path = Path(__file__).parent / 'data' / fname
+    if not path.exists():
+        data_dir = Path(user_data_dir('beastling'))
+        if not data_dir.exists():
+            data_dir.mkdir(parents=True)
+        path = data_dir / fname
+        if not path.exists():
             try:
-                URLopener().retrieve(
-                    'http://glottolog.org/static/download/{0}/{1}'.format(
-                        release, fname_source),
+                retrieve_url(
+                    'https://glottolog.org/static/download/{0}/{1}'.format(release, fname_source),
                     path)
             except (IOError, ValueError):
                 raise ValueError(
@@ -99,23 +72,18 @@ class Configuration(object):
         cli_params = {k: v for k, v in locals().items()}
 
         # Options set by the user, with default values
-        self.calibration_configs = {}
         """A dictionary whose keys are glottocodes or lowercase Glottolog clade names, and whose values are length-2 tuples of flatoing point dates (lower and upper bounds of 95% credible interval)."""
-        self.clock_configs = []
-        """A list of dictionaries, each of which specifies the configuration for a single clock model."""
+        self.calibration_configs = {}
+        """A list of `sections.Clock`s, each of which specifies the configuration for a single clock model."""
+        self.clocks = []
+        self.clocks_by_name = {}
 
-        self.geo_config = {}
-        """A dictionary with keys and values corresponding to a [geography] section in a configuration file."""
-        self.language_group_configs = collections.OrderedDict()
         """An ordered dictionary whose keys are language group names and whose values are language group definitions."""
         self.language_groups = {}
         """A dictionary giving names to arbitrary collections of tip languages."""
-        self.location_data = None
-        """Name of a file containing latitude/longitude data."""
-        """A floating point value, indicated the percentage of datapoints, across ALL models, which a language must have in order to be included in the analysis."""
-        self.minimum_data = 0.0
-        self.model_configs = []
+
         """A list of dictionaries, each of which specifies the configuration for a single evolutionary model."""
+        self.models = []
         self.stdin_data = stdin_data
         """A boolean value, controlling whether or not to read data from stdin as opposed to the file given in the config."""
 
@@ -133,6 +101,7 @@ class Configuration(object):
         self.processed = False
         self._files_to_embed = []
 
+        # Now read the config ...
         self.cfg = ConfigParser(interpolation=None)
         self.cfg.optionxform = str
         if configfile:
@@ -142,11 +111,49 @@ class Configuration(object):
                 if isinstance(configfile, str):
                     configfile = (configfile,)
                 self.cfg.read([str(c) for c in configfile])
-        self.read_cfg()
+
+        # ... and process the sections:
+        # [geography]
+        if 'geography' in self.cfg.sections():
+            self.geography = sections.Geography.from_config(cli_params, 'geography', self.cfg)
+        else:
+            self.geography = None
+
+        # [calibration]
+        for clade, calibration in sections.Calibration.from_config(
+                {}, "calibration", self.cfg).options.items():
+            self.calibration_configs[clade] = calibration
+
+        # [model ...] and [clock ...]
+        for prefix, cfg_cls in [('clock', sections.Clock), ('model', sections.Model)]:
+            for section in [s for s in self.cfg.sections() if s.lower().startswith(prefix)]:
+                getattr(self, prefix + 's').append(
+                    cfg_cls.from_config({}, section, self.cfg))
+
+        # Make sure analysis is non-empty
+        if not (self.models or self.geography):
+            raise ValueError("Config file contains no model sections and no geography section.")
+
+        # [geo_priors]
+        if self.cfg.has_section("geo_priors"):
+            if not self.geography:
+                raise ValueError("Config file contains geo_priors section but no geography section.")
+            for clade, klm in sections.GeoPriors.from_config(
+                    {}, 'geo_priors', self.cfg).iterpriors():
+                if clade not in self.geography.sampling_points:
+                    self.geography.sampling_points.append(clade)
+                self.geography.priors[clade] = klm
+
+        # [admin]
         self.admin = sections.Admin.from_config(cli_params, 'admin', self.cfg)
+        # [mcmc]
         self.mcmc = sections.MCMC.from_config(
             cli_params, 'mcmc' if self.cfg.has_section('mcmc') else 'MCMC', self.cfg)
+        # [languages]
         self.languages = sections.Languages.from_config(cli_params, 'languages', self.cfg)
+        # [language_groups]
+        self.language_group_configs = sections.LanguageGroups.from_config(
+            {}, 'language_groups', self.cfg).options
 
         # If log_every was not explicitly set to some non-zero
         # value, then set it such that we expect 10,000 log
@@ -157,129 +164,12 @@ class Configuration(object):
             # So in this case, just log everything.
             self.admin.log_every = self.mcmc.chainlength // 10000 or 1
 
-        sampled_points = self.geo_config.get("sampling_points",[])
-        if [p for p in sampled_points if p.lower() != "root"] and self.languages.sample_topology and not self.languages.monophyly:
+        if self.geography \
+                and [p for p in self.geography.sampling_points if p.lower() != "root"] \
+                and self.languages.sample_topology and not self.languages.monophyly:
             log.warning(
                 "Geographic sampling and/or prior specified for clades other than root, but tree "
                 "topology is being sampled without monophyly constraints. BEAST may crash.")
-
-    def read_cfg(self):
-        """
-        Read one or several INI-style configuration files and overwrite
-        default option settings accordingly.
-        """
-        p = self.cfg
-
-        ## Languages
-        sec = "languages"
-        if p.has_option(sec,'minimum_data'):
-            self.minimum_data = p.getfloat(sec, "minimum_data")
-
-        ## Language groups
-        if p.has_section("language_groups"):
-            for name, components_string in p.items("language_groups"):
-                self.language_group_configs[name] = components_string
-
-        ## Calibration
-        if p.has_section("calibration"):
-            for clade, calibration in p.items("calibration"):
-                self.calibration_configs[clade] = calibration
-
-        ## Clocks
-        clock_sections = [s for s in p.sections() if s.lower().startswith("clock")]
-        for section in clock_sections:
-            self.clock_configs.append(self.get_clock_config(p, section))
-
-        ## Models
-        model_sections = [s for s in p.sections() if s.lower().startswith("model")]
-        for section in model_sections:
-            self.model_configs.append(self.get_model_config(p, section))
-
-        # Geography
-        if p.has_section("geography"):
-            self.geo_config = self.get_geo_config(p, "geography")
-        else:
-            self.geo_config = {}
-
-        # Geographic priors
-        if p.has_section("geo_priors"):
-            if not p.has_section("geography"):
-                raise ValueError("Config file contains geo_priors section but no geography section.")
-            self.geo_config["geo_priors"] = {}
-            for clades, klm in p.items("geo_priors"):
-                for clade in clades.split(','):
-                    clade = clade.strip()
-                    if clade not in self.geo_config["sampling_points"]:
-                        self.geo_config["sampling_points"].append(clade)
-                    self.geo_config["geo_priors"][clade] = klm
-        # Make sure analysis is non-empty
-        if not model_sections and not self.geo_config:
-            raise ValueError("Config file contains no model sections and no geography section.")
-
-    def get_clock_config(self, p, section):
-        cfg = {
-            'name': section[5:].strip(),
-        }
-        for key, value in p[section].items():
-            if key in ('estimate_mean', 'estimate_rate','estimate_variance', 'correlated'):
-                value = p.getboolean(section, key)
-            elif key in ('mean','variance'):
-                value = p.getfloat(section, key)
-            elif key in ('rate',):
-                try:
-                    value = p.getfloat(section, key)
-                except ValueError:
-                    pass # and hope it's a prior clock
-            cfg[key] = value
-        return cfg
-
-    def get_model_config(self, p, section):
-        section_parts = section.split(None, 1)
-        if len(section_parts) == 1:
-            raise ValueError("All model sections must have a name!")
-        cfg = {
-            'name': section_parts[1].strip().replace(" ","_"),
-            'binarised': None,
-            'rate_variation': False,
-            'remove_constant_features': True,
-        }
-        for key, value in p[section].items():
-            # "binarised" is the canonical name for this option and used everywhere
-            # internally, but "binarized" is accepted in the config file.
-            if key in ('binarised', 'binarized'):
-                value = p.getboolean(section, key)
-                key = 'binarised'
-            if key in ("features", "reconstruct", "exclusions", "reconstruct_at"):
-                value = self.handle_file_or_list(value)
-            if key in ['ascertained','pruned','rate_variation', 'remove_constant_features', 'use_robust_eigensystem']:
-                value = p.getboolean(section, key)
-
-            if key in ['minimum_data']:
-                value = p.getfloat(section, key)
-
-            if key in ['data']:
-                value = Path(value)
-            cfg[key] = value
-        return cfg
-
-    def get_geo_config(self, p, section):
-        cfg = {
-            'name': 'geography',
-            'model': 'geo',
-            'log_locations': True,
-            'sampling_points': [],
-        }
-        for key, value in p[section].items():
-            if key == "log_locations":
-                value = p.getboolean(section, key)
-            elif key == "sampling_points":
-                value = self.handle_file_or_list(value)
-            elif key == "data":
-                # Just set the Configuration class attribute, don't put it in this dict
-                self.location_data = value
-                continue 
-            cfg[key] = value
-        return cfg
 
     def process(self):
         """
@@ -294,6 +184,9 @@ class Configuration(object):
         BeastXml object can be instantiated from this Configuration with no
         problems.
         """
+        if self.processed:
+            log.warning('Configuration has already been processed')
+            return
 
         # Add dependency notices if required
         if self.languages.monophyly and not self.languages.starting_tree:
@@ -365,7 +258,7 @@ class Configuration(object):
 
         for name, specification in self.language_group_configs.items():
             taxa = set()
-            for already_defined in specification.split(","):
+            for already_defined in specification:
                 taxa |= set(self.language_group(already_defined.strip()))
             self.language_groups[name] = taxa
 
@@ -380,80 +273,52 @@ class Configuration(object):
             return
         # Don't load if we already have - can this really happen?
         if self.glottolog_loaded:
+            log.warning('Glottolog data has already been loaded')
             return
         self.glottolog_loaded = True
 
-        label2name = {}
-        glottocode2node = {}
-
-        def parse_label(label):
-            match = GLOTTOLOG_NODE_LABEL.match(label)
-            label2name[label] = (match.group('name').strip().replace("\\'","'"), match.group('glottocode'))
-            return (
-                match.group('name').strip(),
-                match.group('glottocode'),
-                match.group('isocode'))
-
-        def get_classification(node):
-            ancestor = node.ancestor
-            if not ancestor:
-                # Node is root of some family
-                return [label2name[node.name]]
-            res = []
-            while ancestor:
-                res.append(label2name[ancestor.name])
-                ancestor = ancestor.ancestor
-            return list(reversed(res))
-
-        # Walk the tree and build the classifications dictionary
-        glottolog_trees = newick.read(get_glottolog_data('newick', self.admin.glottolog_release))
-        for tree in glottolog_trees:
-            for node in tree.walk():
-                name, glottocode, isocode = parse_label(node.name)
-                classification = get_classification(node)
-                self.classifications[glottocode] = classification
-                if isocode:
-                    self.classifications[isocode] = classification
-                glottocode2node[glottocode] = node
+        self.classifications, glottocode2node, label2name = monophyly.classifications_from_newick(
+           str(get_glottolog_data('newick', self.admin.glottolog_release)))
 
         # Load geographic metadata
+        dialects = []
         for t in reader(
-                get_glottolog_data('geo', self.admin.glottolog_release), namedtuples=True):
-            if t.macroarea:
-                self.glotto_macroareas[t.glottocode] = t.macroarea
-                for isocode in t.isocodes.split():
-                    self.glotto_macroareas[isocode] = t.macroarea
+                get_glottolog_data('geo', self.admin.glottolog_release), dicts=True):
+            identifiers = [t['glottocode']] +t['isocodes'].split()
+            if t['level'] == "dialect":
+                dialects.append((t, identifiers))
+            if t['macroarea']:
+                for id_ in identifiers:
+                    self.glotto_macroareas[id_] = t['macroarea']
 
-            if t.latitude and t.longitude:
-                latlon = (float(t.latitude), float(t.longitude))
-                self.locations[t.glottocode] = latlon
-                for isocode in t.isocodes.split():
-                    self.locations[isocode] = latlon
+            if t['latitude'] and t['longitude']:
+                latlon = (float(t['latitude']), float(t['longitude']))
+                for id_ in identifiers:
+                    self.locations[id_] = latlon
 
         # Second pass of geographic data to handle dialects, which inherit
         # their parent language's location
-        for t in reader(
-                get_glottolog_data('geo', self.admin.glottolog_release), namedtuples=True):
-            if t.level == "dialect":
-                failed = False
-                if node not in glottocode2node:
-                    continue
-                node = glottocode2node[t.glottocode]
-                ancestor = node.ancestor
-                while label2name[ancestor.name][1] not in self.locations:
-                    if not ancestor.ancestor:
-                        # We've hit the root without finding an ancestral node
-                        # with location data!
-                        failed = True
-                        break
-                    else:
-                        ancestor = ancestor.ancestor
-                if failed:
-                    continue
-                latlon = self.locations[label2name[ancestor.name][1]]
-                self.locations[t.glottocode] = latlon
-                for isocode in t.isocodes.split():
-                    self.locations[isocode] = latlon
+        for t, identifiers in dialects:
+            failed = False
+            if t['glottocode'] not in glottocode2node:  # pragma: no cover
+                # This may only happen for newick downloads of older Glottolog releases, where
+                # possibly isolates may not be included.
+                continue
+            node = glottocode2node[t['glottocode']]
+            ancestor = node.ancestor
+            while label2name[ancestor.name][1] not in self.locations:
+                if not ancestor.ancestor:
+                    # We've hit the root without finding an ancestral node
+                    # with location data!
+                    failed = True
+                    break
+                else:
+                    ancestor = ancestor.ancestor
+            if failed:
+                continue
+            latlon = self.locations[label2name[ancestor.name][1]]
+            for id_ in identifiers:
+                self.locations[id_] = latlon
 
     def check_glottolog_required(self):
         # We need Glottolog if...
@@ -467,19 +332,16 @@ class Configuration(object):
             # ...we're using calibrations (well, sometimes)
             or self.calibration_configs
             # ...we're using geography
-            or self.geo_config
+            or self.geography
             # ...we've been forced to by greater powers (like the CLI)
             or self.force_glottolog_load
         )
 
     def load_user_geo(self):
-        if not self.location_data:
-            return
-        # Read location data from file, patching (rather than replacing) Glottolog
-        location_files = [x.strip() for x in self.location_data.split(",")]
-        for loc_file in location_files:
-            for language, location in load_location_data(loc_file).items():
-                self.locations[language] = location
+        if self.geography:
+            # Read location data from file, patching (rather than replacing) Glottolog
+            for loc_file in self.geography.data:
+                self.locations.update(dict(iterlocations(loc_file)))
 
     def build_language_filter(self):
         """
@@ -505,20 +367,14 @@ class Configuration(object):
             for model in self.models:
                 count += len([x for x in model.data[lang].values() if x])
             datapoint_props[lang] = 1.0*count / N
-        self.sparse_languages = [l for l in all_langs if datapoint_props[l] < self.minimum_data]
+        self.sparse_languages = [
+            l for l in all_langs if datapoint_props[l] < self.languages.minimum_data]
 
     @property
     def files_to_embed(self):
         res = set(fname for fname in self._files_to_embed)
         for section in [self.admin, self.mcmc, self.languages]:
             res = res.union(section.files_to_embed)
-        return res
-
-    def handle_file_or_list(self, value):
-        res = sections.handle_file_or_list(value)
-        if isinstance(res, sections.ConfigValue):
-            self._files_to_embed.append(res.fname)
-            res = res.value
         return res
 
     def filter_language(self, l):
@@ -545,7 +401,7 @@ class Configuration(object):
         languages are classified identically by Glottolog, then override
         the monophyly=True setting.
         """
-        if not self.languages.monophyly:
+        if (not self.languages.monophyly) or self.languages.monophyly_newick:
             return
         if len(self.languages.languages) < 3:
             # Monophyly constraints are meaningless for so few languages
@@ -582,136 +438,26 @@ class Configuration(object):
             classifications = [self.classifications[name.lower()] for name in langs]
             end = max([len(c) for c in classifications]) - self.languages.monophyly_start_depth
             start = max(0, end - self.languages.monophyly_levels)
-        struct = self.make_monophyly_structure(langs, depth=start, maxdepth=end)
+        struct = monophyly.make_structure(self.classifications, langs, depth=start, maxdepth=end)
         # Make sure this struct is not pointlessly flat
-        if not self.check_monophyly_structure(struct):
+        if not monophyly.check_structure(struct):
             self.languages.monophyly = False
             log.info(
                 "Disabling Glottolog monophyly constraints because all languages in the analysis "
                 "are classified identically.")
         # At this point everything looks good, so keep monophyly on and serialise the "monophyly structure" into a Newick tree.
-        self.languages.monophyly_newick = self.make_monophyly_string(struct)
-
-    def make_monophyly_structure(self, langs, depth, maxdepth):
-        """
-        Recursively partition a list of languages (ISO or Glottocodes) into
-        lists corresponding to their Glottolog classification.  The process
-        may be halted part-way down the Glottolog tree.
-        """
-        if depth > maxdepth:
-            # We're done, so terminate recursion
-            return langs
-
-        def subgroup(name, depth):
-            ancestors = self.classifications[name.lower()]
-            return ancestors[depth][0] if depth < len(ancestors) else ''
-
-        def sortkey(i):
-            """
-            Callable to pass into `sorted` to port sorting behaviour from py2 to py3.
-
-            :param i: Either a string or a list (of lists, ...) of strings.
-            :return: Pair (nesting level, first string)
-            """
-            d = 0
-            while isinstance(i, list):
-                d -= 1
-                i = i[0] if i else ''
-            return d, i
-
-        N = len(langs)
-        # Find the ancestor of all the given languages at at particular depth
-        # (i.e. look `depth` nodes below the root of the Glottolog tree)
-        groupings = list(set([subgroup(l, depth) for l in langs]))
-        if len(groupings) == 1:
-            # If all languages belong to the same classificatio at this depth,
-            # there are two possibilities
-            if groupings[0] == "":
-                # If the common classification is an empty string, then we know
-                # that there is no further refinement possible, so stop
-                # the recursion here.
-                langs.sort()
-                return langs
-            else:
-                # If the common classification is non-empty, we need to
-                # descend further, since some languages might get
-                # separated later
-                return self.make_monophyly_structure(langs, depth+1, maxdepth)
-        else:
-            # If the languages belong to multiple classifications, split them
-            # up accordingly and then break down each classification
-            # individually.
-
-            # Group up those languages which share a non-blank Glottolog classification
-            partition = [[l for l in langs if subgroup(l, depth) == group] for group in groupings if group != ""]
-            # Add those languages with blank classifications in their own isolate groups
-            for l in langs:
-                if subgroup(l, depth) == "":
-                    partition.append([l,])
-            # Get rid of any empty sets we may have accidentally created
-            partition = [part for part in partition if part]
-            # Make sure we haven't lost any langs
-            assert sum((len(p) for p in partition)) == N
-            return sorted(
-                [self.make_monophyly_structure(group, depth+1, maxdepth)
-                 for group in partition],
-                key=sortkey)
-
-    def check_monophyly_structure(self, struct):
-        """
-        Return True if the monophyly structure represented by struct is
-        considered "meaningful", i.e. encodes something other than an
-        unstructured polytomy.
-        """
-
-        # First, transform e.g. [['foo'], [['bar']], [[[['baz']]]]], into simply
-        # ['foo','bar','baz'].
-        def denester(l):
-            if type(l) != list:
-                return l
-            if len(l) == 1:
-                return denester(l[0])
-            return [denester(x) for x in l]
-        struct = denester(struct)
-        # Now check for internal structure
-        if not any([type(x) == list for x in struct]):
-            # Struct is just a list of language names, with no internal structure
-            return False
-        return True
-
-    def make_monophyly_string(self, struct, depth=0):
-        """
-        Converts a structure of nested lists into Newick string.
-        """
-        if not type([]) in [type(x) for x in struct]:
-            return "(%s)" % ",".join(struct) if len(struct) > 1 else struct[0]
-        else:
-            return "(%s)" % ",".join([self.make_monophyly_string(substruct) for substruct in struct])
+        self.languages.monophyly_newick = monophyly.make_newick(struct)
 
     def instantiate_clocks(self):
         """
         Populates self.clocks with a list of BaseClock subclasses, one for each
         dictionary of settings in self.clock_configs.
         """
-        self.clocks = []
-        self.clocks_by_name = {}
-        for config in self.clock_configs:
-            if config["type"].lower() == "strict":
-                clock = strict.StrictClock(config, self)
-            elif config["type"].lower() == "strict_with_prior":
-                clock = prior_clock.StrictClockWithPrior(config, self)
-            elif config["type"].lower() == "relaxed":
-                clock = relaxed.relaxed_clock_factory(config, self)
-            elif config["type"].lower() == "random":
-                clock = random_clock.RandomLocalClock(config, self)
-            self.clocks.append(clock)
-            self.clocks_by_name[clock.name] = clock
-        # Create default clock if necessary
+        self.clocks = [clock.get_clock(self) for clock in self.clocks]
+        self.clocks_by_name = {clock.name: clock for clock in self.clocks}
+
         if "default" not in self.clocks_by_name:
-            config = {}
-            config["name"] = "default"
-            config["type"] = "strict"
-            clock = strict.StrictClock(config, self)
+            clock = sections.Clock(cli_params={}, name='clock default').get_clock(self)
             self.clocks.append(clock)
             self.clocks_by_name[clock.name] = clock
 
@@ -720,52 +466,15 @@ class Configuration(object):
         Populates self.models with a list of BaseModel subclasses, one for each
         dictionary of settings in self.model_configs.
         """
-        if not (self.model_configs or self.geo_config):
-            raise ValueError("No models or geography specified!")
-
         # Handle request to read data from stdin
         if self.stdin_data:
-            for config in self.model_configs:
+            for config in self.models:
                 config["data"] = "stdin"
 
-        self.models = []
-        for config in self.model_configs:
-            # Validate config
-            if "model" not in config:
-                raise ValueError("Model not specified for model section %s." % config["name"])
-            if "data" not in config:
-                raise ValueError("Data source not specified in model section %s." % config["name"])
+        self.models = [model.get_model(self) for model in self.models]
 
-            # Instantiate model
-            if config["model"].lower() == "bsvs":
-                model = bsvs.BSVSModel(config, self)
-                log.dependency(*bsvs.BSVSModel.package_notice)
-            elif config["model"].lower() == "covarion":
-                model = covarion.CovarionModel(config, self)
-            elif config["model"].lower() == "binaryctmc":
-                model = binaryctmc.BinaryCTMCModel(config, self)
-            elif config["model"].lower() == "pseudodollocovarion":
-                model = pseudodollocovarion.PseudoDolloCovarionModel(
-                    config, self)
-            elif config["model"].lower() == "mk":
-                model = mk.MKModel(config, self)
-                log.dependency(*mk.MKModel.package_notice)
-            elif config["model"].lower() == "dollo": # pragma: no cover
-                raise NotImplementedError("The stochastic Dollo model is not implemented yet.")
-            else:
-                try:
-                    sys.path.insert(0, os.getcwd())
-                    module_path, class_name = config["model"].rsplit(".",1)
-                    module = importlib.import_module(module_path)
-                    UserClass = getattr(module, class_name)
-                except:
-                    raise ValueError("Unknown model type '%s' for model section '%s', and failed to import a third-party model." % (config["model"], config["name"]))
-                model = UserClass(config, self)
-
-            self.models.append(model)
-            
-        if self.geo_config:
-            self.geo_model = geo.GeoModel(self.geo_config, self)
+        if self.geography:
+            self.geo_model = geo.GeoModel(self.geography, self)
             self.all_models = [self.geo_model] + self.models
         else:
             self.all_models = self.models
@@ -834,7 +543,7 @@ class Configuration(object):
                     "clock." % free_clocks[0].name)
 
         # Determine whether or not precision-scaling is required
-        if self.geo_config:
+        if self.geography:
             self.geo_model.scale_precision = False
             geo_clock = self.geo_model.clock
             for m in self.models:
@@ -883,7 +592,8 @@ class Configuration(object):
 
         ## Perform subsampling, if requested
         self.languages.languages = sorted(self.subsample_languages(self.languages.languages))
-        log.info("%d languages included in analysis." % len(self.languages.languages))
+        log.info("{:d} languages included in analysis: {:}".format(
+            len(self.languages.languages), self.languages.languages))
 
         ## SPREAD THE WORD!
         for m in self.models:
@@ -913,17 +623,13 @@ class Configuration(object):
 
     def language_group(self, clade):
         """Look up a language group locally or as a glottolog clade."""
-        try:
-            return self.language_groups[clade]
-        except KeyError:
-            langs = self.get_languages_by_glottolog_clade(clade)
-            self.language_groups[clade] = langs
-            if not langs:
+        if clade not in self.language_groups:
+            self.language_groups[clade] = self.get_languages_by_glottolog_clade(clade)
+            if not self.language_groups[clade]:
                 raise ValueError(
                     "Language group or Glottolog clade {:} not found "
-                    "or was empty for the languages given.".format(
-                        clade))
-            return langs
+                    "or was empty for the languages given.".format(clade))
+        return self.language_groups[clade]
 
     def instantiate_calibrations(self):
         self.calibrations = {}
@@ -1047,34 +753,24 @@ class Configuration(object):
         Given a comma-separated list of Glottolog ids, return a list of all
         languages descended from the corresponding Glottolog nodes.
         """
-        langs = []
-        clades = [c.strip() for c in clade.split(",")]
-        matched_clades = []
+        clades = set(c.strip() for c in clade.split(","))
+
         # First look for clades which are actually language identifiers
-        for clade in clades:
-            if clade in self.languages.languages:
-                langs.append(clade)
-                matched_clades.append(clade)
+        langs = matched_clades = clades.intersection(self.languages.languages)
 
         # Once a clade has matched against a language name, don't let it
         # subsequently match against anything in Glottolog!
-        for clade in matched_clades:
-            clades.remove(clade)
+        clades = clades - matched_clades
 
-        # If all clades matched against language names, don't bother
-        # searching Glottolog.
-        if not clades:
-            return langs
+        if clades:
+            # Now search against Glottolog
+            clades = [c.lower() for c in clades]
+            for l in self.languages.languages:
+                # No repeated matching!
+                if l not in langs:
+                    for name, glottocode in self.classifications.get(l.lower(), ""):
+                        if name.lower() in clades or glottocode in clades:
+                            langs.add(l)
+                            break
 
-        # Now search against Glottolog
-        clades = [c.lower() for c in clades]
-        for l in self.languages.languages:
-            # No repeated matching!
-            if l in langs:
-                continue
-            for name, glottocode in self.classifications.get(l.lower(),""):
-                if name.lower() in clades or glottocode in clades:
-                    langs.append(l)
-                    break
-
-        return langs
+        return list(langs)

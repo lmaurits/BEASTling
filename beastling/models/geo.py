@@ -1,8 +1,9 @@
 from beastling.util import xml
 from beastling.util import log
+from beastling.util.misc import FromOptions
 
 
-class GeoModel(object):
+class GeoModel(FromOptions):
     """A geographical substitution model.
 
     GeoModel uses the spherical geometry Beast package for
@@ -17,11 +18,10 @@ class GeoModel(object):
         """
         Parse configuration options, load data from file and pre-process data.
         """
-        self.config = global_config
-        self.name = model_config["name"]
-        self.clock = model_config.get("clock", None)
-        self.sampling_points = model_config.get("sampling_points", [])
-        self.geo_priors = model_config.get("geo_priors", {})
+        FromOptions.__init__(self, model_config, global_config)
+        self.clock = model_config.clock
+        self.sampling_points = model_config.sampling_points
+        self.geo_priors = model_config.priors
         self.scale_precision = False
 
     def add_misc(self, beast):

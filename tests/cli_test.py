@@ -59,7 +59,7 @@ def test_generate_errors(capsys, bad_config_dir, config_dir, mocker):
 
 def test_generate_extract(capsys, tmppath, config_dir, caplog):
     xml = tmppath / 'test.xml'
-    _run_main('-v -o {0} {1}'.format(xml, config_dir / 'basic.conf'))
+    _run_main('-v -o {0} --report {1}'.format(xml, config_dir / 'basic.conf'))
     assert xml.exists()
     assert len([r for r in caplog.records if r.levelname == 'INFO']) > 0
     # Overwriting existing files must be specified explicitely:

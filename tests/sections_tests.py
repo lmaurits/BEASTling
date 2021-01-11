@@ -4,7 +4,7 @@ import logging
 import pytest
 
 import beastling
-from beastling.sections import Admin, MCMC, Languages, handle_file_or_list
+from beastling.sections import Admin, MCMC, Languages, Clock, handle_file_or_list
 
 
 def _make_cfg(section, d):
@@ -15,6 +15,18 @@ def _make_cfg(section, d):
 
 def test_legacy_handle_file_or_list():
     assert handle_file_or_list([1, 2, 3]) == [1, 2, 3]
+
+
+def test_Clock():
+    clock = Clock.from_config({}, 'clock 1', _make_cfg('clock 1', {'custom': '1'}))
+    assert clock.name == '1', '"clock" is stripped from name'
+    assert clock.options['custom'] == '1', 'Clocks can have arbitrary options'
+
+    # A relaxed clock with an unknown distribution cannot be instantiated:
+    clock = Clock.from_config(
+        {}, 'clock 1', _make_cfg('clock 1', {'type': 'relaxed', 'distribution': 'unknown'}))
+    with pytest.raises(ValueError):
+        clock.get_clock({})
 
 
 def test_Admin():

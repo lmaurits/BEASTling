@@ -3,11 +3,16 @@ from configparser import ConfigParser
 import pathlib
 import collections
 import functools
+import importlib
 
 import attr
 
-from beastling.util.misc import sanitise_tree
+from beastling.util.misc import sanitise_tree, all_subclasses
 from beastling.util import log
+from beastling.clocks import *  # Make sure all clocks are imported.
+from beastling.clocks.baseclock import BaseClock
+from beastling.models import *  # Make sure all models are imported.
+from beastling.models.basemodel import BaseModel
 
 __all__ = ['Admin', 'MCMC', 'Languages']
 
@@ -24,10 +29,13 @@ def _to_cfg(v):
 
 @attr.s
 class Section(object):
+    __allow_arbitrary_options__ = False
+
     name = attr.ib()  # We keep the section name ...
     cli_params = attr.ib(default=attr.Factory(dict))  # ... and the parameters passed on the cli.
     # We also need to keep track of all the data loaded from extra files:
     files_to_embed = attr.ib(default=attr.Factory(set))
+    options = attr.ib(default=attr.Factory(collections.OrderedDict))
 
     @classmethod
     def from_config(cls, cli_params, section, cfg):
@@ -39,7 +47,7 @@ class Section(object):
         :param cfg: The `ConfigParser` instance.
         :return: Initialized `cls` instance.
         """
-        kw, files_to_embed = {}, set()
+        kw, files_to_embed = {'options': collections.OrderedDict()}, set()
         fields = attr.fields(cls)
         for field in fields:
             if field.name not in ['name', 'cli_params', 'files_to_embed']:
@@ -61,11 +69,14 @@ class Section(object):
             opts = [f.name[:-1] if f.name.endswith('_') else f.name for f in fields]
             for opt in cfg[section]:
                 if opt not in opts:
-                    raise ValueError("Unrecognised option %s in section %s!" % (opt, section))
+                    if cls.__allow_arbitrary_options__:
+                        kw['options'][opt] = cfg.get(section, opt)
+                    else:
+                        raise ValueError("Unrecognised option %s in section %s!" % (opt, section))
         return cls(name=section, cli_params=cli_params, files_to_embed=files_to_embed, **kw)
 
 
-def opt(default, help, getter=ConfigParser.get, setter=_to_cfg, **kw):
+def opt(default, help=None, getter=ConfigParser.get, setter=_to_cfg, **kw):
     """
     Wrap `attr.ib` to add syntactic sugar for creation of `metadata`.
 
@@ -76,6 +87,10 @@ def opt(default, help, getter=ConfigParser.get, setter=_to_cfg, **kw):
     :return: an attribute instance
     """
     return attr.ib(default, metadata=dict(help=help, getter=getter, setter=setter), **kw)
+
+
+def get_list_of_files(cfg, section, option):
+    return [pathlib.Path(f.strip()) for f in cfg.get(section, option).split(',') if f.strip()]
 
 
 def get_file_or_list(cfg, section, option):
@@ -297,6 +312,11 @@ class Languages(Section):
         'Number of languages to subsample from the set defined by the dataset(s) and other '
         'filtering options like "families" or "macroareas".',
         getter=ConfigParser.getint)
+    minimum_data = opt(
+        0.0,
+        "A floating point value, indicated the percentage of datapoints, across ALL models, which "
+        "a language must have in order to be included in the analysis.",
+        getter=ConfigParser.getfloat)
     monophyly = opt(
         False,
         "A boolean parameter, controlling whether or not to enforce monophyly constraints derived "
@@ -357,3 +377,134 @@ class Languages(Section):
             self.monophyly_newick = sanitise_tree(
                 self.monophyly_newick, 'monophyly', self.languages)
             self.monophyly = True
+
+
+@attr.s
+class Geography(Section):
+    name = opt('geography')
+    model = opt('geo')
+    log_locations = opt(True, getter=ConfigParser.getboolean)
+    sampling_points = opt(attr.Factory(list), getter=get_file_or_list)
+    data = opt(attr.Factory(list), getter=get_list_of_files)
+    priors = opt(attr.Factory(dict))
+    clock = opt(None)
+
+
+def maybe_get_float(cfg, section, option, default=None):
+    try:
+        return cfg.getfloat(section, option)
+    except ValueError:
+        return default
+
+
+@attr.s
+class Clock(Section):
+    __allow_arbitrary_options__ = True
+
+    name = opt(None, converter=lambda s: s[5:].strip())
+    type = opt(
+        'strict',
+        validator=attr.validators.in_(set(cls.__type__ for cls in all_subclasses(BaseClock))))
+    distribution = opt('lognormal', converter=lambda s: s.lower())
+    mean = opt(None, getter=ConfigParser.getfloat)
+    variance = opt(None, getter=ConfigParser.getfloat)
+    rate = opt(None, getter=maybe_get_float)  # hope it's a prior clock if this fails.
+    estimate_mean = opt(None, getter=ConfigParser.getboolean)
+    estimate_rate = opt(None, getter=ConfigParser.getboolean)
+    estimate_variance = opt(None, getter=ConfigParser.getboolean)
+    correlated = opt(False, getter=ConfigParser.getboolean)
+
+    def get_clock(self, global_config):
+        clocks = [c for c in all_subclasses(BaseClock) if c.__type__ == self.type]
+        if len(clocks) == 1:
+            return clocks[0](self, global_config)
+        # Multiple clocks with matching type. Let's discriminate by distribution:
+        for clock in clocks:
+            if clock.__distribution__ == self.distribution:
+                return clock(self, global_config)
+        raise ValueError('no matching clock')
+
+
+def valid_path(instance, attribute, value):
+    if not value.exists():
+        raise ValueError('Path {0} does not exist'.format(value))
+
+
+@attr.s
+class Model(Section):
+    __allow_arbitrary_options__ = True
+
+    name = opt(
+        None,
+        converter=lambda s: s.split(None, 1)[1].strip().replace(' ', '_'))
+    model = opt(
+        None,
+    )
+
+    binarised = opt(None, getter=ConfigParser.getboolean)
+    # "binarised" is the canonical name for this option and used everywhere
+    # internally, but "binarized" is accepted in the config file.
+    binarized = opt(None, getter=ConfigParser.getboolean)
+
+    ascertained = opt(None, getter=ConfigParser.getboolean)
+    pruned = opt(False, getter=ConfigParser.getboolean)
+    use_robust_eigensystem = opt(False, getter=ConfigParser.getboolean)
+    rate_variation = opt(False, getter=ConfigParser.getboolean)
+    remove_constant_features = opt(True, getter=ConfigParser.getboolean)
+    symmetric = opt(True, getter=ConfigParser.getboolean)
+    share_params = opt(True, getter=ConfigParser.getboolean)
+
+    minimum_data = opt(0.0, getter=ConfigParser.getfloat)
+
+    features = opt(attr.Factory(lambda: ["*"]), getter=get_file_or_list)
+    exclusions = opt(attr.Factory(list), getter=get_file_or_list)
+    reconstruct = opt(attr.Factory(list), getter=get_file_or_list)
+    reconstruct_at = opt(attr.Factory(list), getter=get_file_or_list)
+
+    data = opt(
+        None,
+        converter=lambda s: pathlib.Path(s) if s else None,
+        validator=attr.validators.optional(valid_path))
+
+    def __attrs_post_init__(self):
+        if self.binarized is not None and self.binarised is None:
+            self.binarised = self.binarized
+
+    def get_model(self, global_config):
+        for cls in all_subclasses(BaseModel):
+            if cls.__model_name__() == self.model:
+                if cls.package_notice:
+                    log.dependency(*cls.package_notice)
+                return cls(self, global_config)
+        try:
+            module_path, class_name = self.model.rsplit(".", 1)
+            cls = getattr(importlib.import_module(module_path), class_name)
+            return cls(self, global_config)
+        except:
+            raise ValueError(
+                "Unknown model type '%s' for model section '%s', and failed to import a "
+                "third-party model." % (self.model, self.name))
+
+
+@attr.s
+class LanguageGroups(Section):
+    __allow_arbitrary_options__ = True
+
+    def __attrs_post_init__(self):
+        self.options = collections.OrderedDict(
+            [(k, [vv.strip() for vv in v.split(',')]) for k, v in self.options.items()])
+
+
+@attr.s
+class Calibration(Section):
+    __allow_arbitrary_options__ = True
+
+
+@attr.s
+class GeoPriors(Section):
+    __allow_arbitrary_options__ = True
+
+    def iterpriors(self):
+        for clades, kml in self.options.items():
+            for clade in clades.split(','):
+                yield clade.strip(), pathlib.Path(kml)

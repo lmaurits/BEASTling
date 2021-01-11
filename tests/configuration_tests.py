@@ -1,14 +1,16 @@
 import io
 import sys
 from pathlib import Path
+import logging
 
 import pytest
 import newick
 
-from beastling.configuration import (
-    Configuration, get_glottolog_data, _BEAST_MAX_LENGTH,
-)
+import beastling
+from beastling.configuration import Configuration, get_glottolog_data
 from beastling.beastxml import BeastXml
+
+pytestmark = pytest.mark.slow
 
 
 def _processed_config(config_factory, *cfgs):
@@ -42,7 +44,7 @@ def test_get_glottolog_newick(tmppath, mocker):
     mocker.patch(
         'beastling.configuration.user_data_dir',
         new=mocker.Mock(return_value=str(tmppath)))
-    trees = newick.read(get_glottolog_data('newick', '2.5'))
+    trees = newick.read(str(get_glottolog_data('newick', '2.5')))
     assert trees[0].name == 'A [abcd1234]'
 
 
@@ -58,17 +60,12 @@ def test_get_glottolog_data_download(tmppath, mocker):
         def retrieve(self, url, fname):
             raise IOError()
 
-    mocker.patch.multiple(
-        'beastling.configuration',
-        user_data_dir=mocker.Mock(return_value=str(data_dir)),
-        URLopener=URLopenerError)
+    mocker.patch('beastling.configuration.user_data_dir', mocker.Mock(return_value=str(data_dir)))
+    mocker.patch('beastling.util.misc.URLopener', URLopenerError)
     with pytest.raises(ValueError):
         get_glottolog_data('newick', '2.5')
 
-    mocker.patch.multiple(
-        'beastling.configuration',
-        user_data_dir=mocker.Mock(return_value=str(data_dir)),
-        URLopener=URLopener)
+    mocker.patch('beastling.util.misc.URLopener', URLopener)
     assert get_glottolog_data('newick', '2.5')
 
 
@@ -78,7 +75,12 @@ def test_families(config_factory):
     assert cfg1.languages.languages == cfg2.languages.languages
 
 
-def test_config(config_factory):
+def test_loading_of_dialect_data(config_factory):
+    cfg = _processed_config(config_factory, 'basic', 'geo')
+    assert '3adt1234' in cfg.locations
+
+
+def test_config(config_dir):
     cfg = Configuration(configfile={
         'admin': {
 
@@ -101,13 +103,48 @@ def test_config(config_factory):
         },
     })
     assert cfg.calibration_configs['abcd1234, efgh5678'] == "10-20"
-    assert cfg.model_configs[1]['binarised']
+    assert cfg.models[1].binarised
 
     with pytest.raises(ValueError, match="'overlap' must be"):
         Configuration(configfile={'languages': {'overlap': 'invalid'}, 'models T': {'model': 'mk'}})
 
     with pytest.raises(ValueError, match='Config file'):
         Configuration(configfile={'languages': {}})
+
+    # Test filename as string:
+    cfg = Configuration(configfile=str(config_dir / 'basic.conf'))
+    assert cfg.mcmc.chainlength == 10
+
+
+def test_monophyly_with_unknown_language(config_factory, data_dir, caplog):
+    datafile = data_dir / 'basic.csv'
+    data = datafile.read_text(encoding='utf8').strip()
+    data += '\nxyzz,1,1,1,1,1,1,1,1,1,1\n'
+    datafile.write_text(data, encoding='utf8')
+    cfg = config_factory('basic', 'monophyletic')
+    cfg.process()
+    assert any('Monophyly constraints' in rec.message for rec in caplog.records)
+
+
+def test_disabling_monophyly(config_factory, data_dir, caplog):
+    datafile = data_dir / 'basic.csv'
+    data = datafile.read_text(encoding='utf8').split('\n')
+    datafile.write_text('\n'.join(data[:3]), encoding='utf8')
+    cfg = config_factory('basic', 'monophyletic')
+    with caplog.at_level(logging.INFO, logger=beastling.__name__):
+        cfg.process()
+        assert any('Disabling Glottolog' in rec.message for rec in caplog.records)
+
+
+def test_multiple_processing(config_factory, config_dir, caplog):
+    cfg = config_factory('basic', 'geo')
+    cfg.process()
+    # processing again doesn't do anything!
+    cfg.process()
+    assert 'already' in caplog.records[-1].message
+    cfg.load_glottolog_data()
+    message = caplog.records[-1].message
+    assert ('already' in message) and ('Glottolog' in message)
 
 
 @pytest.mark.parametrize(
@@ -126,6 +163,7 @@ def test_config(config_factory):
         ["basic", "bad_cal_endpoints"],
         ["basic", "monophyletic", "bad_cal_monophyly"],
         "misspelled_clock",
+        ["basic", "geo_prior"],  # geo priors, but no geography!
     ]
 )
 def test_invalid_config(cfg, config_factory):
@@ -175,7 +213,7 @@ def test_minimum_data(config_factory):
 def test_pruned_rlc(config_factory):
     # Make sure pruned trees are disabled if used in conjunction with RLC
     config = config_factory('basic', 'pruned', 'random')
-    assert config.model_configs[0]["pruned"]
+    assert config.models[0].pruned
     config.process()
     assert not config.models[0].pruned
 
@@ -195,7 +233,7 @@ def test_ascertainment_auto_setting(config_factory):
     assert config.models[0].ascertained
     # Unless, of course, we have constant data...
     config = config_factory('covarion_multistate', 'calibration')
-    config.model_configs[0]["remove_constant_features"] = False
+    config.models[0].remove_constant_features = False
     config.process()
     assert not config.models[0].ascertained
 
@@ -212,7 +250,7 @@ def test_ascertainment_override(config_factory):
 def test_bad_ascertainment(config_factory):
     # Make sure we refuse to produce a misspecified model
     config = config_factory('covarion_multistate', 'ascertainment_true')
-    config.model_configs[0]["remove_constant_features"] = False
+    config.models[0].remove_constant_features = False
     with pytest.raises(ValueError):
         config.process()
 
@@ -316,4 +354,5 @@ def test_calibration(config_factory):
 def test_xml(config_factory, cfgs, in_xml):
     config = _processed_config(config_factory, *cfgs)
     xml = BeastXml(config).tostring().decode('utf8')
-    assert all(s in xml for s in in_xml)
+    for s in in_xml:
+        assert s in xml, s
