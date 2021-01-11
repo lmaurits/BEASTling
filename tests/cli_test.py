@@ -45,7 +45,7 @@ def test_extract_errors(capsys, tmppath):
 
 
 def test_generate_errors(capsys, bad_config_dir, config_dir, mocker):
-    if 'TRAVIS' in os.environ:
+    if 'CI' in os.environ:
         return
     _run_main('abcd', status=1)
     out, err = capsys.readouterr()

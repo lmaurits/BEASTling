@@ -177,7 +177,7 @@ def test_beastrun(configs, assertion, config_factory, tmppath):
         shutil.copy(str(temp_filename), str(debug_copy))
         xml.validate_ids()
 
-        if os.environ.get('TRAVIS'):
+        if os.environ.get('CI'):
             et.parse(str(temp_filename))
         else:
             # Data files etc. are all referenced by paths relative to the repos root.
