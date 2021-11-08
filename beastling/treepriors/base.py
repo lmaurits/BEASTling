@@ -238,6 +238,7 @@ class YuleTree (TreePrior):
             param.text="1.0"
 
     def add_operators(self, beastxml):
+        super().add_operators(beastxml)
         if beastxml.config.languages.sample_branch_lengths:
             updown = xml.operator(
                 beastxml.run,
